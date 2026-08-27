@@ -516,6 +516,190 @@ details[open]>summary::before{
   background:#fff5f5;
 }
 
+/* =========================
+   NOTIFICAÇÕES DE GARANTIA
+========================= */
+
+.notificacoes-garantia{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.notificacao-garantia{
+  border:none;
+  margin:0;
+  padding:16px;
+  border-radius:10px;
+  cursor:pointer;
+  text-align:left;
+  transition:.15s;
+  box-shadow:0 2px 6px rgba(0,0,0,.12);
+  color:#222;
+}
+
+.notificacao-garantia:hover{
+  transform:translateY(-2px);
+  box-shadow:0 5px 14px rgba(0,0,0,.18);
+}
+
+.notificacao-garantia:active{
+  transform:scale(.98);
+}
+
+.notificacao-vencendo{
+  background:#fff3cd;
+  border-left:6px solid #f0ad4e;
+}
+
+.notificacao-fora{
+  background:#f8d7da;
+  border-left:6px solid #dc3545;
+}
+
+.notificacao-garantia .notificacao-titulo{
+  font-size:16px;
+  font-weight:bold;
+}
+
+.notificacao-garantia .notificacao-numero{
+  display:block;
+  font-size:30px;
+  font-weight:bold;
+  margin-top:5px;
+}
+
+.notificacao-garantia small{
+  display:block;
+  margin-top:3px;
+  opacity:.8;
+}
+
+/* =========================
+   POPUP GARANTIAS
+========================= */
+
+.modal-garantia{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:9999;
+  padding:20px;
+  overflow-y:auto;
+}
+
+.modal-garantia-conteudo{
+  max-width:1000px;
+  margin:40px auto;
+  background:#fff;
+  border-radius:12px;
+  padding:20px;
+  box-shadow:0 8px 30px rgba(0,0,0,.3);
+}
+
+.modal-garantia-cabecalho{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+.modal-garantia-cabecalho h2{
+  margin:0;
+  color:#1f6f43;
+}
+
+.btn-fechar-modal{
+  background:#555;
+  margin:0;
+  font-size:18px;
+}
+
+.lista-garantias{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.garantia-lista-item{
+  border:1px solid #ddd;
+  border-radius:8px;
+  padding:14px;
+  background:#f8f8f8;
+}
+
+.garantia-lista-item.vencendo{
+  border-left:6px solid #f0ad4e;
+  background:#fffaf0;
+}
+
+.garantia-lista-item.fora{
+  border-left:6px solid #dc3545;
+  background:#fff5f5;
+}
+
+.garantia-grid{
+  display:grid;
+  grid-template-columns:1.2fr 1.2fr 1fr 1fr;
+  gap:10px;
+}
+
+.garantia-info span{
+  display:block;
+  color:#666;
+  font-size:12px;
+  margin-bottom:3px;
+}
+
+.garantia-info strong{
+  font-size:15px;
+}
+
+.garantia-status{
+  margin-top:10px;
+  padding:8px;
+  border-radius:5px;
+  font-weight:bold;
+}
+
+.garantia-vazia{
+  padding:20px;
+  text-align:center;
+  background:#f7f7f7;
+  border-radius:8px;
+}
+
+@media(max-width:700px){
+
+  .notificacoes-garantia{
+    grid-template-columns:1fr;
+  }
+
+  .garantia-grid{
+    grid-template-columns:1fr 1fr;
+  }
+
+}
+
+@media(max-width:500px){
+
+  .modal-garantia{
+    padding:10px;
+  }
+
+  .modal-garantia-conteudo{
+    margin:15px auto;
+    padding:15px;
+  }
+
+  .garantia-grid{
+    grid-template-columns:1fr;
+  }
+
+}
 </style>
 </head>
 
@@ -554,6 +738,60 @@ details[open]>summary::before{
 </div>
 
 <div class="resumo">
+<!-- =========================
+     NOTIFICAÇÕES DE GARANTIA
+========================= -->
+
+<div class="notificacoes-garantia">
+
+  <button
+    type="button"
+    class="notificacao-garantia notificacao-vencendo"
+    onclick="abrirGarantias('vencendo')"
+  >
+
+    <span class="notificacao-titulo">
+      🟡 Garantias vencendo
+    </span>
+
+    <strong
+      id="totalGarantiasVencendo"
+      class="notificacao-numero"
+    >
+      0
+    </strong>
+
+    <small>
+      Clique para ver as baterias
+    </small>
+
+  </button>
+
+
+  <button
+    type="button"
+    class="notificacao-garantia notificacao-fora"
+    onclick="abrirGarantias('fora')"
+  >
+
+    <span class="notificacao-titulo">
+      🔴 Fora da garantia
+    </span>
+
+    <strong
+      id="totalGarantiasFora"
+      class="notificacao-numero"
+    >
+      0
+    </strong>
+
+    <small>
+      Clique para ver as baterias
+    </small>
+
+  </button>
+
+</div>
 
   <div class="resumo-card">
     📡 Total de POPs
@@ -2105,6 +2343,468 @@ function statusGarantiaBateria(dataInstalacao){
 
 }
 
+/* =========================================================
+   NOTIFICAÇÕES DE GARANTIA
+========================================================= */
+
+function obterBateriasGarantia(){
+
+  const resultado = [];
+
+  pops.forEach((pop, popIndex) => {
+
+    /*
+     * Se o POP possui baterias individuais,
+     * usa cada bateria individualmente.
+     */
+    if(
+      Array.isArray(pop.baterias) &&
+      pop.baterias.length > 0
+    ){
+
+      pop.baterias.forEach((bateria, bateriaIndex) => {
+
+        const instalacao =
+          bateria.dataInstalacao || "";
+
+        const status =
+          statusGarantiaBateria(instalacao);
+
+        if(!status.fimGarantia)
+          return;
+
+        const hoje = new Date();
+        hoje.setHours(0,0,0,0);
+
+        const fim = new Date(status.fimGarantia);
+        fim.setHours(0,0,0,0);
+
+        const diasRestantes = Math.ceil(
+          (fim - hoje) / 86400000
+        );
+
+        const diasVencida =
+          diasRestantes < 0
+            ? Math.abs(diasRestantes)
+            : 0;
+
+        resultado.push({
+
+          popIndex,
+
+          bateriaIndex,
+
+          bateria:
+            bateria.numero || bateriaIndex + 1,
+
+          local:
+            pop.nome || "POP não informado",
+
+          instalacao,
+
+          fimGarantia:
+            fim.toISOString().slice(0,10),
+
+          diasRestantes,
+
+          diasVencida,
+
+          vencendo:
+            diasRestantes >= 0 &&
+            diasRestantes <= 90,
+
+          fora:
+            diasRestantes < 0
+
+        });
+
+      });
+
+    }
+
+    /*
+     * Compatibilidade:
+     * caso o POP antigo não tenha baterias individuais.
+     */
+    else if(pop.dataInstalacao){
+
+      const status =
+        statusGarantiaBateria(
+          pop.dataInstalacao
+        );
+
+      if(!status.fimGarantia)
+        return;
+
+      const hoje = new Date();
+      hoje.setHours(0,0,0,0);
+
+      const fim = new Date(status.fimGarantia);
+      fim.setHours(0,0,0,0);
+
+      const diasRestantes = Math.ceil(
+        (fim - hoje) / 86400000
+      );
+
+      resultado.push({
+
+        popIndex,
+
+        bateriaIndex:0,
+
+        bateria:1,
+
+        local:
+          pop.nome || "POP não informado",
+
+        instalacao:
+          pop.dataInstalacao,
+
+        fimGarantia:
+          fim.toISOString().slice(0,10),
+
+        diasRestantes,
+
+        diasVencida:
+          diasRestantes < 0
+            ? Math.abs(diasRestantes)
+            : 0,
+
+        vencendo:
+          diasRestantes >= 0 &&
+          diasRestantes <= 90,
+
+        fora:
+          diasRestantes < 0
+
+      });
+
+    }
+
+  });
+
+  return resultado;
+
+}
+
+
+/* =========================================================
+   ATUALIZAR CONTADORES
+========================================================= */
+
+function atualizarNotificacoesGarantia(){
+
+  const baterias =
+    obterBateriasGarantia();
+
+  const vencendo =
+    baterias.filter(
+      bateria => bateria.vencendo
+    );
+
+  const fora =
+    baterias.filter(
+      bateria => bateria.fora
+    );
+
+  const elementoVencendo =
+    document.getElementById(
+      "totalGarantiasVencendo"
+    );
+
+  const elementoFora =
+    document.getElementById(
+      "totalGarantiasFora"
+    );
+
+  if(elementoVencendo){
+
+    elementoVencendo.textContent =
+      vencendo.length;
+
+  }
+
+  if(elementoFora){
+
+    elementoFora.textContent =
+      fora.length;
+
+  }
+
+}
+
+
+/* =========================================================
+   ABRIR POPUP
+========================================================= */
+
+function abrirGarantias(tipo){
+
+  const todas =
+    obterBateriasGarantia();
+
+  let lista = [];
+
+  const titulo =
+    document.getElementById(
+      "tituloModalGarantia"
+    );
+
+  if(tipo === "vencendo"){
+
+    lista =
+      todas.filter(
+        bateria => bateria.vencendo
+      );
+
+    if(titulo){
+
+      titulo.textContent =
+        "🟡 Garantias vencendo";
+
+    }
+
+  }
+
+  if(tipo === "fora"){
+
+    lista =
+      todas.filter(
+        bateria => bateria.fora
+      );
+
+    if(titulo){
+
+      titulo.textContent =
+        "🔴 Baterias fora da garantia";
+
+    }
+
+  }
+
+  /*
+   * Ordena pela data da garantia.
+   */
+  lista.sort(
+    (a,b) =>
+      new Date(a.fimGarantia) -
+      new Date(b.fimGarantia)
+  );
+
+  const container =
+    document.getElementById(
+      "listaGarantias"
+    );
+
+  if(!container)
+    return;
+
+  if(lista.length === 0){
+
+    container.innerHTML = `
+
+      <div class="garantia-vazia">
+
+        ${
+          tipo === "vencendo"
+            ? "🟢 Não existem baterias com garantia vencendo nos próximos 90 dias."
+            : "🟢 Não existem baterias fora da garantia."
+        }
+
+      </div>
+
+    `;
+
+  }else{
+
+    container.innerHTML =
+      lista.map(
+        bateria => {
+
+          let situacao = "";
+          let classe = "";
+
+          if(bateria.vencendo){
+
+            situacao =
+              bateria.diasRestantes === 0
+                ? "⚠️ Vence hoje"
+                : `⚠️ Vence em ${bateria.diasRestantes} dias`;
+
+            classe = "vencendo";
+
+          }else{
+
+            situacao =
+              `🔴 Garantia vencida há ${bateria.diasVencida} dias`;
+
+            classe = "fora";
+
+          }
+
+          return `
+
+            <div
+              class="garantia-lista-item ${classe}"
+            >
+
+              <div class="garantia-grid">
+
+                <div class="garantia-info">
+
+                  <span>
+                    🔋 Bateria
+                  </span>
+
+                  <strong>
+                    Bateria ${escapeHtml(
+                      bateria.bateria
+                    )}
+                  </strong>
+
+                </div>
+
+
+                <div class="garantia-info">
+
+                  <span>
+                    📍 Local / POP
+                  </span>
+
+                  <strong>
+                    ${escapeHtml(
+                      bateria.local
+                    )}
+                  </strong>
+
+                </div>
+
+
+                <div class="garantia-info">
+
+                  <span>
+                    📅 Instalação
+                  </span>
+
+                  <strong>
+                    ${formatarData(
+                      bateria.instalacao
+                    )}
+                  </strong>
+
+                </div>
+
+
+                <div class="garantia-info">
+
+                  <span>
+                    🛡️ Fim da garantia
+                  </span>
+
+                  <strong>
+                    ${formatarData(
+                      bateria.fimGarantia
+                    )}
+                  </strong>
+
+                </div>
+
+              </div>
+
+
+              <div
+                class="garantia-status ${
+                  bateria.vencendo
+                    ? "status-alerta"
+                    : "status-vencida"
+                }"
+              >
+
+                ${situacao}
+
+              </div>
+
+            </div>
+
+          `;
+
+        }
+      ).join("");
+
+  }
+
+  const modal =
+    document.getElementById(
+      "modalGarantia"
+    );
+
+  if(modal){
+
+    modal.style.display = "block";
+
+    document.body.style.overflow =
+      "hidden";
+
+  }
+
+}
+
+
+/* =========================================================
+   FECHAR POPUP
+========================================================= */
+
+function fecharGarantias(){
+
+  const modal =
+    document.getElementById(
+      "modalGarantia"
+    );
+
+  if(modal)
+    modal.style.display = "none";
+
+  document.body.style.overflow = "";
+
+}
+
+
+/* =========================================================
+   FECHAR CLICANDO FORA
+========================================================= */
+
+function fecharModalGarantia(event){
+
+  if(
+    event.target &&
+    event.target.id ===
+      "modalGarantia"
+  ){
+
+    fecharGarantias();
+
+  }
+
+}
+
+
+/* =========================================================
+   ESC FECHA POPUP
+========================================================= */
+
+document.addEventListener(
+  "keydown",
+  function(event){
+
+    if(event.key === "Escape"){
+
+      fecharGarantias();
+
+    }
+
+  }
+);
+
 function statusMonitoramento(
   idade,
   percentual,
@@ -3450,6 +4150,7 @@ function render(preservarBusca=true){
     "preventivasVencidas"
   ).textContent=totalVencida;
 
+atualizarNotificacoesGarantia();
 
   atualizarListaPOPs();
   criarListaEquipamentos();
@@ -4090,6 +4791,44 @@ async function iniciar(){
 iniciar();
 
 </script>
+<!-- =========================
+     POPUP DE GARANTIAS
+========================= -->
 
+<div
+  id="modalGarantia"
+  class="modal-garantia"
+  onclick="fecharModalGarantia(event)"
+>
+
+  <div
+    class="modal-garantia-conteudo"
+    onclick="event.stopPropagation()"
+  >
+
+    <div class="modal-garantia-cabecalho">
+
+      <h2 id="tituloModalGarantia">
+        🔋 Garantias
+      </h2>
+
+      <button
+        type="button"
+        class="btn-fechar-modal"
+        onclick="fecharGarantias()"
+      >
+        ✕ Fechar
+      </button>
+
+    </div>
+
+    <div
+      id="listaGarantias"
+      class="lista-garantias"
+    ></div>
+
+  </div>
+
+</div>
 </body>
 </html>
