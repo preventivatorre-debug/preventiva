@@ -94,23 +94,76 @@ button:disabled{
 
 .resumo{
   display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-  margin-bottom:20px
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:15px;
+  align-items:stretch;
+}
+
+.resumo-card,
+.notificacao-garantia{
+  min-width:0
 }
 
 .resumo-card{
   background:#fff;
-  padding:15px;
+  padding:8px 7px;
+  height:82px;
+  min-height:82px;
   border-radius:8px;
   box-shadow:0 2px 6px rgba(0,0,0,.1);
-  text-align:center
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+}
+
+
+/* Os dois cards de bateria agora são itens diretos da grade. */
+.resumo > .notificacao-garantia{
+  width:100%;
+  min-width:0;
 }
 
 .resumo-card strong{
   display:block;
-  font-size:28px;
-  margin-top:5px
+  font-size:21px;
+  line-height:1;
+  margin-top:4px;
+}
+
+.notificacao-garantia{
+  height:82px;
+  min-height:82px;
+  padding:8px 7px;
+  border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  overflow:hidden;
+}
+
+.notificacao-garantia .notificacao-titulo{
+  font-size:12px;
+  line-height:1.05;
+  font-weight:bold;
+}
+
+.notificacao-garantia .notificacao-numero{
+  font-size:21px;
+  line-height:1;
+  margin-top:4px;
+}
+
+.notificacao-garantia small{
+  font-size:9px;
+  line-height:1;
+  margin-top:4px;
 }
 
 .resumo-ok{border-left:5px solid #28a745}
@@ -700,6 +753,36 @@ details[open]>summary::before{
   }
 
 }
+
+
+/* =========================
+   CARDS COM TAMANHO IGUAL
+========================= */
+
+@media(max-width:1200px){
+  .resumo{
+    grid-template-columns:repeat(3,1fr);
+  }
+}
+
+@media(max-width:900px){
+  .resumo{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:500px){
+  .resumo{
+    grid-template-columns:1fr;
+  }
+
+  .resumo-card,
+  .notificacao-garantia{
+    height:76px;
+    min-height:76px;
+  }
+}
+
 </style>
 </head>
 
@@ -742,9 +825,7 @@ details[open]>summary::before{
      NOTIFICAÇÕES DE GARANTIA
 ========================= -->
 
-<div class="notificacoes-garantia">
-
-  <button
+<button
     type="button"
     class="notificacao-garantia notificacao-vencendo"
     onclick="abrirGarantias('vencendo')"
@@ -767,7 +848,6 @@ details[open]>summary::before{
 
   </button>
 
-
   <button
     type="button"
     class="notificacao-garantia notificacao-fora"
@@ -775,7 +855,7 @@ details[open]>summary::before{
   >
 
     <span class="notificacao-titulo">
-      🔴 Fora da garantia
+      🔴 Pós-garantia / vida útil avançada
     </span>
 
     <strong
@@ -790,8 +870,6 @@ details[open]>summary::before{
     </small>
 
   </button>
-
-</div>
 
   <div class="resumo-card">
     📡 Total de POPs
@@ -2304,43 +2382,78 @@ function statusGarantiaBateria(dataInstalacao){
       classe:"status-sem",
       texto:"⚪ Garantia não calculada",
       fimGarantia:null,
-      diasAposGarantia:0
+      diasAposGarantia:0,
+      categoria:"sem"
     };
   }
 
   const hoje=new Date();
   hoje.setHours(0,0,0,0);
 
-  const limiteVermelho=new Date(fimGarantia);
-  limiteVermelho.setMonth(limiteVermelho.getMonth()+18);
+  const inicio=new Date(String(dataInstalacao)+"T00:00:00");
+  inicio.setHours(0,0,0,0);
 
-  if(hoje>limiteVermelho){
+  const idadeMeses=
+    (hoje.getFullYear()-inicio.getFullYear())*12+
+    (hoje.getMonth()-inicio.getMonth())-
+    (hoje.getDate()<inicio.getDate()?1:0);
+
+  const diasRestantes=Math.ceil(
+    (fimGarantia-hoje)/86400000
+  );
+
+  const diasAposGarantia=
+    diasRestantes<0 ? Math.abs(diasRestantes) : 0;
+
+  /*
+   * VIDA ÚTIL ESTIMADA:
+   * 0–2 anos = garantia
+   * 2–3 anos = pós-garantia
+   * 3–5 anos = vida útil avançada
+   * 5 anos ou mais = muito antiga
+   */
+
+  if(idadeMeses<24){
     return{
-      classe:"status-vencida",
-      texto:"🔴 GARANTIA VENCIDA HÁ MAIS DE 18 MESES",
+      classe:"status-ok",
+      texto:`🟢 GARANTIA VÁLIDA — ${Math.max(0,diasRestantes)} dias restantes`,
       fimGarantia,
-      diasAposGarantia:Math.ceil((hoje-fimGarantia)/86400000)
+      diasAposGarantia:0,
+      categoria:"garantia",
+      idadeMeses
     };
   }
 
-  if(hoje>fimGarantia){
+  if(idadeMeses<36){
     return{
       classe:"status-alerta",
-      texto:"🟠 GARANTIA VENCIDA",
+      texto:"🟡 PÓS-GARANTIA — entre 2 e 3 anos",
       fimGarantia,
-      diasAposGarantia:Math.ceil((hoje-fimGarantia)/86400000)
+      diasAposGarantia,
+      categoria:"pos-garantia",
+      idadeMeses
     };
   }
 
-  const dias=Math.ceil((fimGarantia-hoje)/86400000);
+  if(idadeMeses<60){
+    return{
+      classe:"status-alerta-laranja",
+      texto:"🟠 VIDA ÚTIL AVANÇADA — entre 3 e 5 anos",
+      fimGarantia,
+      diasAposGarantia,
+      categoria:"vida-avancada",
+      idadeMeses
+    };
+  }
 
   return{
-    classe:"status-ok",
-    texto:`🟢 GARANTIA VÁLIDA — ${dias} dias restantes`,
+    classe:"status-vencida",
+    texto:"🔴 MUITO ANTIGA — 5 anos ou mais",
     fimGarantia,
-    diasAposGarantia:0
+    diasAposGarantia,
+    categoria:"muito-antiga",
+    idadeMeses
   };
-
 }
 
 /* =========================================================
@@ -2608,7 +2721,7 @@ function abrirGarantias(tipo){
         ${
           tipo === "vencendo"
             ? "🟢 Não existem baterias com garantia vencendo nos próximos 90 dias."
-            : "🟢 Não existem baterias fora da garantia."
+            : "🟢 Não existem baterias em pós-garantia ou com vida útil avançada."
         }
 
       </div>
@@ -2821,32 +2934,39 @@ function statusMonitoramento(
     };
   }
 
-  if(garantia&&garantia.fimGarantia){
+  /*
+   * Classificação da idade da bateria:
+   * 0–2 anos = garantia
+   * 2–3 anos = pós-garantia
+   * 3–5 anos = vida útil avançada
+   * 5+ anos = muito antiga
+   */
 
-    const hoje=new Date();
-    hoje.setHours(0,0,0,0);
+  if(idade.totalMeses>=60){
+    return{
+      classe:"monitor-critico",
+      titulo:"🔴 BATERIA MUITO ANTIGA",
+      mensagem:
+        "A bateria possui 5 anos ou mais. Recomenda-se teste técnico e planejamento de substituição."
+    };
+  }
 
-    const limite18Meses=new Date(garantia.fimGarantia);
-    limite18Meses.setMonth(limite18Meses.getMonth()+18);
+  if(idade.totalMeses>=36){
+    return{
+      classe:"monitor-alerta-laranja",
+      titulo:"🟠 VIDA ÚTIL AVANÇADA",
+      mensagem:
+        "A bateria possui entre 3 e 5 anos e já está fora da garantia. Recomenda-se acompanhamento e avaliação técnica."
+    };
+  }
 
-    if(hoje>limite18Meses){
-      return{
-        classe:"monitor-critico",
-        titulo:"🔴 BANCO COM GARANTIA VENCIDA",
-        mensagem:
-          "A garantia da bateria mais antiga venceu há mais de 1 ano e meio. Recomenda-se avaliar o banco e programar a substituição."
-      };
-    }
-
-    if(hoje>garantia.fimGarantia){
-      const dias=Math.ceil((hoje-garantia.fimGarantia)/86400000);
-      return{
-        classe:"monitor-alerta-laranja",
-        titulo:"🟠 ATENÇÃO — GARANTIA VENCIDA",
-        mensagem:
-          `A garantia da bateria mais antiga venceu há ${dias} dias. O banco está no período de atenção de até 18 meses após a garantia.`
-      };
-    }
+  if(idade.totalMeses>=24){
+    return{
+      classe:"monitor-atencao",
+      titulo:"🟡 PÓS-GARANTIA",
+      mensagem:
+        "A bateria possui entre 2 e 3 anos. A garantia já terminou, mas ainda está no período estimado de pós-garantia."
+    };
   }
 
   if(autonomia>0&&autonomia<2){
@@ -2900,7 +3020,6 @@ function statusMonitoramento(
     mensagem:
       "A capacidade nominal está preservada no cadastro e a capacidade disponível estimada está em nível adequado."
   };
-
 }
 
 /* =========================================================
