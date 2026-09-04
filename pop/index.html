@@ -3467,7 +3467,7 @@ async function verificarNotificacoesTelegram(){
     }
 
     // Energia normalizada: não envia mais nada para esta ocorrência.
-    if(!pop.quedaEnergiaEm||pop.energiaRestabelecidaEm)continue;
+    if(!pop.quedaEnergiaEm || pop.energiaRestabelecidaEm) continue;
 
     const c=calcularContingencia(pop,new Date());
     if(!c.ativa)continue;
@@ -3521,9 +3521,9 @@ function calcularContingencia(pop,agora=new Date()){
       ativa:false,
       encerrada:true,
       inicio,
-      fimAutonomia,
-      limite,
-      autonomiaMin,
+      fimAutonomia:null,
+      limite:null,
+      autonomiaMin:
       deslocamentoMin,
       margemMin,
       reservado,
@@ -3669,12 +3669,12 @@ function obterMargemMin(pop){
 
 
 function ocultarContingenciaNormalizada(){
-  document.querySelectorAll(".contingencia").forEach(el=>{
-    const popCard = el.closest("[data-pop-index]");
-    if(!popCard) return;
-    const i = Number(popCard.getAttribute("data-pop-index"));
-    if(Number.isInteger(i) && pops[i]?.energiaRestabelecidaEm){
-      el.style.display = "none";
+  document.querySelectorAll(".contingencia-box").forEach(el=>{
+    const id = el.getAttribute("data-contingencia-pop-id");
+    const pop = pops.find(p=>String(p.id)===String(id));
+    if(pop?.energiaRestabelecidaEm){
+      const deadline = el.querySelector("[data-contingencia-limite]");
+      if(deadline) deadline.textContent="--";
     }
   });
 }
@@ -4541,7 +4541,7 @@ function render(preservarBusca=true){
 
 
         <!-- CONTINGÊNCIA / DESLOCAMENTO -->
-        <div class="contingencia-box ${contingencia.status==="vencido"?"contingencia-vencido":contingencia.status==="critico"?"contingencia-critico":contingencia.status==="atencao"?"contingencia-atencao":"contingencia-normal"}" data-contingencia-pop-id="${escapeHtml(pop.id)}">
+        <div class="contingencia-box ${contingencia.status==="restaurado"?"contingencia-restaurado":contingencia.status==="vencido"?"contingencia-vencido":contingencia.status==="critico"?"contingencia-critico":contingencia.status==="atencao"?"contingencia-atencao":"contingencia-normal"}" data-contingencia-pop-id="${escapeHtml(pop.id)}">
           <h3>⚡ Contingência de Energia e Deslocamento</h3>
           <div class="contingencia-grid">
             <div class="contingencia-card"><span>📍 Distância da base</span><strong>${Number(pop.distanciaKm||0).toFixed(1)} km</strong></div>
@@ -4551,7 +4551,7 @@ function render(preservarBusca=true){
             <div class="contingencia-card"><span>🔋 Autonomia calculada</span><strong>${formatarAutonomia(autonomiaAjustada)}</strong></div>
             <div class="contingencia-card"><span>⏱️ Autonomia restante</span><strong data-contingencia-restante>${contingencia.ativa?formatarContagem(contingencia.restanteMin):"--"}</strong></div>
             <div class="contingencia-card"><span>🚨 Tempo até limite de acionamento</span><strong data-contingencia-limite>${contingencia.ativa?(contingencia.restanteLimiteMin>0?formatarContagem(contingencia.restanteLimiteMin):"00h 00min 00s"):"--"}</strong></div>
-            <div class="contingencia-card"><span>📅 Horário limite para acionar</span><strong>${contingencia.limite?formatarDataHora(contingencia.limite.toISOString()):"--"}</strong></div>
+            <div class="contingencia-card"><span>📅 Horário limite para acionar</span><strong>${contingencia.status==="restaurado"?"🟢 ENCERRADO":contingencia.limite?formatarDataHora(contingencia.limite.toISOString()):"--"}</strong></div>
           </div>
           <div class="info" style="margin-top:10px;">
             <strong>📌 Regra:</strong> autonomia calculada − deslocamento − margem de segurança.
