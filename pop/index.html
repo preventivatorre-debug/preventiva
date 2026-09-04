@@ -1478,6 +1478,10 @@ function bancoParaPop(row){
     velocidadeKmH:Number(row.velocidade_kmh)||80,
     margemSegurancaMin:Number(row.margem_seguranca_min ?? 30)||0,
     correnteCarregadorA:Number(row.corrente_carregador_a)||20,
+    energiaSaldoAh: row.energia_saldo_ah == null ? null : Number(row.energia_saldo_ah),
+    energiaSaldoAtualizadoEm: row.energia_saldo_atualizado_em || null,
+    ultimaNormalizacaoEm: row.ultima_normalizacao_em || null,
+    recargaAcumuladaAh: Number(row.recarga_acumulada_ah)||0,
     quedaEnergiaEm:row.queda_energia_em||null,
     equipeEnviadaEm:row.equipe_enviada_em||null,
     energiaRestabelecidaEm:row.energia_restabelecida_em||null,
@@ -1540,6 +1544,10 @@ function popParaBanco(pop){
     velocidade_kmh:Number(pop.velocidadeKmH)||80,
     margem_seguranca_min:Number(pop.margemSegurancaMin ?? 30)||0,
     corrente_carregador_a:Number(pop.correnteCarregadorA)||20,
+    energia_saldo_ah: pop.energiaSaldoAh == null ? null : Number(pop.energiaSaldoAh),
+    energia_saldo_atualizado_em: pop.energiaSaldoAtualizadoEm || null,
+    ultima_normalizacao_em: pop.ultimaNormalizacaoEm || null,
+    recarga_acumulada_ah: Number(pop.recargaAcumuladaAh)||0,
     queda_energia_em:pop.quedaEnergiaEm||null,
     equipe_enviada_em:pop.equipeEnviadaEm||null,
     energia_restabelecida_em:pop.energiaRestabelecidaEm||null,
@@ -3280,6 +3288,81 @@ function obterCorrenteCarregadorA(pop){
   return Number.isFinite(corrente) && corrente > 0 ? corrente : 20;
 }
 
+
+function capacidadeNominalAh(pop){
+  return Math.max(0, Number(pop?.ah) || 0);
+}
+
+function consumoAtualA(pop){
+  if(typeof calcularConsumoPOP === "function") return calcularConsumoPOP(pop);
+  return (Array.isArray(pop?.equipamentos) ? pop.equipamentos : [])
+    .reduce((t,e)=>t+(Number(e?.ampere)||0)*(Number(e?.quantidade)||0),0);
+}
+
+function inicializarSaldoEnergia(pop){
+  if(pop.energiaSaldoAh == null || !Number.isFinite(Number(pop.energiaSaldoAh))){
+    pop.energiaSaldoAh = capacidadeNominalAh(pop);
+  }
+  return Math.max(0, Number(pop.energiaSaldoAh)||0);
+}
+
+function atualizarSaldoDuranteDescarga(pop, agora){
+  if(!pop.quedaEnergiaEm || pop.energiaRestabelecidaEm) return inicializarSaldoEnergia(pop);
+
+  const ultimo = pop.energiaSaldoAtualizadoEm
+    ? new Date(pop.energiaSaldoAtualizadoEm)
+    : new Date(pop.quedaEnergiaEm);
+  const fim = agora instanceof Date ? agora : new Date(agora);
+  const minutos = Math.max(0, (fim - ultimo) / 60000);
+  const consumo = consumoAtualA(pop);
+  const consumido = (minutos / 60) * consumo;
+
+  pop.energiaSaldoAh = Math.max(0, inicializarSaldoEnergia(pop) - consumido);
+  pop.energiaSaldoAtualizadoEm = fim.toISOString();
+
+  return pop.energiaSaldoAh;
+}
+
+function atualizarSaldoDuranteRecarga(pop, agora){
+  if(!pop.energiaRestabelecidaEm) return inicializarSaldoEnergia(pop);
+
+  const ultimo = pop.energiaSaldoAtualizadoEm
+    ? new Date(pop.energiaSaldoAtualizadoEm)
+    : new Date(pop.energiaRestabelecidaEm);
+  const fim = agora instanceof Date ? agora : new Date(agora);
+  const minutos = Math.max(0, (fim - ultimo) / 60000);
+  const corrente = obterCorrenteCarregadorA(pop);
+
+  // Estimativa conservadora: 90% de eficiência da carga.
+  const reposto = (minutos / 60) * corrente * 0.90;
+  const capacidade = capacidadeNominalAh(pop);
+
+  pop.energiaSaldoAh = Math.min(
+    capacidade,
+    inicializarSaldoEnergia(pop) + reposto
+  );
+  pop.recargaAcumuladaAh = (Number(pop.recargaAcumuladaAh)||0) + reposto;
+  pop.energiaSaldoAtualizadoEm = fim.toISOString();
+
+  return pop.energiaSaldoAh;
+}
+
+function obterPercentualBanco(pop){
+  const capacidade = capacidadeNominalAh(pop);
+  if(capacidade <= 0) return 0;
+  return Math.max(0, Math.min(100, (inicializarSaldoEnergia(pop) / capacidade) * 100));
+}
+
+function autonomiaDisponivelHoras(pop){
+  const saldo = inicializarSaldoEnergia(pop);
+  const consumo = consumoAtualA(pop);
+  return consumo > 0 ? saldo / consumo : 0;
+}
+
+function formatarAh(valor){
+  return (Number(valor)||0).toFixed(2) + " Ah";
+}
+
 function calcularTempoCargaNecessario(pop, autonomiaHoras){
   const correnteCarga = obterCorrenteCarregadorA(pop);
   const consumo = calcularConsumoPOP(pop);
@@ -3311,6 +3394,9 @@ function formatarMensagemTelegram30Min(pop,c){
   const agora = new Date();
   const decorridoMin = Math.max(0, (agora - inicio) / 60000);
   const restante = c.restanteMin != null ? formatarContagem(c.restanteMin) : "--";
+  const saldoAh = inicializarSaldoEnergia(pop);
+  const saldoPct = obterPercentualBanco(pop);
+
   const limite = c.limite ? formatarDataHora(c.limite.toISOString()) : "--";
 
   let situacao = "🟢 Dentro da autonomia estimada.";
@@ -3375,6 +3461,10 @@ async function verificarNotificacoesTelegram(){
   if(!cfg.ativo||!cfg.token||!cfg.chatId||!Array.isArray(pops)||!pops.length)return;
 
   for(const pop of pops){
+    if(pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm){
+      atualizarSaldoDuranteDescarga(pop,new Date());
+    }
+
     // Energia normalizada: não envia mais nada para esta ocorrência.
     if(!pop.quedaEnergiaEm||pop.energiaRestabelecidaEm)continue;
 
