@@ -1477,6 +1477,7 @@ function bancoParaPop(row){
     distanciaKm:Number(row.distancia_km)||0,
     velocidadeKmH:Number(row.velocidade_kmh)||80,
     margemSegurancaMin:Number(row.margem_seguranca_min ?? 30)||0,
+    correnteCarregadorA:Number(row.corrente_carregador_a)||20,
     quedaEnergiaEm:row.queda_energia_em||null,
     equipeEnviadaEm:row.equipe_enviada_em||null,
     energiaRestabelecidaEm:row.energia_restabelecida_em||null,
@@ -1538,6 +1539,7 @@ function popParaBanco(pop){
     distancia_km:Number(pop.distanciaKm)||0,
     velocidade_kmh:Number(pop.velocidadeKmH)||80,
     margem_seguranca_min:Number(pop.margemSegurancaMin ?? 30)||0,
+    corrente_carregador_a:Number(pop.correnteCarregadorA)||20,
     queda_energia_em:pop.quedaEnergiaEm||null,
     equipe_enviada_em:pop.equipeEnviadaEm||null,
     energia_restabelecida_em:pop.energiaRestabelecidaEm||null,
@@ -3263,6 +3265,47 @@ function formatarMensagemTelegram(pop,c,etapa){
 }
 
 
+
+function calcularConsumoPOP(pop){
+  return (Array.isArray(pop?.equipamentos) ? pop.equipamentos : [])
+    .reduce((total,e) => {
+      const ampere = Number(e?.ampere) || 0;
+      const quantidade = Number(e?.quantidade) || 0;
+      return total + ampere * quantidade;
+    }, 0);
+}
+
+function obterCorrenteCarregadorA(pop){
+  const corrente = Number(pop?.correnteCarregadorA);
+  return Number.isFinite(corrente) && corrente > 0 ? corrente : 20;
+}
+
+function calcularTempoCargaNecessario(pop, autonomiaHoras){
+  const correnteCarga = obterCorrenteCarregadorA(pop);
+  const consumo = calcularConsumoPOP(pop);
+  const ahConsumidos = Math.max(0, Number(autonomiaHoras) || 0) * consumo;
+  const fatorPerdas = 1.15;
+  const ahParaRepor = ahConsumidos * fatorPerdas;
+  const horas = correnteCarga > 0 ? ahParaRepor / correnteCarga : 0;
+
+  return {
+    consumoA: consumo,
+    correnteCargaA: correnteCarga,
+    ahConsumidos,
+    ahParaRepor,
+    horas
+  };
+}
+
+function formatarHorasCarga(horas){
+  const totalMin = Math.max(0, Math.round((Number(horas)||0) * 60));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if(h === 0) return `${m} min`;
+  if(m === 0) return `${h}h`;
+  return `${h}h ${m}min`;
+}
+
 function formatarMensagemTelegram30Min(pop,c){
   const inicio = new Date(pop.quedaEnergiaEm);
   const agora = new Date();
@@ -4044,7 +4087,18 @@ function render(preservarBusca=true){
               <label>Margem de segurança (min)</label>
               <input type="number" min="0" step="1" value="${Number(pop.margemSegurancaMin ?? 30)}" ${!modoEdicao?"disabled":""}
                 onchange="pops[${i}].margemSegurancaMin=Math.max(0,Number(this.value)||0);existemAlteracoes=true;renderVisivel(${i});">
-            </div>
+            
+          <label>🔌 Corrente do carregador (A)
+            <input type="number" min="0.1" step="0.1"
+                   value="${Number(pop.correnteCarregadorA)||20}"
+                   ${!modoEdicao?"disabled":""}
+                   onchange="
+                     pops[${i}].correnteCarregadorA=Number(this.value)||20;
+                     existemAlteracoes=true;
+                     renderVisivel(${i},false,true);
+                   ">
+          </label>
+</div>
             <div>
               <label>Deslocamento calculado</label>
               <div class="status status-ok">${formatarDuracaoMinutos(obterDeslocamentoMin(pop))}</div>
