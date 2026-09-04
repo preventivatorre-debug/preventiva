@@ -785,6 +785,19 @@ details[open]>summary::before{
 
 
 /* =========================
+   BOT TELEGRAM - USO INTERNO
+========================= */
+.telegram-config{margin:12px 0 15px;background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);border-left:5px solid #229ed9}
+.telegram-config summary{cursor:pointer;font-weight:bold;color:#1676a8}
+.telegram-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;margin-top:12px}
+.telegram-grid label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+.telegram-grid input,.telegram-grid select{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px}
+.telegram-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.telegram-status{margin-top:10px;padding:9px;border-radius:6px;background:#f2f4f6}
+@media(max-width:900px){.telegram-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.telegram-grid{grid-template-columns:1fr}.telegram-acoes{flex-direction:column}.telegram-acoes button{width:100%}}
+
+/* =========================
    CONTINGÊNCIA DE ENERGIA / DESLOCAMENTO
 ========================= */
 .contingencia-box{margin-top:15px;padding:15px;border-radius:8px;background:#fff;border-left:6px solid #2980b9}
@@ -836,6 +849,35 @@ details[open]>summary::before{
   </button>
 
 </div>
+
+<details class="telegram-config">
+  <summary>🤖 Configuração do Bot Telegram (uso interno)</summary>
+  <div class="telegram-grid">
+    <div>
+      <label>Token do Bot</label>
+      <input id="telegramBotToken" type="password" placeholder="Cole aqui o token do BotFather">
+    </div>
+    <div>
+      <label>ID do grupo/chat</label>
+      <input id="telegramChatId" type="text" placeholder="Ex.: -1001234567890">
+    </div>
+    <div>
+      <label>Notificações automáticas</label>
+      <select id="telegramAtivo">
+        <option value="true">Ativadas</option>
+        <option value="false">Desativadas</option>
+      </select>
+    </div>
+  </div>
+  <div class="telegram-acoes">
+    <button type="button" onclick="salvarConfigTelegram()">💾 Salvar configuração</button>
+    <button type="button" style="background:#229ed9" onclick="testarTelegram()">📨 Testar Telegram</button>
+  </div>
+  <div id="telegramStatus" class="telegram-status">⚪ Bot Telegram não configurado.</div>
+  <div class="info" style="margin-top:10px">
+    O token e o ID do grupo ficam salvos somente neste navegador. O bot envia uma notificação por etapa e para automaticamente quando o operador registrar <strong>energia restabelecida</strong>.
+  </div>
+</details>
 
 <div class="resumo">
 <!-- =========================
@@ -3108,6 +3150,165 @@ function formatarAutonomia(horas){
 
 
 /* =========================================================
+   BOT TELEGRAM - NOTIFICAÇÕES DE CONTINGÊNCIA
+========================================================= */
+const TELEGRAM_STORAGE_KEY="controle_pops_telegram_config_v1";
+const TELEGRAM_NOTIFICACOES_KEY="controle_pops_telegram_notificacoes_v1";
+
+function lerConfigTelegram(){
+  try{
+    const cfg=JSON.parse(localStorage.getItem(TELEGRAM_STORAGE_KEY)||"{}");
+    return {
+      token:String(cfg.token||"").trim(),
+      chatId:String(cfg.chatId||"").trim(),
+      ativo:cfg.ativo!==false
+    };
+  }catch(e){
+    return {token:"",chatId:"",ativo:true};
+  }
+}
+
+function carregarConfigTelegram(){
+  const cfg=lerConfigTelegram();
+  const token=document.getElementById("telegramBotToken");
+  const chat=document.getElementById("telegramChatId");
+  const ativo=document.getElementById("telegramAtivo");
+  if(token)token.value=cfg.token;
+  if(chat)chat.value=cfg.chatId;
+  if(ativo)ativo.value=cfg.ativo?"true":"false";
+  atualizarStatusTelegram();
+}
+
+function salvarConfigTelegram(){
+  const token=String(document.getElementById("telegramBotToken")?.value||"").trim();
+  const chatId=String(document.getElementById("telegramChatId")?.value||"").trim();
+  const ativo=document.getElementById("telegramAtivo")?.value!=="false";
+  localStorage.setItem(TELEGRAM_STORAGE_KEY,JSON.stringify({token,chatId,ativo}));
+  atualizarStatusTelegram("✅ Configuração do Telegram salva neste navegador.");
+}
+
+function atualizarStatusTelegram(mensagem){
+  const el=document.getElementById("telegramStatus");
+  if(!el)return;
+  const cfg=lerConfigTelegram();
+  if(mensagem){el.textContent=mensagem;return;}
+  if(!cfg.token||!cfg.chatId){el.textContent="⚪ Bot Telegram não configurado.";return;}
+  el.textContent=cfg.ativo?"🟢 Bot Telegram configurado e ativo.":"⏸️ Bot Telegram configurado, mas as notificações estão desativadas.";
+}
+
+async function enviarTelegram(texto){
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo||!cfg.token||!cfg.chatId)return {ok:false,ignorado:true};
+  try{
+    const resposta=await fetch(`https://api.telegram.org/bot${encodeURIComponent(cfg.token)}/sendMessage`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({chat_id:cfg.chatId,text:texto,disable_web_page_preview:true})
+    });
+    const dados=await resposta.json().catch(()=>({}));
+    if(!resposta.ok||!dados.ok)throw new Error(dados.description||`HTTP ${resposta.status}`);
+    return {ok:true};
+  }catch(error){
+    console.error("Telegram:",error);
+    atualizarStatusTelegram("🔴 Erro ao enviar Telegram: "+error.message);
+    return {ok:false,error};
+  }
+}
+
+async function testarTelegram(){
+  salvarConfigTelegram();
+  const cfg=lerConfigTelegram();
+  if(!cfg.token||!cfg.chatId){alert("Informe o token do bot e o ID do grupo/chat.");return;}
+  atualizarStatusTelegram("⏳ Enviando mensagem de teste...");
+  const r=await enviarTelegram("🤖 TESTE — Controle de Autonomia dos POPs\\n\\nO bot Telegram está conectado e pronto para acompanhar as ocorrências de falta de energia.");
+  if(r.ok){atualizarStatusTelegram("🟢 Teste enviado com sucesso para o Telegram.");alert("✅ Mensagem de teste enviada!");}
+  else if(!r.ignorado)alert("❌ Não foi possível enviar o teste. Verifique o token e o ID do grupo.");
+}
+
+function obterNotificacoesTelegram(){
+  try{return JSON.parse(localStorage.getItem(TELEGRAM_NOTIFICACOES_KEY)||"{}");}
+  catch(e){return {};}
+}
+function salvarNotificacoesTelegram(obj){
+  localStorage.setItem(TELEGRAM_NOTIFICACOES_KEY,JSON.stringify(obj));
+}
+function chaveTelegram(pop,etapa){
+  return `${pop.id}|${pop.quedaEnergiaEm}|${etapa}`;
+}
+function formatarMensagemTelegram(pop,c,etapa){
+  const nome=pop.nome||"POP não informado";
+  const distancia=Number(pop.distanciaKm||0).toFixed(1);
+  const desloc=formatarDuracaoMinutos(c.obterDeslocamentoMin(pop));
+  const margem=formatarDuracaoMinutos(c.obterMargemMin(pop));
+  const autonomia=formatarAutonomia(c.autonomiaMin/60);
+  const limite=c.limite?formatarDataHora(c.limite.toISOString()):"--";
+  const restante=c.restanteMin!=null?formatarContagem(c.restanteMin):"--";
+  const agora=formatarDataHora(new Date().toISOString());
+
+  const cabecalho=`🏷️ POP: ${nome}\n📍 Distância: ${distancia} km\n🚗 Deslocamento: ${desloc}\n🛡️ Margem: ${margem}\n🔋 Autonomia: ${autonomia}\n`;
+  if(etapa==="FALTA_REGISTRADA")return `⚡ FALTA DE ENERGIA REGISTRADA\n\n${cabecalho}🕐 Início: ${formatarDataHora(pop.quedaEnergiaEm)}\n🚨 Limite para acionar: ${limite}`;
+  if(etapa==="META_AUTONOMIA")return `🟡 50% DA AUTONOMIA\n\n${cabecalho}⏱️ Autonomia restante: ${restante}\n⚠️ Atenção para preparar a equipe.`;
+  if(etapa==="PREPARAR_EQUIPE")return `🟠 PREPARAR EQUIPE\n\n${cabecalho}⏱️ Tempo restante: ${restante}\n🚨 Limite para acionar: ${limite}`;
+  if(etapa==="PROXIMO_LIMITE")return `🔴 PRÓXIMO DO LIMITE DE ACIONAMENTO\n\n${cabecalho}⏱️ Tempo até o limite: ${c.restanteLimiteMin>0?formatarContagem(c.restanteLimiteMin):"00h 00min 00s"}\n🚗 Verificar equipe imediatamente.`;
+  if(etapa==="ACIONAR_AGORA")return `🚨 ACIONAR EQUIPE AGORA\n\n${cabecalho}⏰ O limite de acionamento foi atingido.\n🚗 Enviar equipe imediatamente.`;
+  if(etapa==="SEM_EQUIPE")return `🚨 LIMITE ULTRAPASSADO — EQUIPE NÃO REGISTRADA\n\n${cabecalho}⏰ O limite já foi ultrapassado há ${formatarContagem(Math.abs(c.restanteLimiteMin||0))}.\n⚠️ Registrar o envio da equipe no sistema.`;
+  if(etapa==="EQUIPE_ENVIADA")return `🚗 EQUIPE ENVIADA\n\n${cabecalho}🕐 Saída registrada: ${formatarDataHora(pop.equipeEnviadaEm)}\n⏱️ Registro realizado em: ${agora}`;
+  if(etapa==="ENERGIA_RESTABELECIDA"){
+    const inicio=new Date(pop.quedaEnergiaEm);
+    const fim=new Date(pop.energiaRestabelecidaEm);
+    const duracao=(fim-inicio)/60000;
+    return `💡 ENERGIA RESTABELECIDA\n\n${cabecalho}🕐 Restabelecida: ${formatarDataHora(pop.energiaRestabelecidaEm)}\n⏱️ Duração da falta: ${formatarDuracaoMinutos(duracao)}\n🚗 Equipe enviada: ${pop.equipeEnviadaEm?"Sim":"Não"}\n✅ Ocorrência encerrada.\n🔕 O monitoramento automático foi interrompido.`;
+  }
+  return `🤖 Atualização do POP ${nome}`;
+}
+
+async function notificarTelegramEtapa(pop,etapa,c){
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo||!cfg.token||!cfg.chatId)return;
+  const chave=chaveTelegram(pop,etapa);
+  const registros=obterNotificacoesTelegram();
+  if(registros[chave])return;
+  const resultado=await enviarTelegram(formatarMensagemTelegram(pop,c,etapa));
+  if(resultado.ok){
+    registros[chave]=new Date().toISOString();
+    salvarNotificacoesTelegram(registros);
+  }
+}
+
+async function verificarNotificacoesTelegram(){
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo||!cfg.token||!cfg.chatId||!Array.isArray(pops)||!pops.length)return;
+  for(const pop of pops){
+    if(!pop.quedaEnergiaEm||pop.energiaRestabelecidaEm)continue;
+    const c=calcularContingencia(pop,new Date());
+    if(!c.ativa)continue;
+
+    // A primeira mensagem é enviada no momento do registro da falta.
+    await notificarTelegramEtapa(pop,"FALTA_REGISTRADA",c);
+
+    // 50% da autonomia restante.
+    if(c.restanteMin<=c.autonomiaMin/2)
+      await notificarTelegramEtapa(pop,"META_AUTONOMIA",c);
+
+    // Uma hora antes do limite de acionamento.
+    if(c.restanteLimiteMin<=60&&c.restanteLimiteMin>0)
+      await notificarTelegramEtapa(pop,"PREPARAR_EQUIPE",c);
+
+    // Trinta minutos antes do limite.
+    if(c.restanteLimiteMin<=30&&c.restanteLimiteMin>0)
+      await notificarTelegramEtapa(pop,"PROXIMO_LIMITE",c);
+
+    // Ao atingir o limite.
+    if(c.restanteLimiteMin<=0)
+      await notificarTelegramEtapa(pop,"ACIONAR_AGORA",c);
+
+    // Quinze minutos após o limite, se o operador ainda não informou equipe enviada.
+    if(c.restanteLimiteMin<=-15&&!pop.equipeEnviadaEm)
+      await notificarTelegramEtapa(pop,"SEM_EQUIPE",c);
+  }
+}
+
+/* =========================================================
    CONTINGÊNCIA / DESLOCAMENTO
 ========================================================= */
 function formatarDataHora(valor){
@@ -3183,19 +3384,19 @@ async function registrarFaltaEnergia(i){
   if(pop.quedaEnergiaEm&&!pop.energiaRestabelecidaEm){alert("⚠️ Este POP já está em contingência de energia.");return;}
   if(!Number(pop._autonomiaAjustada)||Number(pop._autonomiaAjustada)<=0){alert("❌ Não foi possível calcular a autonomia deste POP. Verifique consumo e banco de baterias.");return;}
   pop.quedaEnergiaEm=new Date().toISOString();pop.equipeEnviadaEm=null;pop.energiaRestabelecidaEm=null;
-  try{await salvarContingencia(pop);render();}catch(error){console.error(error);pop.quedaEnergiaEm=null;alert("❌ Erro ao registrar a falta de energia: "+error.message);}
+  try{await salvarContingencia(pop);render(); await notificarTelegramEtapa(pop,"FALTA_REGISTRADA",calcularContingencia(pop,new Date()));}catch(error){console.error(error);pop.quedaEnergiaEm=null;alert("❌ Erro ao registrar a falta de energia: "+error.message);}
 }
 async function marcarEquipeEnviada(i){
   const pop=pops[i];if(!pop||!pop.quedaEnergiaEm)return;
   if(pop.equipeEnviadaEm){alert("ℹ️ A equipe já foi registrada como enviada em "+formatarDataHora(pop.equipeEnviadaEm));return;}
   pop.equipeEnviadaEm=new Date().toISOString();
-  try{await salvarContingencia(pop);render();}catch(error){console.error(error);pop.equipeEnviadaEm=null;alert("❌ Erro ao registrar envio da equipe: "+error.message);}
+  try{await salvarContingencia(pop);render(); await notificarTelegramEtapa(pop,"EQUIPE_ENVIADA",calcularContingencia(pop,new Date()));}catch(error){console.error(error);pop.equipeEnviadaEm=null;alert("❌ Erro ao registrar envio da equipe: "+error.message);}
 }
 async function registrarEnergiaRestabelecida(i){
   const pop=pops[i];if(!pop||!pop.quedaEnergiaEm)return;
   if(!confirm(`Confirmar energia restabelecida no POP "${pop.nome}"?`))return;
   pop.energiaRestabelecidaEm=new Date().toISOString();
-  try{await salvarContingencia(pop);render();}catch(error){console.error(error);pop.energiaRestabelecidaEm=null;alert("❌ Erro ao registrar restabelecimento: "+error.message);}
+  try{await salvarContingencia(pop);render(); await notificarTelegramEtapa(pop,"ENERGIA_RESTABELECIDA",calcularContingencia(pop,new Date()));}catch(error){console.error(error);pop.energiaRestabelecidaEm=null;alert("❌ Erro ao registrar restabelecimento: "+error.message);}
 }
 async function limparContingencia(i){
   const pop=pops[i];if(!pop)return;
@@ -3280,6 +3481,19 @@ function removerBateria(i,j){
 /* =========================================================
    RENDER
 ========================================================= */
+
+
+function obterDeslocamentoMin(pop){
+  const distancia = Number(pop?.distanciaKm) || 0;
+  const velocidade = Number(pop?.velocidadeKmH) || 80;
+  if(distancia <= 0 || velocidade <= 0) return 0;
+  return (distancia / velocidade) * 60;
+}
+
+function obterMargemMin(pop){
+  const margem = Number(pop?.margemSegurancaMin);
+  return Number.isFinite(margem) && margem >= 0 ? margem : 30;
+}
 
 function render(preservarBusca=true){
 
@@ -3566,6 +3780,12 @@ function render(preservarBusca=true){
         ?capacidadeUtil/consumo
         :0;
 
+    // Disponibiliza a autonomia calculada para o módulo de contingência.
+    pop._autonomiaAjustada=autonomiaAjustada;
+    const deslocamentoMin=calcularDeslocamentoMinutos(pop);
+    const margemMin=Math.max(0,Number(pop.margemSegurancaMin ?? 30));
+    const contingencia=calcularContingencia(pop,new Date());
+
 
     const perda=
       Math.max(
@@ -3789,7 +4009,7 @@ function render(preservarBusca=true){
             </div>
             <div>
               <label>Deslocamento calculado</label>
-              <div class="status status-ok">${formatarDuracaoMinutos(deslocamentoMin)}</div>
+              <div class="status status-ok">${formatarDuracaoMinutos(obterDeslocamentoMin(pop))}</div>
             </div>
           </div>
         </div>
@@ -4130,8 +4350,8 @@ function render(preservarBusca=true){
           <h3>⚡ Contingência de Energia e Deslocamento</h3>
           <div class="contingencia-grid">
             <div class="contingencia-card"><span>📍 Distância da base</span><strong>${Number(pop.distanciaKm||0).toFixed(1)} km</strong></div>
-            <div class="contingencia-card"><span>🚗 Deslocamento estimado</span><strong>${formatarDuracaoMinutos(deslocamentoMin)}</strong></div>
-            <div class="contingencia-card"><span>🛡️ Margem de segurança</span><strong>${formatarDuracaoMinutos(margemMin)}</strong></div>
+            <div class="contingencia-card"><span>🚗 Deslocamento estimado</span><strong>${formatarDuracaoMinutos(obterDeslocamentoMin(pop))}</strong></div>
+            <div class="contingencia-card"><span>🛡️ Margem de segurança</span><strong>${formatarDuracaoMinutos(obterMargemMin(pop))}</strong></div>
             <div class="contingencia-card"><span>🚗 Velocidade considerada</span><strong>${Number(pop.velocidadeKmH||80).toFixed(0)} km/h</strong></div>
             <div class="contingencia-card"><span>🔋 Autonomia calculada</span><strong>${formatarAutonomia(autonomiaAjustada)}</strong></div>
             <div class="contingencia-card"><span>⏱️ Autonomia restante</span><strong data-contingencia-restante>${contingencia.ativa?formatarContagem(contingencia.restanteMin):"--"}</strong></div>
@@ -4140,7 +4360,7 @@ function render(preservarBusca=true){
           </div>
           <div class="info" style="margin-top:10px;">
             <strong>📌 Regra:</strong> autonomia calculada − deslocamento − margem de segurança.
-            <br><strong>⚠️ Estado:</strong> <span data-contingencia-status>${!contingencia.ativa?"🟢 Sem falta de energia registrada":contingencia.status==="vencido"?"🚨 LIMITE DE ACIONAMENTO ULTRAPASSADO":contingencia.status==="critico"?"🔴 ACIONAR EQUIPE AGORA":contingencia.status==="atencao"?"🟡 PREPARAR / ACIONAR EQUIPE":contingencia.status==="restaurado"?"🟢 ENERGIA RESTABELECIDA":"🟢 MONITORANDO AUTONOMIA"}</span>
+            <br><strong>⚠️ Estado:</strong> <span data-contingencia-status>${contingencia.status==="restaurado"?"🟢 ENERGIA RESTABELECIDA — MONITORAMENTO ENCERRADO":!contingencia.ativa?"🟢 Sem falta de energia registrada":contingencia.status==="vencido"?"🚨 LIMITE DE ACIONAMENTO ULTRAPASSADO":contingencia.status==="critico"?"🔴 ACIONAR EQUIPE AGORA":contingencia.status==="atencao"?"🟡 PREPARAR / ACIONAR EQUIPE":"🟢 MONITORANDO AUTONOMIA"}</span>
             ${contingencia.ativa?`<br>⚡ Falta registrada: <strong>${formatarDataHora(pop.quedaEnergiaEm)}</strong>`:""}
             ${pop.equipeEnviadaEm?`<br>🚗 Equipe enviada: <strong>${formatarDataHora(pop.equipeEnviadaEm)}</strong>`:""}
             ${pop.energiaRestabelecidaEm?`<br>💡 Energia restabelecida: <strong>${formatarDataHora(pop.energiaRestabelecidaEm)}</strong>`:""}
@@ -5133,10 +5353,15 @@ async function iniciar(){
 }
 
 
+carregarConfigTelegram();
 iniciar();
 
 // Atualização em tempo real dos cronômetros, sem recarregar a página.
 setInterval(atualizarRelogiosContingencia,1000);
+
+// Verifica as etapas do bot sem precisar do operador acompanhar o relógio.
+setInterval(verificarNotificacoesTelegram,15000);
+setTimeout(verificarNotificacoesTelegram,3000);
 
 </script>
 <!-- =========================
