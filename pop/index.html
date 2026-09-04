@@ -1312,6 +1312,7 @@ function atualizarModoEdicao(){
   }
 
   atualizarCampos();
+  ocultarContingenciaNormalizada();
 
 }
 
@@ -3664,6 +3665,18 @@ function obterDeslocamentoMin(pop){
 function obterMargemMin(pop){
   const margem = Number(pop?.margemSegurancaMin);
   return Number.isFinite(margem) && margem >= 0 ? margem : 30;
+}
+
+
+function ocultarContingenciaNormalizada(){
+  document.querySelectorAll(".contingencia").forEach(el=>{
+    const popCard = el.closest("[data-pop-index]");
+    if(!popCard) return;
+    const i = Number(popCard.getAttribute("data-pop-index"));
+    if(Number.isInteger(i) && pops[i]?.energiaRestabelecidaEm){
+      el.style.display = "none";
+    }
+  });
 }
 
 function render(preservarBusca=true){
