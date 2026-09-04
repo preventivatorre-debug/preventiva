@@ -851,7 +851,7 @@ details[open]>summary::before{
 </div>
 
 <details class="telegram-config">
-  <summary>🤖 Configuração do Bot Telegram (uso interno)</summary>
+  <summary>🤖 Configuração do Bot Telegram (uso interno — atualização a cada 30 minutos)</summary>
   <div class="telegram-grid">
     <div>
       <label>Token do Bot</label>
@@ -3238,8 +3238,8 @@ function chaveTelegram(pop,etapa){
 function formatarMensagemTelegram(pop,c,etapa){
   const nome=pop.nome||"POP não informado";
   const distancia=Number(pop.distanciaKm||0).toFixed(1);
-  const desloc=formatarDuracaoMinutos(c.obterDeslocamentoMin(pop));
-  const margem=formatarDuracaoMinutos(c.obterMargemMin(pop));
+  const desloc=formatarDuracaoMinutos(calcularDeslocamentoMinutos(pop));
+  const margem=formatarDuracaoMinutos(Number(pop.margemSegurancaMin)||30);
   const autonomia=formatarAutonomia(c.autonomiaMin/60);
   const limite=c.limite?formatarDataHora(c.limite.toISOString()):"--";
   const restante=c.restanteMin!=null?formatarContagem(c.restanteMin):"--";
@@ -3262,6 +3262,58 @@ function formatarMensagemTelegram(pop,c,etapa){
   return `🤖 Atualização do POP ${nome}`;
 }
 
+
+function formatarMensagemTelegram30Min(pop,c){
+  const inicio = new Date(pop.quedaEnergiaEm);
+  const agora = new Date();
+  const decorridoMin = Math.max(0, (agora - inicio) / 60000);
+  const restante = c.restanteMin != null ? formatarContagem(c.restanteMin) : "--";
+  const limite = c.limite ? formatarDataHora(c.limite.toISOString()) : "--";
+
+  let situacao = "🟢 Dentro da autonomia estimada.";
+  if(c.restanteLimiteMin <= 0) situacao = "🔴 Limite de acionamento ultrapassado.";
+  else if(c.restanteLimiteMin <= 30) situacao = "🚨 Muito próximo do limite de acionamento.";
+  else if(c.restanteLimiteMin <= 60) situacao = "🟠 Atenção: próximo do limite de acionamento.";
+
+  return `⏱️ ATUALIZAÇÃO — 30 MINUTOS
+
+🏷️ POP: ${pop.nome || "POP não informado"}
+⚡ Falta de energia: ${formatarDataHora(pop.quedaEnergiaEm)}
+⏳ Tempo sem energia: ${formatarDuracaoMinutos(decorridoMin)}
+🔋 Autonomia restante: ${restante}
+🚗 Equipe enviada: ${pop.equipeEnviadaEm ? "SIM — " + formatarDataHora(pop.equipeEnviadaEm) : "NÃO"}
+🚨 Limite de acionamento: ${limite}
+
+${situacao}`;
+}
+
+async function notificarTelegramPeriodic30Min(pop,c){
+  if(!pop.quedaEnergiaEm || pop.energiaRestabelecidaEm) return;
+
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo||!cfg.token||!cfg.chatId)return;
+
+  const inicio = new Date(pop.quedaEnergiaEm).getTime();
+  if(!Number.isFinite(inicio)) return;
+
+  const agora = Date.now();
+  const slot = Math.floor((agora - inicio) / (30 * 60 * 1000));
+
+  // slot 0 é a mensagem inicial, já enviada no registro da falta.
+  // A partir do slot 1, envia exatamente uma atualização a cada 30 minutos.
+  if(slot < 1) return;
+
+  const chave = chaveTelegram(pop, `ATUALIZACAO_30MIN_${slot}`);
+  const registros = obterNotificacoesTelegram();
+  if(registros[chave]) return;
+
+  const resultado = await enviarTelegram(formatarMensagemTelegram30Min(pop,c));
+  if(resultado.ok){
+    registros[chave] = new Date().toISOString();
+    salvarNotificacoesTelegram(registros);
+  }
+}
+
 async function notificarTelegramEtapa(pop,etapa,c){
   const cfg=lerConfigTelegram();
   if(!cfg.ativo||!cfg.token||!cfg.chatId)return;
@@ -3278,33 +3330,19 @@ async function notificarTelegramEtapa(pop,etapa,c){
 async function verificarNotificacoesTelegram(){
   const cfg=lerConfigTelegram();
   if(!cfg.ativo||!cfg.token||!cfg.chatId||!Array.isArray(pops)||!pops.length)return;
+
   for(const pop of pops){
+    // Energia normalizada: não envia mais nada para esta ocorrência.
     if(!pop.quedaEnergiaEm||pop.energiaRestabelecidaEm)continue;
+
     const c=calcularContingencia(pop,new Date());
     if(!c.ativa)continue;
 
-    // A primeira mensagem é enviada no momento do registro da falta.
+    // Se a falta foi registrada e a mensagem inicial ainda não saiu, tenta enviar.
     await notificarTelegramEtapa(pop,"FALTA_REGISTRADA",c);
 
-    // 50% da autonomia restante.
-    if(c.restanteMin<=c.autonomiaMin/2)
-      await notificarTelegramEtapa(pop,"META_AUTONOMIA",c);
-
-    // Uma hora antes do limite de acionamento.
-    if(c.restanteLimiteMin<=60&&c.restanteLimiteMin>0)
-      await notificarTelegramEtapa(pop,"PREPARAR_EQUIPE",c);
-
-    // Trinta minutos antes do limite.
-    if(c.restanteLimiteMin<=30&&c.restanteLimiteMin>0)
-      await notificarTelegramEtapa(pop,"PROXIMO_LIMITE",c);
-
-    // Ao atingir o limite.
-    if(c.restanteLimiteMin<=0)
-      await notificarTelegramEtapa(pop,"ACIONAR_AGORA",c);
-
-    // Quinze minutos após o limite, se o operador ainda não informou equipe enviada.
-    if(c.restanteLimiteMin<=-15&&!pop.equipeEnviadaEm)
-      await notificarTelegramEtapa(pop,"SEM_EQUIPE",c);
+    // Atualização automática a cada 30 minutos enquanto a ocorrência estiver ativa.
+    await notificarTelegramPeriodic30Min(pop,c);
   }
 }
 
