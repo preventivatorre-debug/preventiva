@@ -783,6 +783,23 @@ details[open]>summary::before{
   }
 }
 
+
+/* =========================
+   CONTINGÊNCIA DE ENERGIA / DESLOCAMENTO
+========================= */
+.contingencia-box{margin-top:15px;padding:15px;border-radius:8px;background:#fff;border-left:6px solid #2980b9}
+.contingencia-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.contingencia-card{background:#f7f7f7;padding:12px;border-radius:6px;text-align:center}
+.contingencia-card span{display:block;font-size:13px;color:#666;margin-bottom:5px}
+.contingencia-card strong{font-size:19px}
+.contingencia-normal{background:#d4edda;color:#155724;border-left-color:#28a745}
+.contingencia-atencao{background:#fff3cd;color:#856404;border-left-color:#f0ad4e}
+.contingencia-critico{background:#ffe5cc;color:#9a4d00;border-left-color:#ff8c00}
+.contingencia-vencido{background:#f8d7da;color:#721c24;border-left-color:#dc3545}
+.contingencia-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn-energia{font-weight:bold}.btn-energia.queda{background:#c0392b}.btn-energia.equipe{background:#2980b9}.btn-energia.restaurar{background:#27ae60}.btn-energia.cancelar{background:#555}
+@media(max-width:900px){.contingencia-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.contingencia-grid{grid-template-columns:1fr}.contingencia-acoes{flex-direction:column}.contingencia-acoes button{width:100%}}
 </style>
 </head>
 
@@ -931,6 +948,24 @@ details[open]>summary::before{
   <input id="novaValidade"
          type="date"
          title="Data de validade das baterias"
+         disabled>
+
+  <input id="novoDistancia"
+         type="number" min="0" step="0.1"
+         placeholder="Distância da base (km)"
+         title="Distância da base da equipe até o POP"
+         disabled>
+
+  <input id="novoVelocidade"
+         type="number" min="1" step="1" value="80"
+         placeholder="Velocidade média (km/h)"
+         title="Velocidade média usada no cálculo"
+         disabled>
+
+  <input id="novoMargem"
+         type="number" min="0" step="1" value="30"
+         placeholder="Margem de segurança (min)"
+         title="Margem de segurança antes do fim da autonomia"
          disabled>
 
   <br>
@@ -1396,6 +1431,14 @@ function bancoParaPop(row){
         Number(row.periodicidade_preventiva)||30
       ),
 
+
+    distanciaKm:Number(row.distancia_km)||0,
+    velocidadeKmH:Number(row.velocidade_kmh)||80,
+    margemSegurancaMin:Number(row.margem_seguranca_min ?? 30)||0,
+    quedaEnergiaEm:row.queda_energia_em||null,
+    equipeEnviadaEm:row.equipe_enviada_em||null,
+    energiaRestabelecidaEm:row.energia_restabelecida_em||null,
+
     equipamentos:equipamentos
 
   };
@@ -1448,6 +1491,14 @@ function popParaBanco(pop){
       Math.round(
         Number(pop.periodicidadePreventiva)||30
       ),
+
+
+    distancia_km:Number(pop.distanciaKm)||0,
+    velocidade_kmh:Number(pop.velocidadeKmH)||80,
+    margem_seguranca_min:Number(pop.margemSegurancaMin ?? 30)||0,
+    queda_energia_em:pop.quedaEnergiaEm||null,
+    equipe_enviada_em:pop.equipeEnviadaEm||null,
+    energia_restabelecida_em:pop.energiaRestabelecidaEm||null,
 
     equipamentos:
       Array.isArray(pop.equipamentos)
@@ -3057,6 +3108,116 @@ function formatarAutonomia(horas){
 
 
 /* =========================================================
+   CONTINGÊNCIA / DESLOCAMENTO
+========================================================= */
+function formatarDataHora(valor){
+  if(!valor)return "--";
+  const d=new Date(valor);
+  if(isNaN(d.getTime()))return "--";
+  return d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+function formatarDuracaoMinutos(minutos){
+  if(!Number.isFinite(minutos))return "--";
+  const total=Math.max(0,Math.round(minutos));
+  const h=Math.floor(total/60),m=total%60;
+  return h>0?`${h}h ${m}min`:`${m}min`;
+}
+function calcularDeslocamentoMinutos(pop){
+  const distancia=Number(pop.distanciaKm)||0;
+  const velocidade=Number(pop.velocidadeKmH)||80;
+  return distancia>0&&velocidade>0?(distancia/velocidade)*60:0;
+}
+function calcularContingencia(pop,agora=new Date()){
+  const autonomiaHoras=Number(pop._autonomiaAjustada)||0;
+  const autonomiaMin=autonomiaHoras*60;
+  const deslocamentoMin=calcularDeslocamentoMinutos(pop);
+  const margemMin=Math.max(0,Number(pop.margemSegurancaMin ?? 30));
+  const reservado=deslocamentoMin+margemMin;
+  if(!pop.quedaEnergiaEm)return {ativa:false,autonomiaMin,deslocamentoMin,margemMin,reservado,limite:null,fimAutonomia:null,restanteMin:null,restanteLimiteMin:null,status:"normal"};
+  const inicio=new Date(pop.quedaEnergiaEm);
+  if(isNaN(inicio.getTime()))return {ativa:false,autonomiaMin,deslocamentoMin,margemMin,reservado,status:"normal"};
+  const fimAutonomia=new Date(inicio.getTime()+autonomiaMin*60000);
+  const limite=new Date(fimAutonomia.getTime()-reservado*60000);
+
+  // Quando a energia volta, a ocorrência fica encerrada.
+  // O operador só precisa informar o restabelecimento; a partir daí
+  // o monitoramento de contingência deixa de contar e nenhuma nova
+  // etapa de contingência deve ser disparada.
+  if(pop.energiaRestabelecidaEm){
+    return {
+      ativa:false,
+      encerrada:true,
+      inicio,
+      fimAutonomia,
+      limite,
+      autonomiaMin,
+      deslocamentoMin,
+      margemMin,
+      reservado,
+      restanteMin:null,
+      restanteLimiteMin:null,
+      status:"restaurado"
+    };
+  }
+
+  const restanteMin=(fimAutonomia-agora)/60000;
+  const restanteLimiteMin=(limite-agora)/60000;
+  let status="normal";
+  if(restanteLimiteMin<=0)status="vencido";
+  else if(restanteLimiteMin<=30)status="critico";
+  else if(restanteLimiteMin<=60)status="atencao";
+  return {ativa:true,encerrada:false,inicio,fimAutonomia,limite,autonomiaMin,deslocamentoMin,margemMin,reservado,restanteMin,restanteLimiteMin,status};
+}
+function formatarContagem(minutos){
+  if(!Number.isFinite(minutos))return "--";
+  const segundos=Math.max(0,Math.round(minutos*60));
+  const h=Math.floor(segundos/3600),m=Math.floor((segundos%3600)/60),s=segundos%60;
+  return `${String(h).padStart(2,"0")}h ${String(m).padStart(2,"0")}min ${String(s).padStart(2,"0")}s`;
+}
+async function salvarContingencia(pop){
+  const {error}=await supabaseClient.from("pops_autonomia").update({queda_energia_em:pop.quedaEnergiaEm||null,equipe_enviada_em:pop.equipeEnviadaEm||null,energia_restabelecida_em:pop.energiaRestabelecidaEm||null}).eq("id",pop.id);
+  if(error)throw error;
+}
+async function registrarFaltaEnergia(i){
+  const pop=pops[i];if(!pop)return;
+  if(pop.quedaEnergiaEm&&!pop.energiaRestabelecidaEm){alert("⚠️ Este POP já está em contingência de energia.");return;}
+  if(!Number(pop._autonomiaAjustada)||Number(pop._autonomiaAjustada)<=0){alert("❌ Não foi possível calcular a autonomia deste POP. Verifique consumo e banco de baterias.");return;}
+  pop.quedaEnergiaEm=new Date().toISOString();pop.equipeEnviadaEm=null;pop.energiaRestabelecidaEm=null;
+  try{await salvarContingencia(pop);render();}catch(error){console.error(error);pop.quedaEnergiaEm=null;alert("❌ Erro ao registrar a falta de energia: "+error.message);}
+}
+async function marcarEquipeEnviada(i){
+  const pop=pops[i];if(!pop||!pop.quedaEnergiaEm)return;
+  if(pop.equipeEnviadaEm){alert("ℹ️ A equipe já foi registrada como enviada em "+formatarDataHora(pop.equipeEnviadaEm));return;}
+  pop.equipeEnviadaEm=new Date().toISOString();
+  try{await salvarContingencia(pop);render();}catch(error){console.error(error);pop.equipeEnviadaEm=null;alert("❌ Erro ao registrar envio da equipe: "+error.message);}
+}
+async function registrarEnergiaRestabelecida(i){
+  const pop=pops[i];if(!pop||!pop.quedaEnergiaEm)return;
+  if(!confirm(`Confirmar energia restabelecida no POP "${pop.nome}"?`))return;
+  pop.energiaRestabelecidaEm=new Date().toISOString();
+  try{await salvarContingencia(pop);render();}catch(error){console.error(error);pop.energiaRestabelecidaEm=null;alert("❌ Erro ao registrar restabelecimento: "+error.message);}
+}
+async function limparContingencia(i){
+  const pop=pops[i];if(!pop)return;
+  if(!confirm(`Apagar o registro de falta de energia do POP "${pop.nome}"?`))return;
+  const anterior={quedaEnergiaEm:pop.quedaEnergiaEm,equipeEnviadaEm:pop.equipeEnviadaEm,energiaRestabelecidaEm:pop.energiaRestabelecidaEm};
+  pop.quedaEnergiaEm=null;pop.equipeEnviadaEm=null;pop.energiaRestabelecidaEm=null;
+  try{await salvarContingencia(pop);render();}catch(error){console.error(error);Object.assign(pop,anterior);alert("❌ Erro ao limpar o registro: "+error.message);}
+}
+function atualizarRelogiosContingencia(){
+  pops.forEach(pop=>{
+    const box=document.querySelector(`[data-contingencia-pop-id="${CSS.escape(String(pop.id))}"]`);if(!box)return;
+    const c=calcularContingencia(pop,new Date());
+    const restante=box.querySelector("[data-contingencia-restante]"),limite=box.querySelector("[data-contingencia-limite]"),status=box.querySelector("[data-contingencia-status]");
+    if(restante)restante.textContent=c.ativa&&c.restanteMin!=null?formatarContagem(c.restanteMin):"--";
+    if(limite)limite.textContent=c.ativa&&c.restanteLimiteMin!=null?(c.restanteLimiteMin>0?formatarContagem(c.restanteLimiteMin):"00h 00min 00s"):"--";
+    if(status)status.textContent=c.status==="vencido"?"🚨 LIMITE DE ACIONAMENTO ULTRAPASSADO":c.status==="critico"?"🔴 ACIONAR EQUIPE AGORA":c.status==="atencao"?"🟡 PREPARAR / ACIONAR EQUIPE":c.status==="restaurado"?"🟢 ENERGIA RESTABELECIDA — MONITORAMENTO ENCERRADO":"🟢 MONITORANDO AUTONOMIA";
+    box.classList.remove("contingencia-normal","contingencia-atencao","contingencia-critico","contingencia-vencido");
+    if(c.status==="atencao")box.classList.add("contingencia-atencao");else if(c.status==="critico")box.classList.add("contingencia-critico");else if(c.status==="vencido")box.classList.add("contingencia-vencido");else box.classList.add("contingencia-normal");
+  });
+}
+
+/* =========================================================
    BATERIA
 ========================================================= */
 
@@ -3606,6 +3767,33 @@ function render(preservarBusca=true){
         </div>
 
 
+        <!-- CONFIGURAÇÃO DE DESLOCAMENTO -->
+        <div class="info">
+          <strong>📍 Configuração do POP para atendimento</strong>
+          <br><br>
+          <div class="preventiva-grid">
+            <div>
+              <label>Distância da base (km)</label>
+              <input type="number" min="0" step="0.1" value="${Number(pop.distanciaKm||0)}" ${!modoEdicao?"disabled":""}
+                onchange="pops[${i}].distanciaKm=Number(this.value)||0;existemAlteracoes=true;renderVisivel(${i});">
+            </div>
+            <div>
+              <label>Velocidade média (km/h)</label>
+              <input type="number" min="1" step="1" value="${Number(pop.velocidadeKmH||80)}" ${!modoEdicao?"disabled":""}
+                onchange="pops[${i}].velocidadeKmH=Number(this.value)||80;existemAlteracoes=true;renderVisivel(${i});">
+            </div>
+            <div>
+              <label>Margem de segurança (min)</label>
+              <input type="number" min="0" step="1" value="${Number(pop.margemSegurancaMin ?? 30)}" ${!modoEdicao?"disabled":""}
+                onchange="pops[${i}].margemSegurancaMin=Math.max(0,Number(this.value)||0);existemAlteracoes=true;renderVisivel(${i});">
+            </div>
+            <div>
+              <label>Deslocamento calculado</label>
+              <div class="status status-ok">${formatarDuracaoMinutos(deslocamentoMin)}</div>
+            </div>
+          </div>
+        </div>
+
         <!-- BANCO -->
 
         <div class="banco">
@@ -3936,6 +4124,34 @@ function render(preservarBusca=true){
 
         </div>
 
+
+        <!-- CONTINGÊNCIA / DESLOCAMENTO -->
+        <div class="contingencia-box ${contingencia.status==="vencido"?"contingencia-vencido":contingencia.status==="critico"?"contingencia-critico":contingencia.status==="atencao"?"contingencia-atencao":"contingencia-normal"}" data-contingencia-pop-id="${escapeHtml(pop.id)}">
+          <h3>⚡ Contingência de Energia e Deslocamento</h3>
+          <div class="contingencia-grid">
+            <div class="contingencia-card"><span>📍 Distância da base</span><strong>${Number(pop.distanciaKm||0).toFixed(1)} km</strong></div>
+            <div class="contingencia-card"><span>🚗 Deslocamento estimado</span><strong>${formatarDuracaoMinutos(deslocamentoMin)}</strong></div>
+            <div class="contingencia-card"><span>🛡️ Margem de segurança</span><strong>${formatarDuracaoMinutos(margemMin)}</strong></div>
+            <div class="contingencia-card"><span>🚗 Velocidade considerada</span><strong>${Number(pop.velocidadeKmH||80).toFixed(0)} km/h</strong></div>
+            <div class="contingencia-card"><span>🔋 Autonomia calculada</span><strong>${formatarAutonomia(autonomiaAjustada)}</strong></div>
+            <div class="contingencia-card"><span>⏱️ Autonomia restante</span><strong data-contingencia-restante>${contingencia.ativa?formatarContagem(contingencia.restanteMin):"--"}</strong></div>
+            <div class="contingencia-card"><span>🚨 Tempo até limite de acionamento</span><strong data-contingencia-limite>${contingencia.ativa?(contingencia.restanteLimiteMin>0?formatarContagem(contingencia.restanteLimiteMin):"00h 00min 00s"):"--"}</strong></div>
+            <div class="contingencia-card"><span>📅 Horário limite para acionar</span><strong>${contingencia.limite?formatarDataHora(contingencia.limite.toISOString()):"--"}</strong></div>
+          </div>
+          <div class="info" style="margin-top:10px;">
+            <strong>📌 Regra:</strong> autonomia calculada − deslocamento − margem de segurança.
+            <br><strong>⚠️ Estado:</strong> <span data-contingencia-status>${!contingencia.ativa?"🟢 Sem falta de energia registrada":contingencia.status==="vencido"?"🚨 LIMITE DE ACIONAMENTO ULTRAPASSADO":contingencia.status==="critico"?"🔴 ACIONAR EQUIPE AGORA":contingencia.status==="atencao"?"🟡 PREPARAR / ACIONAR EQUIPE":contingencia.status==="restaurado"?"🟢 ENERGIA RESTABELECIDA":"🟢 MONITORANDO AUTONOMIA"}</span>
+            ${contingencia.ativa?`<br>⚡ Falta registrada: <strong>${formatarDataHora(pop.quedaEnergiaEm)}</strong>`:""}
+            ${pop.equipeEnviadaEm?`<br>🚗 Equipe enviada: <strong>${formatarDataHora(pop.equipeEnviadaEm)}</strong>`:""}
+            ${pop.energiaRestabelecidaEm?`<br>💡 Energia restabelecida: <strong>${formatarDataHora(pop.energiaRestabelecidaEm)}</strong>`:""}
+          </div>
+          <div class="contingencia-acoes">
+            ${!contingencia.ativa||pop.energiaRestabelecidaEm?`<button class="btn-energia queda" onclick="registrarFaltaEnergia(${i})">⚡ Registrar falta de energia AGORA</button>`:""}
+            ${contingencia.ativa&&!pop.equipeEnviadaEm&&!pop.energiaRestabelecidaEm?`<button class="btn-energia equipe" onclick="marcarEquipeEnviada(${i})">🚗 Registrar equipe enviada</button>`:""}
+            ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia restaurar" onclick="registrarEnergiaRestabelecida(${i})">💡 Registrar energia restabelecida</button>`:""}
+            ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia cancelar" onclick="limparContingencia(${i})">🗑️ Limpar ocorrência</button>`:""}
+          </div>
+        </div>
 
         <!-- PREVENTIVA -->
 
@@ -4686,6 +4902,13 @@ async function criarPOP(){
 
     periodicidadePreventiva:30,
 
+    distanciaKm:Number(document.getElementById("novoDistancia").value)||0,
+    velocidadeKmH:Number(document.getElementById("novoVelocidade").value)||80,
+    margemSegurancaMin:Number(document.getElementById("novoMargem").value)||30,
+    quedaEnergiaEm:null,
+    equipeEnviadaEm:null,
+    energiaRestabelecidaEm:null,
+
     equipamentos:[]
 
   };
@@ -4711,6 +4934,9 @@ async function criarPOP(){
   document.getElementById(
     "novaValidade"
   ).value="";
+  document.getElementById("novoDistancia").value="";
+  document.getElementById("novoVelocidade").value="80";
+  document.getElementById("novoMargem").value="30";
 
 
   render();
@@ -4908,6 +5134,9 @@ async function iniciar(){
 
 
 iniciar();
+
+// Atualização em tempo real dos cronômetros, sem recarregar a página.
+setInterval(atualizarRelogiosContingencia,1000);
 
 </script>
 <!-- =========================
