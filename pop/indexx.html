@@ -191,6 +191,21 @@ body.modo-edicao .form-equipamento{
   display:block;
 }
 
+/* =========================================================
+   MODO LEITURA — OCULTAR CONFIGURAÇÕES ADMINISTRATIVAS
+   Telegram, equipe de plantão e escala mensal ficam invisíveis
+   quando a edição está bloqueada. Ao ativar a edição, reaparecem.
+========================================================= */
+body:not(.modo-edicao) > .telegram-config,
+body:not(.modo-edicao) > .equipe-plantao-config{
+  display:none !important;
+}
+
+body.modo-edicao > .telegram-config,
+body.modo-edicao > .equipe-plantao-config{
+  display:block;
+}
+
 .form-pop input,
 .form-equipamento input{
   padding:9px;
@@ -1069,6 +1084,14 @@ details[open]>summary::before{
 .acionamento-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .btn-confirmar-acionamento{background:#27ae60 !important;font-weight:bold}
 .btn-copiar-acionamento{background:#2980b9 !important}
+.modal-problema{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;padding:15px;overflow-y:auto}
+.modal-problema-conteudo{max-width:900px;margin:20px auto;background:#fff;border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.modal-problema-cabecalho{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px}.modal-problema-cabecalho h2{margin:0;color:#c0392b}
+.problema-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.problema-grid .campo-completo{grid-column:1 / -1}.problema-grid label{display:block;font-size:12px;font-weight:bold;color:#555;margin-bottom:4px}.problema-grid input,.problema-grid textarea{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box}
+.problema-script{margin-top:15px;background:#f7f7f7;border:1px solid #ddd;border-radius:8px;padding:15px;white-space:pre-wrap;font-family:monospace;line-height:1.5;max-height:430px;overflow:auto;box-sizing:border-box;width:100%}
+.problema-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.btn-confirmar-problema{background:#27ae60 !important;font-weight:bold}.btn-copiar-problema{background:#2980b9 !important}
+@media(max-width:900px){.problema-grid{grid-template-columns:1fr}.problema-grid .campo-completo{grid-column:auto}}
+@media(max-width:500px){.modal-problema{padding:8px}.modal-problema-conteudo{margin:8px auto;padding:14px}.problema-acoes{flex-direction:column}.problema-acoes button{width:100%}}
 @media(max-width:900px){.equipe-plantao-grid{grid-template-columns:1fr 1fr}.acionamento-grid{grid-template-columns:1fr}.acionamento-grid .campo-completo{grid-column:auto}}
 @media(max-width:500px){.equipe-plantao-grid{grid-template-columns:1fr}.equipe-plantao-acoes{flex-direction:column}.equipe-plantao-acoes button{width:100%}.modal-acionamento{padding:8px}.modal-acionamento-conteudo{margin:8px auto;padding:14px}}
 </style>
@@ -3493,6 +3516,7 @@ const TELEGRAM_NOTIFICACOES_KEY="controle_pops_telegram_notificacoes_v1";
 const EQUIPE_PLANTAO_STORAGE_KEY="controle_pops_equipe_plantao_v1";
 const ESCALA_PLANTAO_STORAGE_KEY="controle_pops_plantao_mensal_v1";
 const ACIONAMENTOS_STORAGE_KEY="controle_pops_acionamentos_v1";
+const PROBLEMAS_STORAGE_KEY="controle_pops_problemas_v1";
 
 function lerEquipesPlantao(){
   try{const lista=JSON.parse(localStorage.getItem(EQUIPE_PLANTAO_STORAGE_KEY)||"[]");return Array.isArray(lista)?lista:[];}catch(e){return [];}
@@ -3659,7 +3683,8 @@ function formatarDataInput(valor){if(!valor)return "";const d=new Date(valor);if
 function formatarHora(valor){if(!valor)return "";const d=new Date(valor);if(isNaN(d.getTime()))return "";return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});}
 function montarScriptAcionamento(pop,campos={}){
   const c=calcularContingencia(pop,new Date());
-  const equipe=equipePlantaoAtual()||{};
+  const dataEscala=(campos.data||dadosAcionamentoPop(pop).data||formatarDataInput(new Date()));
+  const equipe=equipePlantaoParaData(dataEscala)||{};
   const dados={...dadosAcionamentoPop(pop),...campos};
   const inicio=pop.quedaEnergiaEm?formatarDataHora(pop.quedaEnergiaEm):"--";
   const limite=c.limite?formatarDataHora(c.limite.toISOString()):"--";
@@ -4186,6 +4211,74 @@ async function registrarFaltaEnergia(i){
   pop.quedaEnergiaEm=new Date().toISOString();pop.equipeEnviadaEm=null;pop.energiaRestabelecidaEm=null;
   try{await salvarContingencia(pop);render(); await notificarTelegramEtapa(pop,"FALTA_REGISTRADA",calcularContingencia(pop,new Date()));}catch(error){console.error(error);pop.quedaEnergiaEm=null;alert("❌ Erro ao registrar a falta de energia: "+error.message);}
 }
+function lerProblemasRegistrados(){try{const x=JSON.parse(localStorage.getItem(PROBLEMAS_STORAGE_KEY)||"{}");return x&&typeof x==="object"?x:{};}catch(e){return {};}}
+function salvarProblemasRegistrados(x){localStorage.setItem(PROBLEMAS_STORAGE_KEY,JSON.stringify(x||{}));}
+function dadosProblemaPop(pop){return lerProblemasRegistrados()[pop.id]||{};}
+function montarScriptProblema(pop,campos={}){
+  const dados={...dadosProblemaPop(pop),...campos};
+  const equipe=equipePlantaoParaData(dados.data||new Date())||{};
+  const data=dados.data||formatarDataInput(new Date());
+  const semana=obterSemanaEscala(data);
+  return `🚨 ACIONAMENTO / ATENDIMENTO TÉCNICO
+
+📅 Data: ${data?data.split("-").reverse().join("/"):"--"}
+📆 Escala: ${semana?`${semana}ª SEMANA`:"--"}
+👷 Técnico: ${dados.tecnico||equipe.tecnico||"--"}
+👨‍🔧 Auxiliar: ${dados.auxiliar||equipe.auxiliar||"--"}
+🚗 Carro: ${dados.carro||equipe.carro||"--"}
+
+📍 POP: ${pop.nome||"--"}
+⚠️ PROBLEMA / OCORRÊNCIA:
+${dados.problema||""}
+
+📄 Protocolo OxenteNet: ${dados.protocoloOxenteNet||""}
+📄 Protocolo SPE: ${dados.protocoloSPE||""}
+📍 Local da Atividade: ${dados.localAtividade||pop.nome||"--"}
+📌 Localização: ${dados.localizacao||""}
+
+⏰ CRONOGRAMA & LOGÍSTICA:
+📍 KM Inicial: ${dados.kmInicial||""}
+🏁 KM Final: ${dados.kmFinal||""}
+🕒 Início do Deslocamento: ${dados.inicioDeslocamento||""}
+🕒 Início da Atividade: ${dados.inicioAtividade||""}
+🕒 Fim da Atividade: ${dados.fimAtividade||""}
+🕒 Fim do Deslocamento: ${dados.fimDeslocamento||""}
+
+🧰 Materiais Utilizados:
+${dados.materiais||""}
+
+📋 Como resolveu (RELATO TÉCNICO):
+${dados.relato||""}`;
+}
+function abrirModalProblema(i){
+  const pop=pops[i];if(!pop)return;
+  const d=dadosProblemaPop(pop);const data=d.data||formatarDataInput(new Date());
+  const equipe=equipePlantaoParaData(data);
+  if(!equipe){alert("⚠️ Cadastre a escala mensal do plantão antes de gerar o script.");return;}
+  window._problemaPopIndex=i;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||"";};
+  set("problemaData",data);set("problemaTecnico",equipe.tecnico);set("problemaAuxiliar",equipe.auxiliar);set("problemaCarro",equipe.carro);
+  set("problemaTexto",d.problema);set("problemaProtocoloOxenteNet",d.protocoloOxenteNet);set("problemaProtocoloSPE",d.protocoloSPE);set("problemaLocal",d.localAtividade||pop.nome);set("problemaKmInicial",d.kmInicial);set("problemaLocalizacao",d.localizacao);set("problemaKmFinal",d.kmFinal);set("problemaInicioDeslocamento",d.inicioDeslocamento);set("problemaInicioAtividade",d.inicioAtividade);set("problemaFimAtividade",d.fimAtividade);set("problemaFimDeslocamento",d.fimDeslocamento);set("problemaMateriais",d.materiais);set("problemaRelato",d.relato);
+  window._problemaEquipeData=data;
+  atualizarScriptProblema();
+  const modal=document.getElementById("modalProblema");if(modal)modal.style.display="block";
+}
+function fecharModalProblema(){const m=document.getElementById("modalProblema");if(m)m.style.display="none";}
+function dadosFormularioProblema(){return {data:document.getElementById("problemaData")?.value||"",tecnico:document.getElementById("problemaTecnico")?.value||"",auxiliar:document.getElementById("problemaAuxiliar")?.value||"",carro:document.getElementById("problemaCarro")?.value||"",problema:document.getElementById("problemaTexto")?.value||"",protocoloOxenteNet:document.getElementById("problemaProtocoloOxenteNet")?.value||"",protocoloSPE:document.getElementById("problemaProtocoloSPE")?.value||"",localAtividade:document.getElementById("problemaLocal")?.value||"",kmInicial:document.getElementById("problemaKmInicial")?.value||"",kmFinal:document.getElementById("problemaKmFinal")?.value||"",localizacao:document.getElementById("problemaLocalizacao")?.value||"",inicioDeslocamento:document.getElementById("problemaInicioDeslocamento")?.value||"",inicioAtividade:document.getElementById("problemaInicioAtividade")?.value||"",fimAtividade:document.getElementById("problemaFimAtividade")?.value||"",fimDeslocamento:document.getElementById("problemaFimDeslocamento")?.value||"",materiais:document.getElementById("problemaMateriais")?.value||"",relato:document.getElementById("problemaRelato")?.value||""};}
+function atualizarScriptProblema(){
+  const i=window._problemaPopIndex;const pop=pops[i];if(!pop)return;const d=dadosFormularioProblema();const equipe=equipePlantaoParaData(d.data||new Date());
+  if(equipe&&window._problemaEquipeData!==String(d.data||"")){[ ["problemaTecnico",equipe.tecnico],["problemaAuxiliar",equipe.auxiliar],["problemaCarro",equipe.carro] ].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v||"";});window._problemaEquipeData=String(d.data||"");d.tecnico=equipe.tecnico;d.auxiliar=equipe.auxiliar;d.carro=equipe.carro;}
+  const el=document.getElementById("problemaScript");if(el)el.value=montarScriptProblema(pop,d);
+}
+async function copiarScriptProblema(){atualizarScriptProblema();const el=document.getElementById("problemaScript");if(!el)return;try{await navigator.clipboard.writeText(el.value);alert("✅ Script do problema copiado.");}catch(e){el.select();document.execCommand("copy");alert("✅ Script do problema copiado.");}}
+async function confirmarProblema(){
+  const i=window._problemaPopIndex;const pop=pops[i];if(!pop)return;const d=dadosFormularioProblema();
+  if(!d.problema.trim()){alert("Descreva o problema/ocorrência.");return;}if(!d.tecnico){alert("Não foi possível identificar o técnico da escala.");return;}
+  const agora=new Date().toISOString();const registros=lerProblemasRegistrados();registros[pop.id]={...d,registradoEm:agora};salvarProblemasRegistrados(registros);
+  try{const script=montarScriptProblema(pop,d);const resultado=await enviarTelegram(script);fecharModalProblema();render();if(resultado.ok)alert("✅ Problema registrado e script enviado ao Telegram.");else alert("✅ Problema registrado. O Telegram não foi enviado; confira a configuração do bot.");}
+  catch(error){console.error(error);alert("❌ Erro ao registrar problema: "+error.message);}
+}
+
 async function marcarEquipeEnviada(i){
   const pop=pops[i];if(!pop||!pop.quedaEnergiaEm)return;
   abrirModalAcionamento(i);
@@ -5246,6 +5339,7 @@ function render(preservarBusca=true){
           <div class="contingencia-acoes">
             ${!contingencia.ativa||pop.energiaRestabelecidaEm?`<button class="btn-energia queda" onclick="registrarFaltaEnergia(${i})">⚡ Registrar falta de energia AGORA</button>`:""}
             ${contingencia.ativa&&!pop.equipeEnviadaEm&&!pop.energiaRestabelecidaEm?`<button class="btn-energia equipe" onclick="marcarEquipeEnviada(${i})">🚨 Acionar equipe / gerar script</button>`:""}
+            <button class="btn-energia equipe" onclick="abrirModalProblema(${i})">📋 Registrar problema / gerar script</button>
             ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia restaurar" onclick="registrarEnergiaRestabelecida(${i})">💡 Registrar energia restabelecida</button>`:""}
             ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia cancelar" onclick="limparContingencia(${i})">🗑️ Limpar ocorrência</button>`:""}
           </div>
@@ -6281,7 +6375,46 @@ setTimeout(verificarNotificacoesTelegram,3000);
       <button type="button" class="btn-confirmar-acionamento" onclick="confirmarAcionamentoEquipe()">🚨 Confirmar acionamento e enviar Telegram</button>
       <button type="button" style="background:#555" onclick="fecharModalAcionamento()">Cancelar</button>
     </div>
-    <div class="info" style="margin-top:10px">O sistema já preenche POP, falta de energia, distância, deslocamento, margem, autonomia, início e limite de acionamento. Técnico, auxiliar e carro vêm da equipe de plantão cadastrada.</div>
+    <div class="info" style="margin-top:10px">O sistema já preenche POP, falta de energia, distância, deslocamento, margem, autonomia, início e limite de acionamento. Técnico, auxiliar e carro vêm automaticamente da escala mensal cadastrada para a data do acionamento.</div>
+  </div>
+</div>
+
+<!-- =========================
+     MODAL DE PROBLEMA / ATENDIMENTO TÉCNICO
+========================= -->
+<div id="modalProblema" class="modal-problema" onclick="if(event.target===this)fecharModalProblema()">
+  <div class="modal-problema-conteudo">
+    <div class="modal-problema-cabecalho">
+      <h2>📋 Registrar Problema / Gerar Script</h2>
+      <button type="button" style="background:#555;margin:0" onclick="fecharModalProblema()">✕</button>
+    </div>
+    <div class="problema-grid">
+      <div><label>📅 Data</label><input id="problemaData" type="date" oninput="atualizarScriptProblema()"></div>
+      <div><label>📆 Semana da Escala</label><input id="problemaSemana" type="text" value="Automática" disabled></div>
+      <div><label>👷 Técnico de Plantão</label><input id="problemaTecnico" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>👨‍🔧 Auxiliar</label><input id="problemaAuxiliar" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>🚗 Carro</label><input id="problemaCarro" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>📍 KM Inicial</label><input id="problemaKmInicial" type="text" oninput="atualizarScriptProblema()"></div>
+      <div class="campo-completo"><label>⚠️ Problema / Ocorrência</label><textarea id="problemaTexto" rows="3" placeholder="Ex.: ONU sem sinal, rádio offline, cliente sem acesso, nobreak alarmando..." oninput="atualizarScriptProblema()"></textarea></div>
+      <div><label>📄 Protocolo OxenteNet</label><input id="problemaProtocoloOxenteNet" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>📄 Protocolo SPE</label><input id="problemaProtocoloSPE" type="text" oninput="atualizarScriptProblema()"></div>
+      <div class="campo-completo"><label>📍 Local da Atividade</label><input id="problemaLocal" type="text" oninput="atualizarScriptProblema()"></div>
+      <div class="campo-completo"><label>📌 Localização</label><input id="problemaLocalizacao" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>🏁 KM Final</label><input id="problemaKmFinal" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>🕒 Início do Deslocamento</label><input id="problemaInicioDeslocamento" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>🕒 Início da Atividade</label><input id="problemaInicioAtividade" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>🕒 Fim da Atividade</label><input id="problemaFimAtividade" type="text" oninput="atualizarScriptProblema()"></div>
+      <div><label>🕒 Fim do Deslocamento</label><input id="problemaFimDeslocamento" type="text" oninput="atualizarScriptProblema()"></div>
+      <div class="campo-completo"><label>🧰 Materiais Utilizados</label><textarea id="problemaMateriais" rows="2" oninput="atualizarScriptProblema()"></textarea></div>
+      <div class="campo-completo"><label>📋 Como resolveu (RELATO TÉCNICO)</label><textarea id="problemaRelato" rows="4" oninput="atualizarScriptProblema()"></textarea></div>
+    </div>
+    <textarea id="problemaScript" class="problema-script" rows="20" readonly></textarea>
+    <div class="problema-acoes">
+      <button type="button" class="btn-copiar-problema" onclick="copiarScriptProblema()">📋 Copiar script</button>
+      <button type="button" class="btn-confirmar-problema" onclick="confirmarProblema()">🚨 Confirmar atendimento e enviar Telegram</button>
+      <button type="button" style="background:#555" onclick="fecharModalProblema()">Cancelar</button>
+    </div>
+    <div class="info" style="margin-top:10px">Este atendimento não depende de falta de energia. A equipe é buscada automaticamente na escala cadastrada para a data selecionada.</div>
   </div>
 </div>
 
