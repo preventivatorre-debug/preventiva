@@ -982,6 +982,14 @@ details[open]>summary::before{
          placeholder="Banco de baterias (Ah)"
          disabled>
 
+  <select id="novaTensaoBanco"
+          disabled
+          style="padding:9px;margin:4px;width:95%;border:1px solid #ccc;border-radius:4px">
+    <option value="12">Banco 12 V</option>
+    <option value="24">Banco 24 V</option>
+    <option value="48" selected>Banco 48 V</option>
+  </select>
+
   <input id="novaData"
          type="date"
          title="Data de instalação do banco"
@@ -1323,7 +1331,7 @@ function atualizarModoEdicao(){
 
 function atualizarCampos(){
 
-  document.querySelectorAll("input")
+  document.querySelectorAll("input, select")
     .forEach(campo=>{
 
       if(campo.id==="busca"){
@@ -1454,6 +1462,8 @@ function bancoParaPop(row){
 
     ah:Number(row.ah)||0,
 
+    tensaoBancoV:Number(row.tensao_banco_v)||48,
+
     dataInstalacao:
       row.data_instalacao||"",
 
@@ -1518,6 +1528,8 @@ function popParaBanco(pop){
     nome:pop.nome||"",
 
     ah:Number(pop.ah)||0,
+
+    tensao_banco_v:[12,24,48].includes(Number(pop.tensaoBancoV)) ? Number(pop.tensaoBancoV) : 48,
 
     data_instalacao:
       dataOuNull(pop.dataInstalacao),
@@ -4253,6 +4265,27 @@ function render(preservarBusca=true){
 
 
             <div>
+               <label>
+                 Tensão do banco
+               </label>
+
+               <select
+                 ${!modoEdicao?"disabled":""}
+                 onchange="
+                   pops[${i}].tensaoBancoV=Number(this.value)||48;
+                   existemAlteracoes=true;
+                   renderVisivel(${i});
+                 "
+                 style="width:95%;padding:9px;border:1px solid #ccc;border-radius:4px"
+               >
+                 <option value="12" ${Number(pop.tensaoBancoV)===12?"selected":""}>12 V</option>
+                 <option value="24" ${Number(pop.tensaoBancoV)===24?"selected":""}>24 V</option>
+                 <option value="48" ${![12,24].includes(Number(pop.tensaoBancoV))?"selected":""}>48 V</option>
+               </select>
+             </div>
+
+
+             <div>
 
               <label>
                 Data principal
@@ -5297,6 +5330,8 @@ async function criarPOP(){
 
     ah:ah,
 
+     tensaoBancoV:Number(document.getElementById("novaTensaoBanco").value)||48,
+
     dataInstalacao:data,
 
     validade:validade,
@@ -5341,6 +5376,8 @@ async function criarPOP(){
   document.getElementById(
     "novoAh"
   ).value="";
+
+   document.getElementById("novaTensaoBanco").value="48";
 
   document.getElementById(
     "novaData"
