@@ -209,6 +209,207 @@ input:disabled{
   box-shadow:0 2px 6px rgba(0,0,0,.1)
 }
 
+/*
+ * MODO LEITURA COMPACTO
+ * Quando um POP é selecionado, mostra um painel operacional compacto.
+ * Ao ativar o modo edição, todo o conteúdo volta ao formato completo.
+ */
+.pop.leitura-compacta{
+  padding:12px;
+  margin-bottom:16px;
+}
+
+.pop.leitura-compacta .nome-pop-edicao{
+  margin:0 0 12px;
+  padding:0;
+}
+
+.pop.leitura-compacta .nome-pop-edicao label{
+  display:none;
+}
+
+.pop.leitura-compacta .nome-pop-edicao input{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  border:0;
+  border-left:6px solid #1f6f43;
+  border-radius:7px;
+  background:#eaf7ef;
+  color:#155724;
+  padding:11px 14px;
+  font-size:22px;
+  line-height:1.15;
+  font-weight:800;
+  pointer-events:none;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+
+/* Em leitura, escondemos apenas os campos de configuração detalhada. */
+.pop.leitura-compacta > .info:not(.contingencia-box),
+.pop.leitura-compacta .contingencia-box .info{
+  display:none !important;
+}
+
+/* Os botões da contingência continuam disponíveis no modo leitura. */
+.pop.leitura-compacta .contingencia-acoes{
+  display:flex !important;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:9px;
+}
+
+.pop.leitura-compacta .contingencia-acoes button{
+  padding:8px 10px;
+  font-size:12px;
+  line-height:1.15;
+}
+
+/* Banco + monitoramento lado a lado e mais compactos. */
+.pop.leitura-compacta .leitura-grid-superior{
+  display:grid;
+  grid-template-columns:minmax(260px, .9fr) minmax(320px, 1.4fr);
+  gap:10px;
+  align-items:stretch;
+}
+
+.pop.leitura-compacta .leitura-grid-superior > .banco,
+.pop.leitura-compacta .leitura-grid-superior > .monitor-bateria{
+  margin-top:0;
+  padding:11px;
+  min-width:0;
+}
+
+.pop.leitura-compacta .banco h3,
+.pop.leitura-compacta .monitor-bateria h3{
+  margin:0 0 8px;
+  font-size:15px;
+}
+
+.pop.leitura-compacta .resumo-banco-leitura,
+.pop.leitura-compacta .resumo-monitor-leitura{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+
+.pop.leitura-compacta .resumo-item-leitura{
+  flex:1 1 105px;
+  min-width:95px;
+  background:#f7f7f7;
+  border-radius:6px;
+  padding:8px 9px;
+  text-align:center;
+}
+
+.pop.leitura-compacta .resumo-item-leitura span{
+  display:block;
+  font-size:11px;
+  color:#666;
+  margin-bottom:2px;
+}
+
+.pop.leitura-compacta .resumo-item-leitura strong{
+  display:block;
+  font-size:16px;
+  color:#1f1f1f;
+}
+
+.pop.leitura-compacta .resumo-banco-leitura .resumo-item-leitura:first-child strong{
+  color:#155724;
+}
+
+.pop.leitura-compacta .resumo-monitor-leitura .resumo-item-leitura strong{
+  color:#1f6f43;
+}
+
+.pop.leitura-compacta .banco-grid,
+.pop.leitura-compacta .banco details,
+.pop.leitura-compacta .banco .info,
+.pop.leitura-compacta .monitor-grid,
+.pop.leitura-compacta .monitor-alerta,
+.pop.leitura-compacta .monitor-bateria .info{
+  display:none !important;
+}
+
+.pop.leitura-compacta .contingencia-box{
+  margin-top:10px;
+  padding:11px;
+}
+
+.pop.leitura-compacta .contingencia-box h3{
+  margin:0 0 8px;
+  font-size:15px;
+}
+
+.pop.leitura-compacta .contingencia-grid{
+  grid-template-columns:repeat(4,1fr);
+  gap:7px;
+}
+
+.pop.leitura-compacta .contingencia-card{
+  padding:8px;
+}
+
+.pop.leitura-compacta .contingencia-card span{
+  font-size:10px;
+  margin-bottom:2px;
+}
+
+.pop.leitura-compacta .contingencia-card strong{
+  font-size:14px;
+}
+
+.pop.leitura-compacta .preventiva{
+  margin-top:10px;
+  padding:11px;
+}
+
+.pop.leitura-compacta .preventiva h3{
+  margin:0 0 8px;
+  font-size:15px;
+}
+
+.pop.leitura-compacta .preventiva-grid{
+  grid-template-columns:repeat(3,1fr);
+  gap:7px;
+}
+
+.pop.leitura-compacta .preventiva-grid input{
+  padding:7px;
+  font-size:12px;
+}
+
+.pop.leitura-compacta .preventiva .info{
+  margin-top:7px !important;
+  padding:7px !important;
+  font-size:11px;
+}
+
+/* Campos de ação/edição continuam invisíveis no modo leitura. */
+.pop.leitura-compacta .btn-edicao{
+  display:none !important;
+}
+
+@media(max-width:900px){
+  .pop.leitura-compacta .leitura-grid-superior{
+    grid-template-columns:1fr;
+  }
+  .pop.leitura-compacta .contingencia-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:520px){
+  .pop.leitura-compacta .contingencia-grid,
+  .pop.leitura-compacta .preventiva-grid{
+    grid-template-columns:1fr 1fr;
+  }
+  .pop.leitura-compacta .nome-pop-edicao input{
+    font-size:18px;
+  }
+}
+
 .nome-pop-edicao{
   margin-bottom:15px
 }
@@ -4184,7 +4385,7 @@ function render(preservarBusca=true){
 
 
         <!-- CONFIGURAÇÃO DE DESLOCAMENTO -->
-        <div class="info">
+        <div class="info configuracao-deslocamento-leitura">
           <strong>📍 Configuração do POP para atendimento</strong>
           <br><br>
           <div class="preventiva-grid">
@@ -4221,6 +4422,9 @@ function render(preservarBusca=true){
           </div>
         </div>
 
+        <!-- BANCO + MONITORAMENTO -->
+        <div class="leitura-grid-superior">
+
         <!-- BANCO -->
 
         <div class="banco">
@@ -4228,6 +4432,21 @@ function render(preservarBusca=true){
           <h3>
             🔋 Banco de Baterias
           </h3>
+
+          <div class="resumo-banco-leitura">
+            <div class="resumo-item-leitura">
+              <span>🔋 Banco</span>
+              <strong>${ahNominal.toFixed(2)} Ah</strong>
+            </div>
+            <div class="resumo-item-leitura">
+              <span>⚡ Tensão</span>
+              <strong>${Number(pop.tensaoBancoV)||48} V</strong>
+            </div>
+            <div class="resumo-item-leitura">
+              <span>📅 Garantia</span>
+              <strong>${validadePrincipal ? formatarData(validadePrincipal) : "--"}</strong>
+            </div>
+          </div>
 
 
           <div class="banco-grid">
@@ -4416,6 +4635,21 @@ function render(preservarBusca=true){
             📊 Monitoramento do Banco
           </h3>
 
+          <div class="resumo-monitor-leitura">
+            <div class="resumo-item-leitura">
+              <span>⚡ Consumo</span>
+              <strong>${consumo.toFixed(2)} A</strong>
+            </div>
+            <div class="resumo-item-leitura">
+              <span>⏱️ Autonomia</span>
+              <strong>${formatarAutonomia(autonomiaAjustada)}</strong>
+            </div>
+            <div class="resumo-item-leitura">
+              <span>📊 Saúde</span>
+              <strong>${percentual}%</strong>
+            </div>
+          </div>
+
 
           <div class="monitor-grid">
 
@@ -4572,7 +4806,10 @@ function render(preservarBusca=true){
 
         </div>
 
+        </div>
 
+
+        <!-- CONTINGÊNCIA / DESLOCAMENTO -->
         <!-- CONTINGÊNCIA / DESLOCAMENTO -->
         <div class="contingencia-box ${contingencia.status==="restaurado"?"contingencia-restaurado":contingencia.status==="vencido"?"contingencia-vencido":contingencia.status==="critico"?"contingencia-critico":contingencia.status==="atencao"?"contingencia-atencao":"contingencia-normal"}" data-contingencia-pop-id="${escapeHtml(pop.id)}">
           <h3>⚡ Contingência de Energia e Deslocamento</h3>
@@ -5226,32 +5463,35 @@ function atualizarListaPOPs(){
 
 function buscarPOP(){
 
+  const campo=document.getElementById("busca");
+
   const texto=
-    document.getElementById(
-      "busca"
-    )
-    .value
-    .trim()
-    .toLowerCase();
+    campo
+      ?campo.value.trim().toLowerCase()
+      :"";
 
 
   document
     .querySelectorAll(".pop")
     .forEach(pop=>{
 
-      if(
-        texto&&
-        pop.dataset.nome.includes(texto)
-      ){
+      const corresponde=
+        !!texto &&
+        pop.dataset.nome.includes(texto);
 
-        pop.style.display="block";
+      /*
+       * No modo leitura, a seleção mostra apenas o resumo operacional.
+       * No modo edição, remove o resumo compacto e libera a visão completa.
+       */
+      pop.classList.toggle(
+        "leitura-compacta",
+        !modoEdicao && corresponde
+      );
 
-      }else{
-
-        pop.style.display=
-          texto?"none":"none";
-
-      }
+      pop.style.display=
+        corresponde
+          ?"block"
+          :"none";
 
     });
 
