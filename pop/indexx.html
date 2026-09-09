@@ -1,0 +1,6328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle de POPs - Autonomia</title>
+
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1f6f43">
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  font-family:Arial,sans-serif;
+  background:#f2f4f6;
+  padding:20px;
+  margin:0
+}
+
+h1{
+  text-align:center;
+  color:#1f6f43
+}
+
+.container{
+  max-width:1500px;
+  margin:auto
+}
+
+.controle-edicao{
+  background:#fff;
+  padding:15px;
+  border-radius:8px;
+  margin-bottom:15px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap
+}
+
+.status-edicao{
+  padding:9px 13px;
+  border-radius:6px;
+  font-weight:bold
+}
+
+.edicao-bloqueada{
+  background:#f8d7da;
+  color:#721c24
+}
+
+.edicao-liberada{
+  background:#d4edda;
+  color:#155724
+}
+
+button{
+  padding:8px 12px;
+  border:none;
+  background:#1f6f43;
+  color:#fff;
+  cursor:pointer;
+  border-radius:5px;
+  margin-top:5px
+}
+
+button:hover{opacity:.9}
+
+button:disabled{
+  background:#999;
+  cursor:not-allowed;
+  opacity:.7
+}
+
+.remove{background:#c0392b}
+.salvar{background:#1769aa;font-weight:bold}
+.bloquear{background:#555}
+.editar{background:#2980b9}
+
+.busca-container{
+  width:100%;
+  margin-bottom:15px
+}
+
+#busca{
+  width:100%;
+  padding:12px;
+  font-size:16px;
+  border:1px solid #ccc;
+  border-radius:6px
+}
+
+.resumo{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:15px;
+  align-items:stretch;
+}
+
+.resumo-card,
+.notificacao-garantia{
+  min-width:0
+}
+
+.resumo-card{
+  background:#fff;
+  padding:8px 7px;
+  height:82px;
+  min-height:82px;
+  border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+}
+
+
+/* Os dois cards de bateria agora são itens diretos da grade. */
+.resumo > .notificacao-garantia{
+  width:100%;
+  min-width:0;
+}
+
+.resumo-card strong{
+  display:block;
+  font-size:21px;
+  line-height:1;
+  margin-top:4px;
+}
+
+.notificacao-garantia{
+  height:82px;
+  min-height:82px;
+  padding:8px 7px;
+  border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  overflow:hidden;
+}
+
+.notificacao-garantia .notificacao-titulo{
+  font-size:12px;
+  line-height:1.05;
+  font-weight:bold;
+}
+
+.notificacao-garantia .notificacao-numero{
+  font-size:21px;
+  line-height:1;
+  margin-top:4px;
+}
+
+.notificacao-garantia small{
+  font-size:9px;
+  line-height:1;
+  margin-top:4px;
+}
+
+.resumo-ok{border-left:5px solid #28a745}
+.resumo-alerta{border-left:5px solid #f0ad4e}
+.resumo-vencida{border-left:5px solid #dc3545}
+
+.form-pop,
+.form-equipamento{
+  background:#fff;
+  padding:15px;
+  border-radius:8px;
+  margin-bottom:20px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1)
+}
+
+/* No modo leitura, os cadastros ficam totalmente ocultos.
+ * Eles reaparecem automaticamente ao entrar no modo edição. */
+body:not(.modo-edicao) .form-pop,
+body:not(.modo-edicao) .form-equipamento{
+  display:none !important;
+}
+
+body.modo-edicao .form-pop,
+body.modo-edicao .form-equipamento{
+  display:block;
+}
+
+.form-pop input,
+.form-equipamento input{
+  padding:9px;
+  margin:4px;
+  border:1px solid #ccc;
+  border-radius:5px
+}
+
+input{
+  width:95%;
+  padding:7px;
+  border:1px solid #ccc;
+  border-radius:4px
+}
+
+input:disabled{
+  background:#eeeeee;
+  color:#666;
+  cursor:not-allowed
+}
+
+.pop{
+  display:none;
+  background:#fff;
+  border-radius:8px;
+  padding:15px;
+  margin-bottom:25px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1)
+}
+
+/*
+ * MODO LEITURA COMPACTO
+ * Quando um POP é selecionado, mostra um painel operacional compacto.
+ * Ao ativar o modo edição, todo o conteúdo volta ao formato completo.
+ */
+.pop.leitura-compacta{
+  padding:12px;
+  margin-bottom:16px;
+}
+
+.pop.leitura-compacta .nome-pop-edicao{
+  margin:0 0 12px;
+  padding:0;
+}
+
+.pop.leitura-compacta .nome-pop-edicao label{
+  display:none;
+}
+
+.pop.leitura-compacta .nome-pop-edicao input{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  border:0;
+  border-left:6px solid #1f6f43;
+  border-radius:7px;
+  background:#eaf7ef;
+  color:#155724;
+  padding:11px 14px;
+  font-size:22px;
+  line-height:1.15;
+  font-weight:800;
+  pointer-events:none;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+
+/* Em leitura, escondemos apenas os campos de configuração detalhada. */
+.pop.leitura-compacta > .info:not(.contingencia-box),
+.pop.leitura-compacta .contingencia-box .info{
+  display:none !important;
+}
+
+/* Os botões da contingência continuam disponíveis no modo leitura. */
+.pop.leitura-compacta .contingencia-acoes{
+  display:flex !important;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:9px;
+}
+
+.pop.leitura-compacta .contingencia-acoes button{
+  padding:8px 10px;
+  font-size:12px;
+  line-height:1.15;
+}
+
+/* Banco + monitoramento lado a lado e mais compactos. */
+.pop.leitura-compacta .leitura-grid-superior{
+  display:grid;
+  grid-template-columns:minmax(260px, .9fr) minmax(320px, 1.4fr);
+  gap:10px;
+  align-items:stretch;
+}
+
+.pop.leitura-compacta .leitura-grid-superior > .banco,
+.pop.leitura-compacta .leitura-grid-superior > .monitor-bateria{
+  margin-top:0;
+  padding:11px;
+  min-width:0;
+}
+
+.pop.leitura-compacta .banco h3,
+.pop.leitura-compacta .monitor-bateria h3{
+  margin:0 0 8px;
+  font-size:15px;
+}
+
+.pop.leitura-compacta .resumo-banco-leitura,
+.pop.leitura-compacta .resumo-monitor-leitura{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+
+.pop.leitura-compacta .resumo-item-leitura{
+  flex:1 1 105px;
+  min-width:95px;
+  background:#f7f7f7;
+  border-radius:6px;
+  padding:8px 9px;
+  text-align:center;
+}
+
+.pop.leitura-compacta .resumo-item-leitura span{
+  display:block;
+  font-size:11px;
+  color:#666;
+  margin-bottom:2px;
+}
+
+.pop.leitura-compacta .resumo-item-leitura strong{
+  display:block;
+  font-size:16px;
+  color:#1f1f1f;
+}
+
+.pop.leitura-compacta .resumo-banco-leitura .resumo-item-leitura:first-child strong{
+  color:#155724;
+}
+
+.pop.leitura-compacta .resumo-monitor-leitura .resumo-item-leitura strong{
+  color:#1f6f43;
+}
+
+.pop.leitura-compacta .banco-grid,
+.pop.leitura-compacta .banco details,
+.pop.leitura-compacta .banco .info,
+.pop.leitura-compacta .monitor-grid,
+.pop.leitura-compacta .monitor-alerta,
+.pop.leitura-compacta .monitor-bateria .info{
+  display:none !important;
+}
+
+.pop.leitura-compacta .contingencia-box{
+  margin-top:10px;
+  padding:11px;
+}
+
+.pop.leitura-compacta .contingencia-box h3{
+  margin:0 0 8px;
+  font-size:15px;
+}
+
+.pop.leitura-compacta .contingencia-grid{
+  grid-template-columns:repeat(4,1fr);
+  gap:7px;
+}
+
+.pop.leitura-compacta .contingencia-card{
+  padding:8px;
+}
+
+.pop.leitura-compacta .contingencia-card span{
+  font-size:10px;
+  margin-bottom:2px;
+}
+
+.pop.leitura-compacta .contingencia-card strong{
+  font-size:14px;
+}
+
+.pop.leitura-compacta .preventiva{
+  margin-top:10px;
+  padding:11px;
+}
+
+.pop.leitura-compacta .preventiva h3{
+  margin:0 0 8px;
+  font-size:15px;
+}
+
+.pop.leitura-compacta .preventiva-grid{
+  grid-template-columns:repeat(3,1fr);
+  gap:7px;
+}
+
+.pop.leitura-compacta .preventiva-grid input{
+  padding:7px;
+  font-size:12px;
+}
+
+.pop.leitura-compacta .preventiva .info{
+  margin-top:7px !important;
+  padding:7px !important;
+  font-size:11px;
+}
+
+/* Campos de ação/edição continuam invisíveis no modo leitura. */
+.pop.leitura-compacta .btn-edicao{
+  display:none !important;
+}
+
+@media(max-width:900px){
+  .pop.leitura-compacta .leitura-grid-superior{
+    grid-template-columns:1fr;
+  }
+  .pop.leitura-compacta .contingencia-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:520px){
+  .pop.leitura-compacta .contingencia-grid,
+  .pop.leitura-compacta .preventiva-grid{
+    grid-template-columns:1fr 1fr;
+  }
+  .pop.leitura-compacta .nome-pop-edicao input{
+    font-size:18px;
+  }
+}
+
+.nome-pop-edicao{
+  margin-bottom:15px
+}
+
+.nome-pop-edicao label{
+  display:block;
+  margin-bottom:5px;
+  color:#1f6f43
+}
+
+.nome-pop-edicao input{
+  width:100%;
+  font-size:18px;
+  font-weight:bold
+}
+
+.banco{
+  margin-top:15px;
+  padding:15px;
+  background:#eef8f2;
+  border-left:5px solid #1f6f43;
+  border-radius:6px
+}
+
+.banco-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px
+}
+
+.banco label,
+.preventiva label{
+  font-weight:bold;
+  display:block;
+  margin-bottom:5px
+}
+
+.baterias-box{
+  margin-top:15px;
+  background:#fff;
+  padding:12px;
+  border-radius:7px;
+  border:1px solid #d5e5da
+}
+
+.baterias-box h4{
+  margin-top:0;
+  color:#1f6f43
+}
+
+.bateria-item{
+  display:grid;
+  grid-template-columns:70px 1fr 1fr auto;
+  gap:8px;
+  align-items:center;
+  padding:8px;
+  margin-bottom:7px;
+  background:#f7f7f7;
+  border-radius:6px
+}
+
+.bateria-item strong{text-align:center}
+.bateria-item input{width:100%;margin:0}
+
+.monitor-bateria{
+  margin-top:15px;
+  padding:15px;
+  border-radius:8px;
+  border-left:6px solid #1f6f43;
+  background:#fff
+}
+
+.monitor-bateria h3{margin-top:0}
+
+.monitor-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px
+}
+
+.monitor-card{
+  background:#f7f7f7;
+  padding:12px;
+  border-radius:6px;
+  text-align:center
+}
+
+.monitor-card span{
+  display:block;
+  font-size:13px;
+  color:#666;
+  margin-bottom:5px
+}
+
+.monitor-card strong{font-size:20px}
+
+.monitor-alerta{
+  margin-top:12px;
+  padding:12px;
+  border-radius:6px;
+  font-weight:bold;
+  line-height:1.6
+}
+
+.monitor-normal{
+  background:#d4edda;
+  color:#155724;
+  border-left:5px solid #28a745
+}
+
+.monitor-atencao{
+  background:#fff3cd;
+  color:#856404;
+  border-left:5px solid #f0ad4e
+}
+
+.monitor-alerta-laranja{
+  background:#ffe5cc;
+  color:#9a4d00;
+  border-left:5px solid #ff8c00
+}
+
+.monitor-critico{
+  background:#f8d7da;
+  color:#721c24;
+  border-left:5px solid #dc3545
+}
+
+.autonomia-grande{
+  font-size:22px;
+  font-weight:bold;
+  color:#1f6f43
+}
+
+.perda-capacidade{font-weight:bold}
+
+.preventiva{
+  margin-top:15px;
+  padding:15px;
+  background:#f5f8ff;
+  border-left:5px solid #2980b9;
+  border-radius:6px
+}
+
+.preventiva-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px
+}
+
+.status{
+  font-weight:bold;
+  padding:9px;
+  border-radius:5px;
+  text-align:center
+}
+
+.status-ok{
+  background:#d4edda;
+  color:#155724
+}
+
+.status-alerta{
+  background:#fff3cd;
+  color:#856404
+}
+
+.status-vencida{
+  background:#f8d7da;
+  color:#721c24
+}
+
+.status-sem{
+  background:#eeeeee;
+  color:#666
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px
+}
+
+th,td{
+  border:1px solid #ccc;
+  padding:7px;
+  text-align:center
+}
+
+th{background:#e7f3ec}
+
+.total{
+  background:#fff3a0;
+  font-weight:bold
+}
+
+.info{
+  margin-top:15px;
+  padding:12px;
+  background:#f7f7f7;
+  border-radius:6px;
+  line-height:1.7
+}
+
+.autonomia{
+  font-size:18px;
+  font-weight:bold;
+  color:#1f6f43
+}
+
+/* =========================
+   CADASTRO GLOBAL
+========================= */
+
+.cadastro-equipamento-grid{
+  display:grid;
+  grid-template-columns:2fr 1.5fr 1fr auto;
+  gap:8px;
+  align-items:center
+}
+
+.equipamentos-lista{
+  margin-top:15px
+}
+
+.equipamentos-lista table{
+  background:#fff
+}
+
+.equipamento-status{
+  margin-top:10px;
+  font-size:13px;
+  color:#666
+}
+
+details{
+  margin-top:15px
+}
+
+details>summary{
+  cursor:pointer;
+  background:#e7f3ec;
+  padding:12px;
+  border-radius:6px;
+  font-weight:bold;
+  color:#1f6f43;
+  list-style:none
+}
+
+details>summary::-webkit-details-marker{
+  display:none
+}
+
+details>summary::before{
+  content:"▶ "
+}
+
+details[open]>summary::before{
+  content:"▼ "
+}
+
+.equipamentos-conteudo{
+  padding-top:10px;
+  overflow-x:auto
+}
+
+.tabela-equipamentos-pop{
+  min-width:900px
+}
+
+/* Patrimônio dentro do POP */
+.patrimonio-pop{
+  width:100%;
+  min-width:140px;
+  font-weight:600
+}
+
+/* =========================
+   RESPONSIVO
+========================= */
+
+@media(max-width:1100px){
+
+  .cadastro-equipamento-grid{
+    grid-template-columns:1fr 1fr
+  }
+
+}
+
+@media(max-width:900px){
+
+  .resumo{
+    grid-template-columns:1fr 1fr
+  }
+
+  .banco-grid,
+  .preventiva-grid,
+  .monitor-grid{
+    grid-template-columns:1fr 1fr
+  }
+
+  .bateria-item{
+    grid-template-columns:1fr 1fr
+  }
+
+}
+
+@media(max-width:500px){
+
+  body{padding:10px}
+
+  .resumo{
+    grid-template-columns:1fr
+  }
+
+  .banco-grid,
+  .preventiva-grid,
+  .monitor-grid{
+    grid-template-columns:1fr
+  }
+
+  .cadastro-equipamento-grid{
+    grid-template-columns:1fr
+  }
+
+  table{
+    font-size:12px
+  }
+
+  .bateria-item{
+    grid-template-columns:1fr
+  }
+
+}
+
+/* =========================
+   CARDS DO RESUMO CLICÁVEIS
+========================= */
+
+.resumo-card{
+  cursor:pointer;
+  transition:
+    transform .15s ease,
+    box-shadow .15s ease,
+    background .15s ease;
+}
+
+.resumo-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,.18);
+}
+
+.resumo-card:active{
+  transform:scale(.98);
+}
+
+.resumo-vencida:hover{
+  background:#fff5f5;
+}
+
+/* =========================
+   NOTIFICAÇÕES DE GARANTIA
+========================= */
+
+.notificacoes-garantia{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.notificacao-garantia{
+  border:none;
+  margin:0;
+  padding:16px;
+  border-radius:10px;
+  cursor:pointer;
+  text-align:left;
+  transition:.15s;
+  box-shadow:0 2px 6px rgba(0,0,0,.12);
+  color:#222;
+}
+
+.notificacao-garantia:hover{
+  transform:translateY(-2px);
+  box-shadow:0 5px 14px rgba(0,0,0,.18);
+}
+
+.notificacao-garantia:active{
+  transform:scale(.98);
+}
+
+.notificacao-vencendo{
+  background:#fff3cd;
+  border-left:6px solid #f0ad4e;
+}
+
+.notificacao-fora{
+  background:#f8d7da;
+  border-left:6px solid #dc3545;
+}
+
+.notificacao-garantia .notificacao-titulo{
+  font-size:16px;
+  font-weight:bold;
+}
+
+.notificacao-garantia .notificacao-numero{
+  display:block;
+  font-size:30px;
+  font-weight:bold;
+  margin-top:5px;
+}
+
+.notificacao-garantia small{
+  display:block;
+  margin-top:3px;
+  opacity:.8;
+}
+
+/* =========================
+   POPUP GARANTIAS
+========================= */
+
+.modal-garantia{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:9999;
+  padding:20px;
+  overflow-y:auto;
+}
+
+.modal-garantia-conteudo{
+  max-width:1000px;
+  margin:40px auto;
+  background:#fff;
+  border-radius:12px;
+  padding:20px;
+  box-shadow:0 8px 30px rgba(0,0,0,.3);
+}
+
+.modal-garantia-cabecalho{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+.modal-garantia-cabecalho h2{
+  margin:0;
+  color:#1f6f43;
+}
+
+.btn-fechar-modal{
+  background:#555;
+  margin:0;
+  font-size:18px;
+}
+
+.lista-garantias{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.garantia-lista-item{
+  border:1px solid #ddd;
+  border-radius:8px;
+  padding:14px;
+  background:#f8f8f8;
+}
+
+.garantia-lista-item.vencendo{
+  border-left:6px solid #f0ad4e;
+  background:#fffaf0;
+}
+
+.garantia-lista-item.fora{
+  border-left:6px solid #dc3545;
+  background:#fff5f5;
+}
+
+.garantia-grid{
+  display:grid;
+  grid-template-columns:1.2fr 1.2fr 1fr 1fr;
+  gap:10px;
+}
+
+.garantia-info span{
+  display:block;
+  color:#666;
+  font-size:12px;
+  margin-bottom:3px;
+}
+
+.garantia-info strong{
+  font-size:15px;
+}
+
+.garantia-status{
+  margin-top:10px;
+  padding:8px;
+  border-radius:5px;
+  font-weight:bold;
+}
+
+.garantia-vazia{
+  padding:20px;
+  text-align:center;
+  background:#f7f7f7;
+  border-radius:8px;
+}
+
+@media(max-width:700px){
+
+  .notificacoes-garantia{
+    grid-template-columns:1fr;
+  }
+
+  .garantia-grid{
+    grid-template-columns:1fr 1fr;
+  }
+
+}
+
+@media(max-width:500px){
+
+  .modal-garantia{
+    padding:10px;
+  }
+
+  .modal-garantia-conteudo{
+    margin:15px auto;
+    padding:15px;
+  }
+
+  .garantia-grid{
+    grid-template-columns:1fr;
+  }
+
+}
+
+
+/* =========================
+   CARDS COM TAMANHO IGUAL
+========================= */
+
+@media(max-width:1200px){
+  .resumo{
+    grid-template-columns:repeat(3,1fr);
+  }
+}
+
+@media(max-width:900px){
+  .resumo{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:500px){
+  .resumo{
+    grid-template-columns:1fr;
+  }
+
+  .resumo-card,
+  .notificacao-garantia{
+    height:76px;
+    min-height:76px;
+  }
+}
+
+
+/* =========================
+   BOT TELEGRAM - USO INTERNO
+========================= */
+.telegram-config{margin:12px 0 15px;background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);border-left:5px solid #229ed9}
+.telegram-config summary{cursor:pointer;font-weight:bold;color:#1676a8}
+.telegram-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;margin-top:12px}
+.telegram-grid label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+.telegram-grid input,.telegram-grid select{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px}
+.telegram-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.telegram-status{margin-top:10px;padding:9px;border-radius:6px;background:#f2f4f6}
+@media(max-width:900px){.telegram-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.telegram-grid{grid-template-columns:1fr}.telegram-acoes{flex-direction:column}.telegram-acoes button{width:100%}}
+
+/* =========================
+   CONTINGÊNCIA DE ENERGIA / DESLOCAMENTO
+========================= */
+.contingencia-box{margin-top:15px;padding:15px;border-radius:8px;background:#fff;border-left:6px solid #2980b9}
+.contingencia-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.contingencia-card{background:#f7f7f7;padding:12px;border-radius:6px;text-align:center}
+.contingencia-card span{display:block;font-size:13px;color:#666;margin-bottom:5px}
+.contingencia-card strong{font-size:19px}
+.contingencia-normal{background:#d4edda;color:#155724;border-left-color:#28a745}
+.contingencia-atencao{background:#fff3cd;color:#856404;border-left-color:#f0ad4e}
+.contingencia-critico{background:#ffe5cc;color:#9a4d00;border-left-color:#ff8c00}
+.contingencia-vencido{background:#f8d7da;color:#721c24;border-left-color:#dc3545}
+.contingencia-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn-energia{font-weight:bold}.btn-energia.queda{background:#c0392b}.btn-energia.equipe{background:#2980b9}.btn-energia.restaurar{background:#27ae60}.btn-energia.cancelar{background:#555}
+@media(max-width:900px){.contingencia-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.contingencia-grid{grid-template-columns:1fr}.contingencia-acoes{flex-direction:column}.contingencia-acoes button{width:100%}}
+
+/* =========================
+   EQUIPE DE PLANTÃO / SCRIPT DE ACIONAMENTO
+========================= */
+.equipe-plantao-config{margin:12px 0 15px;background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);border-left:5px solid #8e44ad}
+.escala-plantao-config{margin:12px 0 15px;background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);border-left:5px solid #2980b9}
+.escala-plantao-config summary{cursor:pointer;font-weight:bold;color:#21618c}
+.escala-cabecalho{display:flex;align-items:end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px}
+.escala-mes{min-width:180px}.escala-mes label{display:block;font-size:12px;color:#666;margin-bottom:4px}.escala-mes input{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px}
+.escala-tabela-wrap{overflow-x:auto;margin-top:12px}
+.escala-tabela{width:100%;min-width:900px;border-collapse:collapse}
+.escala-tabela th{background:#d9d9d9;border:1px solid #999;padding:7px;font-size:12px}
+.escala-tabela td{border:1px solid #aaa;padding:6px}
+.escala-tabela input,.escala-tabela select{width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}
+.escala-periodo{font-weight:bold;color:#1f3f68;text-align:center;white-space:nowrap}
+.escala-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn-gerar-word{background:#1f5f9f !important;font-weight:bold}
+.escala-status{margin-top:10px;padding:10px;border-radius:6px;background:#f2f4f6}
+.escala-atual{margin-top:10px;padding:12px;border-radius:8px;background:#eef7ff;border-left:5px solid #2980b9;font-weight:bold}
+@media(max-width:700px){.escala-acoes{flex-direction:column}.escala-acoes button{width:100%}}
+
+.equipe-plantao-config summary{cursor:pointer;font-weight:bold;color:#71368a}
+.equipe-plantao-grid{display:grid;grid-template-columns:1.2fr 1.2fr 1fr;gap:10px;margin-top:12px}
+.equipe-plantao-grid label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+.equipe-plantao-grid input,.equipe-plantao-grid select{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px}
+.equipe-plantao-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.equipe-plantao-status{margin-top:10px;padding:10px;border-radius:6px;background:#f2f4f6}
+.equipe-plantao-lista{margin-top:12px;overflow-x:auto}
+.equipe-plantao-lista table{min-width:650px}
+.equipe-plantao-ativo{font-weight:bold;color:#155724}
+.btn-acionamento{background:#8e44ad !important;font-weight:bold}
+.modal-acionamento{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;padding:15px;overflow-y:auto}
+.modal-acionamento-conteudo{max-width:900px;margin:20px auto;background:#fff;border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.modal-acionamento-cabecalho{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px}
+.modal-acionamento-cabecalho h2{margin:0;color:#8e44ad}
+.acionamento-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.acionamento-grid .campo-completo{grid-column:1 / -1}
+.acionamento-grid label{display:block;font-size:12px;font-weight:bold;color:#555;margin-bottom:4px}
+.acionamento-grid input,.acionamento-grid textarea{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px}
+.acionamento-script{margin-top:15px;background:#f7f7f7;border:1px solid #ddd;border-radius:8px;padding:15px;white-space:pre-wrap;font-family:monospace;line-height:1.5;max-height:430px;overflow:auto}
+.acionamento-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn-confirmar-acionamento{background:#27ae60 !important;font-weight:bold}
+.btn-copiar-acionamento{background:#2980b9 !important}
+@media(max-width:900px){.equipe-plantao-grid{grid-template-columns:1fr 1fr}.acionamento-grid{grid-template-columns:1fr}.acionamento-grid .campo-completo{grid-column:auto}}
+@media(max-width:500px){.equipe-plantao-grid{grid-template-columns:1fr}.equipe-plantao-acoes{flex-direction:column}.equipe-plantao-acoes button{width:100%}.modal-acionamento{padding:8px}.modal-acionamento-conteudo{margin:8px auto;padding:14px}}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🔋 Controle de Autonomia dos POPs</h1>
+
+<div class="controle-edicao">
+
+  <div id="statusEdicao"
+       class="status-edicao edicao-bloqueada">
+    🔒 Edição bloqueada
+  </div>
+
+  <button id="btnEditar"
+          onclick="ativarEdicao()">
+    🔓 Ativar Edição
+  </button>
+
+  <button id="btnSalvar"
+          class="salvar"
+          onclick="salvarTudo()"
+          disabled>
+    💾 Salvar Alterações
+  </button>
+
+  <button id="btnBloquear"
+          class="bloquear"
+          onclick="bloquearEdicao()"
+          disabled>
+    🔒 Bloquear Edição
+  </button>
+
+</div>
+
+<details class="telegram-config">
+  <summary>🤖 Configuração do Bot Telegram (uso interno — atualização a cada 30 minutos)</summary>
+  <div class="telegram-grid">
+    <div>
+      <label>Token do Bot</label>
+      <input id="telegramBotToken" type="password" placeholder="Cole aqui o token do BotFather">
+    </div>
+    <div>
+      <label>ID do grupo/chat</label>
+      <input id="telegramChatId" type="text" placeholder="Ex.: -1001234567890">
+    </div>
+    <div>
+      <label>Notificações automáticas</label>
+      <select id="telegramAtivo">
+        <option value="true">Ativadas</option>
+        <option value="false">Desativadas</option>
+      </select>
+    </div>
+  </div>
+  <div class="telegram-acoes">
+    <button type="button" onclick="salvarConfigTelegram()">💾 Salvar configuração</button>
+    <button type="button" style="background:#229ed9" onclick="testarTelegram()">📨 Testar Telegram</button>
+  </div>
+  <div id="telegramStatus" class="telegram-status">⚪ Bot Telegram não configurado.</div>
+  <div class="info" style="margin-top:10px">
+    O token e o ID do grupo ficam salvos somente neste navegador. O bot envia uma notificação por etapa e para automaticamente quando o operador registrar <strong>energia restabelecida</strong>.
+  </div>
+</details>
+
+<details class="equipe-plantao-config">
+  <summary>👷 Cadastro da Equipe de Plantão / Veículo</summary>
+  <div class="equipe-plantao-grid">
+    <div>
+      <label>Técnico</label>
+      <input id="plantaoTecnico" type="text" placeholder="Ex.: JOAO">
+    </div>
+    <div>
+      <label>Auxiliar</label>
+      <input id="plantaoAuxiliar" type="text" placeholder="Ex.: VANDERSON">
+    </div>
+    <div>
+      <label>Carro</label>
+      <input id="plantaoCarro" type="text" placeholder="Ex.: STRADA SLO2B54">
+    </div>
+  </div>
+  <div class="equipe-plantao-acoes">
+    <button type="button" onclick="salvarEquipePlantao()">💾 Salvar equipe de plantão</button>
+    <button type="button" style="background:#555" onclick="limparEquipePlantao()">🧹 Limpar</button>
+  </div>
+  <div id="equipePlantaoStatus" class="equipe-plantao-status">⚪ Nenhuma equipe de plantão cadastrada.</div>
+  <div id="listaEquipePlantao" class="equipe-plantao-lista"></div>
+  <div class="info" style="margin-top:10px">
+    A equipe de plantão fica salva neste navegador. Ao acionar um POP, técnico, auxiliar e veículo entram automaticamente no script.
+  </div>
+</details>
+
+<details class="escala-plantao-config" open>
+  <summary>📅 Escala Mensal de Plantonistas</summary>
+  <div class="escala-cabecalho">
+    <div class="escala-mes">
+      <label>📅 Mês da escala</label>
+      <input id="escalaMes" type="month" onchange="carregarEscalaMensal()">
+    </div>
+  </div>
+  <div class="escala-atual" id="escalaAtualStatus">⚪ Nenhuma escala cadastrada para o mês selecionado.</div>
+  <div class="escala-tabela-wrap">
+    <table class="escala-tabela">
+      <thead><tr><th>COLABORADOR</th><th>SEMANA</th><th>PERÍODO</th><th>VEÍCULO</th></tr></thead>
+      <tbody id="escalaPlantaoBody"></tbody>
+    </table>
+  </div>
+  <div class="escala-acoes">
+    <button type="button" onclick="salvarEscalaMensal()">💾 Salvar escala do mês</button>
+    <button type="button" class="btn-gerar-word" onclick="gerarEscalaWord()">📄 Gerar Escala em Word</button>
+    <button type="button" style="background:#555" onclick="limparEscalaMensal()">🧹 Limpar mês</button>
+  </div>
+  <div id="escalaPlantaoStatus" class="escala-status">⚪ Preencha as equipes e salve a escala.</div>
+  <div class="info" style="margin-top:10px">A escala é cadastrada por mês. Se houver alteração, basta alterar os dados deste mês e salvar novamente. O acionamento de falta de energia usa automaticamente a equipe correspondente à semana da data do acionamento.</div>
+</details>
+
+<div class="resumo">
+<!-- =========================
+     NOTIFICAÇÕES DE GARANTIA
+========================= -->
+
+<button
+    type="button"
+    class="notificacao-garantia notificacao-vencendo"
+    onclick="abrirGarantias('vencendo')"
+  >
+
+    <span class="notificacao-titulo">
+      🟡 Garantias vencendo
+    </span>
+
+    <strong
+      id="totalGarantiasVencendo"
+      class="notificacao-numero"
+    >
+      0
+    </strong>
+
+    <small>
+      Clique para ver as baterias
+    </small>
+
+  </button>
+
+  <button
+    type="button"
+    class="notificacao-garantia notificacao-fora"
+    onclick="abrirGarantias('fora')"
+  >
+
+    <span class="notificacao-titulo">
+      🔴 Pós-garantia / vida útil avançada
+    </span>
+
+    <strong
+      id="totalGarantiasFora"
+      class="notificacao-numero"
+    >
+      0
+    </strong>
+
+    <small>
+      Clique para ver as baterias
+    </small>
+
+  </button>
+
+  <div class="resumo-card">
+    📡 Total de POPs
+    <strong id="totalPops">0</strong>
+  </div>
+
+  <div class="resumo-card resumo-ok">
+    🟢 Preventivas em dia
+    <strong id="preventivasOk">0</strong>
+  </div>
+
+  <div class="resumo-card resumo-alerta">
+    🟡 Próximas do vencimento
+    <strong id="preventivasAlerta">0</strong>
+  </div>
+
+<div
+  class="resumo-card resumo-vencida"
+  onclick="mostrarPreventivasVencidas()"
+  title="Clique para ver as preventivas vencidas"
+>
+  🔴 Preventivas vencidas
+  <strong id="preventivasVencidas">0</strong>
+</div>
+
+</div>
+
+<div class="busca-container">
+
+  <input id="busca"
+         list="listaPOPs"
+         autocomplete="off"
+         placeholder="🔍 Digite ou selecione um POP..."
+         oninput="buscarPOP()">
+
+  <datalist id="listaPOPs"></datalist>
+
+</div>
+
+<div class="form-pop">
+
+  <h3>➕ Novo POP</h3>
+
+  <input id="novoNome"
+         placeholder="Nome do POP"
+         disabled>
+
+  <input id="novoAh"
+         type="number"
+         step="0.01"
+         placeholder="Banco de baterias (Ah)"
+         disabled>
+
+  <select id="novaTensaoBanco"
+          disabled
+          style="padding:9px;margin:4px;width:95%;border:1px solid #ccc;border-radius:4px">
+    <option value="12">Banco 12 V</option>
+    <option value="24">Banco 24 V</option>
+    <option value="48" selected>Banco 48 V</option>
+  </select>
+
+  <input id="novaData"
+         type="date"
+         title="Data de instalação do banco"
+         disabled>
+
+  <input id="novaValidade"
+         type="date"
+         title="Data de validade das baterias"
+         disabled>
+
+  <input id="novoDistancia"
+         type="number" min="0" step="0.1"
+         placeholder="Distância da base (km)"
+         title="Distância da base da equipe até o POP"
+         disabled>
+
+  <input id="novoVelocidade"
+         type="number" min="1" step="1" value="80"
+         placeholder="Velocidade média (km/h)"
+         title="Velocidade média usada no cálculo"
+         disabled>
+
+  <input id="novoMargem"
+         type="number" min="0" step="1" value="30"
+         placeholder="Margem de segurança (min)"
+         title="Margem de segurança antes do fim da autonomia"
+         disabled>
+
+  <br>
+
+  <button id="btnCriarPOP"
+          onclick="criarPOP()"
+          disabled>
+    ➕ Salvar POP
+  </button>
+
+</div>
+
+<!-- =========================
+     CADASTRO GLOBAL
+========================= -->
+
+<div class="form-equipamento">
+
+  <details>
+
+    <summary>
+      ⚙️ Cadastro Global de Equipamentos
+    </summary>
+
+    <div class="equipamentos-conteudo">
+
+      <p>
+        Cadastre cada equipamento uma única vez.
+        <br>
+        <strong>Patrimônio NÃO é cadastrado no cadastro global.</strong>
+        <br>
+        O patrimônio será informado somente quando
+        o equipamento for ligado a um POP.
+      </p>
+
+      <div class="cadastro-equipamento-grid">
+
+        <input id="novoEquipamento"
+               placeholder="Equipamento"
+               disabled>
+
+        <input id="novoModelo"
+               placeholder="Modelo"
+               disabled>
+
+        <input id="novoAmpere"
+               type="number"
+               step="0.01"
+               placeholder="Ampere"
+               disabled>
+
+        <button id="btnCadastrarEquipamento"
+                onclick="cadastrarEquipamento()"
+                disabled>
+          ➕ Cadastrar
+        </button>
+
+      </div>
+
+      <div id="listaEquipamentosCadastrados"
+           class="equipamentos-lista">
+      </div>
+
+    </div>
+
+  </details>
+
+</div>
+
+<datalist id="listaEquipamentos"></datalist>
+
+<div id="pops"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/docx@9.5.1/build/index.umd.js"></script>
+
+<script>
+
+/* =========================================================
+   SUPABASE
+========================================================= */
+
+const SUPABASE_URL =
+"https://idzteltrnttmwzqjlkgj.supabase.co";
+
+const SUPABASE_ANON_KEY =
+"sb_publishable_R4WcR-nhwErOjdW-cByXmw_RCGI4aix";
+
+const SENHA_EDICAO =
+"8Hgkg77d6f";
+
+const supabaseClient =
+window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
+
+/* =========================================================
+   VARIÁVEIS
+========================================================= */
+
+let pops = [];
+let equipamentosCadastro = [];
+let modoEdicao = false;
+let existemAlteracoes = false;
+
+
+/* =========================================================
+   ID
+========================================================= */
+
+function novoId(){
+  return crypto.randomUUID();
+}
+
+
+/* =========================================================
+   ESCAPE
+========================================================= */
+
+function escapeHtml(text){
+
+  return String(text ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+
+}
+
+
+/* =========================================================
+   DATA
+========================================================= */
+function mostrarPreventivasVencidas(){
+
+  const busca=document.getElementById("busca");
+
+  // Limpa a pesquisa atual
+  if(busca){
+    busca.value="";
+  }
+
+  const elementos=document.querySelectorAll(".pop");
+
+  let encontrou=false;
+
+  elementos.forEach((elemento,index)=>{
+
+    const pop=pops[index];
+
+    if(!pop) return;
+
+    const status=statusPreventiva(pop);
+
+    if(status.tipo==="vencida"){
+
+      elemento.style.display="block";
+      encontrou=true;
+
+    }else{
+
+      elemento.style.display="none";
+
+    }
+
+  });
+
+  // Se não houver nenhuma vencida
+  if(!encontrou){
+    alert("✅ Não existem preventivas vencidas.");
+    return;
+  }
+
+  // Rola até a lista
+  const container=document.getElementById("pops");
+
+  if(container){
+    container.scrollIntoView({
+      behavior:"smooth",
+      block:"start"
+    });
+  }
+
+}
+function formatarData(data){
+
+  if(!data) return "--";
+
+  const partes=String(data).split("-");
+
+  if(partes.length!==3) return data;
+
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+
+}
+
+
+/* =========================================================
+   PREVENTIVA
+========================================================= */
+
+function calcularProximaPreventiva(data,dias){
+
+  if(!data) return "";
+
+  dias=Number(dias);
+
+  if(!Number.isFinite(dias)||dias<=0)
+    dias=30;
+
+  const partes=data.split("-");
+
+  if(partes.length!==3) return "";
+
+  const dataObj=new Date(
+    Number(partes[0]),
+    Number(partes[1])-1,
+    Number(partes[2])
+  );
+
+  dataObj.setDate(
+    dataObj.getDate()+dias
+  );
+
+  return [
+    dataObj.getFullYear(),
+    String(dataObj.getMonth()+1).padStart(2,"0"),
+    String(dataObj.getDate()).padStart(2,"0")
+  ].join("-");
+
+}
+
+
+/* =========================================================
+   MODO EDIÇÃO
+========================================================= */
+
+function ativarEdicao(){
+
+  const senha=prompt(
+    "🔐 Digite a senha para ativar o modo edição:"
+  );
+
+  if(senha===null) return;
+
+  if(senha!==SENHA_EDICAO){
+
+    alert("❌ Senha incorreta.");
+    return;
+
+  }
+
+  modoEdicao=true;
+
+  atualizarModoEdicao();
+
+  render();
+
+}
+
+
+function bloquearEdicao(){
+
+  modoEdicao=false;
+
+  atualizarModoEdicao();
+
+  render();
+
+}
+
+
+function atualizarModoEdicao(){
+
+  /* Marca o modo atual no body para controlar a interface. */
+  document.body.classList.toggle("modo-edicao", modoEdicao);
+
+  const status=document.getElementById("statusEdicao");
+  const btnEditar=document.getElementById("btnEditar");
+  const btnSalvar=document.getElementById("btnSalvar");
+  const btnBloquear=document.getElementById("btnBloquear");
+
+  if(modoEdicao){
+
+    status.textContent="🔓 MODO EDIÇÃO ATIVO";
+    status.className="status-edicao edicao-liberada";
+
+    btnEditar.disabled=true;
+    btnSalvar.disabled=false;
+    btnBloquear.disabled=false;
+
+  }else{
+
+    status.textContent="🔒 Edição bloqueada";
+    status.className="status-edicao edicao-bloqueada";
+
+    btnEditar.disabled=false;
+    btnSalvar.disabled=true;
+    btnBloquear.disabled=true;
+
+  }
+
+  atualizarCampos();
+  ocultarContingenciaNormalizada();
+
+}
+
+
+/* =========================================================
+   CAMPOS
+========================================================= */
+
+function atualizarCampos(){
+
+  document.querySelectorAll("input, select")
+    .forEach(campo=>{
+
+      if(campo.id==="busca"){
+
+        campo.disabled=false;
+        return;
+
+      }
+
+      if(campo.classList.contains(
+        "campo-proxima-preventiva"
+      )){
+
+        campo.disabled=true;
+        return;
+
+      }
+
+      /*
+       * Patrimônio dentro do POP segue o modo
+       * de edição normalmente.
+       */
+      campo.disabled=!modoEdicao;
+
+    });
+
+
+  document.querySelectorAll(".btn-edicao")
+    .forEach(botao=>{
+
+      botao.disabled=!modoEdicao;
+
+    });
+
+
+  const btnCadastro=
+    document.getElementById(
+      "btnCadastrarEquipamento"
+    );
+
+  if(btnCadastro)
+    btnCadastro.disabled=!modoEdicao;
+
+
+  const btnCriar=
+    document.getElementById(
+      "btnCriarPOP"
+    );
+
+  if(btnCriar)
+    btnCriar.disabled=!modoEdicao;
+
+}
+
+
+/* =========================================================
+   BANCO -> POP
+========================================================= */
+
+function bancoParaPop(row){
+
+  let baterias=[];
+
+  try{
+
+    if(Array.isArray(row.baterias))
+      baterias=row.baterias;
+
+    else if(typeof row.baterias==="string")
+      baterias=JSON.parse(row.baterias);
+
+  }catch(e){
+
+    baterias=[];
+
+  }
+
+
+  let equipamentos=[];
+
+  try{
+
+    if(Array.isArray(row.equipamentos)){
+
+      equipamentos=row.equipamentos.map(e=>{
+
+        /*
+         * Vínculo do equipamento com o POP.
+         * O patrimônio pertence a esta instalação, não ao cadastro global.
+         * Mantém compatibilidade com o formato antigo em array.
+         */
+        if(Array.isArray(e)){
+          return {
+            equipamento_id: e[5] || null,
+            nome: e[0] || "",
+            modelo: e[1] || "",
+            ampere: Number(e[2]) || 0,
+            quantidade: Number(e[3]) || 1,
+            patrimonio: e[4] || ""
+          };
+        }
+
+        return {
+          equipamento_id: e.equipamento_id || e.id || null,
+          nome: e.nome || e.equipamento || "",
+          modelo: e.modelo || "",
+          ampere: Number(e.ampere) || 0,
+          quantidade: Number(e.quantidade) || 1,
+          patrimonio: e.patrimonio || ""
+        };
+
+      });
+
+    }
+
+  }catch(e){
+
+    equipamentos=[];
+
+  }
+
+
+  return {
+
+    id:row.id,
+
+    nome:row.nome||"",
+
+    ah:Number(row.ah)||0,
+
+    tensaoBancoV:Number(row.tensao_banco_v)||48,
+
+    dataInstalacao:
+      row.data_instalacao||"",
+
+    validade:
+      row.validade||"",
+
+    baterias:
+      Array.isArray(baterias)?baterias:[],
+
+    ultimaPreventiva:
+      row.ultima_preventiva||"",
+
+    proximaPreventiva:
+      row.proxima_preventiva||"",
+
+    periodicidadePreventiva:
+      Math.round(
+        Number(row.periodicidade_preventiva)||30
+      ),
+
+
+    distanciaKm:Number(row.distancia_km)||0,
+    velocidadeKmH:Number(row.velocidade_kmh)||80,
+    margemSegurancaMin:Number(row.margem_seguranca_min ?? 30)||0,
+    correnteCarregadorA:Number(row.corrente_carregador_a)||20,
+    energiaSaldoAh: row.energia_saldo_ah == null ? null : Number(row.energia_saldo_ah),
+    energiaSaldoAtualizadoEm: row.energia_saldo_atualizado_em || null,
+    ultimaNormalizacaoEm: row.ultima_normalizacao_em || null,
+    recargaAcumuladaAh: Number(row.recarga_acumulada_ah)||0,
+    quedaEnergiaEm:row.queda_energia_em||null,
+    equipeEnviadaEm:row.equipe_enviada_em||null,
+    energiaRestabelecidaEm:row.energia_restabelecida_em||null,
+
+    equipamentos:equipamentos
+
+  };
+
+}
+
+
+/* =========================================================
+   POP -> BANCO
+========================================================= */
+
+function dataOuNull(valor){
+
+  const data=String(valor||"").trim();
+
+  // PostgreSQL DATE não aceita "".
+  // Quando não houver data, envia NULL.
+  return data ? data : null;
+
+}
+
+
+function popParaBanco(pop){
+
+  return {
+
+    id:pop.id,
+
+    nome:pop.nome||"",
+
+    ah:Number(pop.ah)||0,
+
+    tensao_banco_v:[12,24,48].includes(Number(pop.tensaoBancoV)) ? Number(pop.tensaoBancoV) : 48,
+
+    data_instalacao:
+      dataOuNull(pop.dataInstalacao),
+
+    validade:
+      dataOuNull(pop.validade),
+
+    baterias:
+      Array.isArray(pop.baterias)
+        ?pop.baterias:[],
+
+    ultima_preventiva:
+      dataOuNull(pop.ultimaPreventiva),
+
+    proxima_preventiva:
+      dataOuNull(pop.proximaPreventiva),
+
+    periodicidade_preventiva:
+      Math.round(
+        Number(pop.periodicidadePreventiva)||30
+      ),
+
+
+    distancia_km:Number(pop.distanciaKm)||0,
+    velocidade_kmh:Number(pop.velocidadeKmH)||80,
+    margem_seguranca_min:Number(pop.margemSegurancaMin ?? 30)||0,
+    corrente_carregador_a:Number(pop.correnteCarregadorA)||20,
+    energia_saldo_ah: pop.energiaSaldoAh == null ? null : Number(pop.energiaSaldoAh),
+    energia_saldo_atualizado_em: pop.energiaSaldoAtualizadoEm || null,
+    ultima_normalizacao_em: pop.ultimaNormalizacaoEm || null,
+    recarga_acumulada_ah: Number(pop.recargaAcumuladaAh)||0,
+    queda_energia_em:pop.quedaEnergiaEm||null,
+    equipe_enviada_em:pop.equipeEnviadaEm||null,
+    energia_restabelecida_em:pop.energiaRestabelecidaEm||null,
+
+    equipamentos:
+      Array.isArray(pop.equipamentos)
+        ?pop.equipamentos:[]
+
+  };
+
+}
+
+
+/* =========================================================
+   CARREGAR EQUIPAMENTOS
+========================================================= */
+
+async function carregarEquipamentos(){
+
+  const {data,error}=await supabaseClient
+    .from("equipamentos_autonomia")
+    .select("*")
+    .order("nome",{ascending:true});
+
+
+  if(error){
+
+    console.error(error);
+
+    alert(
+      "Erro ao carregar equipamentos: "+
+      error.message
+    );
+
+    equipamentosCadastro=[];
+
+    return;
+
+  }
+
+
+  equipamentosCadastro=data||[];
+
+  criarListaEquipamentos();
+  atualizarListaEquipamentos();
+
+}
+
+
+/* =========================================================
+   CADASTRAR EQUIPAMENTO
+   SOMENTE:
+   EQUIPAMENTO
+   MODELO
+   AMPERE
+========================================================= */
+
+async function cadastrarEquipamento(){
+
+  if(!modoEdicao) return;
+
+
+  const nome=document
+    .getElementById("novoEquipamento")
+    .value.trim();
+
+  const modelo=document
+    .getElementById("novoModelo")
+    .value.trim();
+
+  const ampere=Number(
+    document.getElementById("novoAmpere").value
+  );
+
+
+  if(!nome){
+
+    alert("Digite o nome do equipamento.");
+    return;
+
+  }
+
+
+  if(!Number.isFinite(ampere)){
+
+    alert("Digite o consumo em Ampere.");
+    return;
+
+  }
+
+
+  const existente=encontrarEquipamento(nome);
+
+  if(existente){
+
+    alert(
+      "⚠️ Esse equipamento já está cadastrado."
+    );
+
+    return;
+
+  }
+
+
+  const {data,error}=await supabaseClient
+    .from("equipamentos_autonomia")
+    .insert({
+
+      nome:nome,
+      modelo:modelo,
+      ampere:ampere
+
+    })
+    .select()
+    .single();
+
+
+  if(error){
+
+    console.error(error);
+
+    alert(
+      "Erro ao cadastrar equipamento: "+
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  equipamentosCadastro.push(data);
+
+
+  document.getElementById(
+    "novoEquipamento"
+  ).value="";
+
+  document.getElementById(
+    "novoModelo"
+  ).value="";
+
+  document.getElementById(
+    "novoAmpere"
+  ).value="";
+
+
+  criarListaEquipamentos();
+  atualizarListaEquipamentos();
+
+
+  alert("✅ Equipamento cadastrado.");
+
+}
+
+
+/* =========================================================
+   ENCONTRAR EQUIPAMENTO
+========================================================= */
+
+function encontrarEquipamento(nome){
+
+  const busca=String(nome||"")
+    .trim()
+    .toLowerCase();
+
+  return equipamentosCadastro.find(
+    equipamento=>
+      String(equipamento.nome||"")
+        .trim()
+        .toLowerCase()===busca
+  );
+
+}
+
+
+/* =========================================================
+   PREENCHER EQUIPAMENTO
+========================================================= */
+
+function preencherEquipamento(i,j,input){
+
+  if(!modoEdicao) return;
+
+
+  const encontrado=
+    encontrarEquipamento(input.value);
+
+
+  if(encontrado){
+
+    pops[i].equipamentos[j].equipamento_id =
+      encontrado.id || null;
+
+    pops[i].equipamentos[j].nome =
+      encontrado.nome;
+
+    pops[i].equipamentos[j].modelo =
+      encontrado.modelo || "";
+
+    pops[i].equipamentos[j].ampere =
+      Number(encontrado.ampere) || 0;
+
+    /*
+     * IMPORTANTE:
+     * NÃO altera nem apaga o patrimônio.
+     * O patrimônio é exclusivo deste vínculo com o POP.
+     */
+
+  }else{
+
+    pops[i].equipamentos[j].equipamento_id = null;
+    pops[i].equipamentos[j].nome = input.value;
+
+  }
+
+
+  existemAlteracoes=true;
+
+
+  /*
+   * Mantém o bloco Equipamentos aberto.
+   */
+  renderVisivel(
+    i,
+    false,
+    true
+  );
+
+  // Garante que o bloco permaneça aberto após o novo render.
+  // O render recria o HTML e o <details> pode ser fechado pelo navegador.
+  requestAnimationFrame(()=>{
+    const detalhe=document.querySelector(
+      `.detalhes-equipamentos[data-pop-id="${CSS.escape(String(pops[i].id))}"]`
+    );
+
+    if(detalhe){
+      detalhe.open=true;
+    }
+  });
+
+}
+
+
+/* =========================================================
+   ALTERAR PATRIMÔNIO
+========================================================= */
+
+function alterarPatrimonio(i,j,valor){
+
+  if(!modoEdicao) return;
+
+  pops[i].equipamentos[j].patrimonio =
+    String(valor || "").trim();
+
+  existemAlteracoes=true;
+
+}
+
+
+/* =========================================================
+   LISTA EQUIPAMENTOS
+========================================================= */
+
+function criarListaEquipamentos(){
+
+  const lista=
+    document.getElementById(
+      "listaEquipamentos"
+    );
+
+  if(!lista) return;
+
+  lista.innerHTML="";
+
+
+  equipamentosCadastro.forEach(
+    equipamento=>{
+
+      const option=
+        document.createElement("option");
+
+      option.value=
+        equipamento.nome;
+
+      lista.appendChild(option);
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   LISTA VISUAL
+========================================================= */
+
+function atualizarListaEquipamentos(){
+
+  const div=
+    document.getElementById(
+      "listaEquipamentosCadastrados"
+    );
+
+  if(!div) return;
+
+
+  if(equipamentosCadastro.length===0){
+
+    div.innerHTML=`
+
+      <div class="info">
+        ⚪ Nenhum equipamento cadastrado.
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  let html=`
+
+    <h4>📋 Equipamentos cadastrados</h4>
+
+    <table>
+
+      <tr>
+
+        <th>Equipamento</th>
+        <th>Modelo</th>
+        <th>Ampere</th>
+        <th>Ações</th>
+
+      </tr>
+
+  `;
+
+
+  equipamentosCadastro.forEach(
+    (equipamento,index)=>{
+
+      html+=`
+
+        <tr>
+
+          <td>
+            ${escapeHtml(equipamento.nome)}
+          </td>
+
+          <td>
+            ${escapeHtml(
+              equipamento.modelo||""
+            )}
+          </td>
+
+          <td>
+            ${Number(
+              equipamento.ampere||0
+            ).toFixed(2)} A
+          </td>
+
+          <td>
+            <button
+              class="editar btn-edicao"
+              ${!modoEdicao?"disabled":""}
+              onclick="editarEquipamento(${index})"
+            >
+              ✏️ Editar
+            </button>
+
+            <button
+              class="remove btn-edicao"
+              ${!modoEdicao?"disabled":""}
+              onclick="excluirEquipamento(${index})"
+            >
+              🗑️
+            </button>
+          </td>
+
+        </tr>
+
+      `;
+
+    }
+  );
+
+
+  html+=`
+
+    </table>
+
+    <div class="equipamento-status">
+
+      Total de equipamentos:
+      <strong>
+        ${equipamentosCadastro.length}
+      </strong>
+
+    </div>
+
+  `;
+
+
+  div.innerHTML=html;
+
+}
+
+
+/* =========================================================
+   EDITAR EQUIPAMENTO GLOBAL
+   Atualiza também os vínculos já existentes nos POPs.
+========================================================= */
+
+async function editarEquipamento(index){
+
+  if(!modoEdicao) return;
+
+  const equipamento=equipamentosCadastro[index];
+
+  if(!equipamento) return;
+
+  const nomeAtual=equipamento.nome||"";
+  const modeloAtual=equipamento.modelo||"";
+  const ampereAtual=Number(equipamento.ampere)||0;
+
+  const nome=prompt(
+    "✏️ Nome do equipamento:",
+    nomeAtual
+  );
+
+  if(nome===null) return;
+
+  const nomeFinal=nome.trim();
+
+  if(!nomeFinal){
+    alert("Digite o nome do equipamento.");
+    return;
+  }
+
+  const outro=equipamentosCadastro.find(
+    (e,i)=>
+      i!==index &&
+      String(e.nome||"").trim().toLowerCase()===
+      nomeFinal.toLowerCase()
+  );
+
+  if(outro){
+    alert("⚠️ Já existe outro equipamento com esse nome.");
+    return;
+  }
+
+  const modelo=prompt(
+    "📦 Modelo:",
+    modeloAtual
+  );
+
+  if(modelo===null) return;
+
+  const ampereTexto=prompt(
+    "⚡ Consumo em Ampere:",
+    ampereAtual
+  );
+
+  if(ampereTexto===null) return;
+
+  const ampere=Number(String(ampereTexto).replace(",","."));
+
+  if(!Number.isFinite(ampere)){
+    alert("Digite um valor válido para Ampere.");
+    return;
+  }
+
+  const nomeAnterior=equipamento.nome;
+
+  const {data,error}=await supabaseClient
+    .from("equipamentos_autonomia")
+    .update({
+      nome:nomeFinal,
+      modelo:modelo.trim(),
+      ampere:ampere
+    })
+    .eq("id",equipamento.id)
+    .select()
+    .single();
+
+  if(error){
+    console.error(error);
+    alert("❌ Erro ao editar equipamento: "+error.message);
+    return;
+  }
+
+  equipamentosCadastro[index]=data;
+
+  /*
+   * Atualiza os equipamentos que já estão vinculados aos POPs.
+   * O patrimônio não é alterado.
+   */
+  const popsAlterados=[];
+
+  pops.forEach(pop=>{
+
+    let alterou=false;
+
+    (pop.equipamentos||[]).forEach(e=>{
+
+      const mesmoId=
+        e.equipamento_id &&
+        String(e.equipamento_id)===String(equipamento.id);
+
+      const legado=
+        !e.equipamento_id &&
+        String(e.nome||"").trim().toLowerCase()===
+        String(nomeAnterior||"").trim().toLowerCase();
+
+      if(mesmoId || legado){
+        e.equipamento_id=data.id;
+        e.nome=data.nome;
+        e.modelo=data.modelo||"";
+        e.ampere=Number(data.ampere)||0;
+        alterou=true;
+      }
+
+    });
+
+    if(alterou) popsAlterados.push(pop);
+
+  });
+
+  try{
+
+    for(const pop of popsAlterados){
+      const {error:erroPop}=await supabaseClient
+        .from("pops_autonomia")
+        .upsert(
+          popParaBanco(pop),
+          {onConflict:"id"}
+        );
+
+      if(erroPop) throw erroPop;
+    }
+
+  }catch(errorPop){
+
+    console.error(errorPop);
+    alert(
+      "⚠️ O equipamento foi atualizado no cadastro global, " +
+      "mas houve erro ao atualizar um ou mais POPs: " +
+      errorPop.message
+    );
+
+    criarListaEquipamentos();
+    atualizarListaEquipamentos();
+    render();
+    return;
+
+  }
+
+  existemAlteracoes=false;
+
+  criarListaEquipamentos();
+  atualizarListaEquipamentos();
+  render();
+
+  alert(
+    "✅ Equipamento atualizado com sucesso." +
+    (popsAlterados.length
+      ? `\n\n${popsAlterados.length} POP(s) também foram atualizados.`
+      : "")
+  );
+
+}
+
+
+/* =========================================================
+   EXCLUIR EQUIPAMENTO GLOBAL
+========================================================= */
+
+async function excluirEquipamento(index){
+
+  if(!modoEdicao) return;
+
+  const equipamento=equipamentosCadastro[index];
+
+  if(!equipamento) return;
+
+  const vinculos=[];
+
+  pops.forEach(pop=>{
+    (pop.equipamentos||[]).forEach(e=>{
+      const mesmoId=
+        e.equipamento_id &&
+        String(e.equipamento_id)===String(equipamento.id);
+
+      const mesmoNome=
+        !e.equipamento_id &&
+        String(e.nome||"").trim().toLowerCase()===
+        String(equipamento.nome||"").trim().toLowerCase();
+
+      if(mesmoId || mesmoNome)
+        vinculos.push(pop.nome);
+    });
+  });
+
+  if(vinculos.length){
+    alert(
+      "❌ Não é possível excluir este equipamento.\n\n"+
+      "Ele está vinculado aos seguintes POPs:\n\n"+
+      [...new Set(vinculos)].join("\n")+
+      "\n\nRemova o equipamento dos POPs primeiro."
+    );
+    return;
+  }
+
+  if(!confirm(
+    `Deseja excluir o equipamento "${equipamento.nome}"?`
+  )) return;
+
+  const {error}=await supabaseClient
+    .from("equipamentos_autonomia")
+    .delete()
+    .eq("id",equipamento.id);
+
+  if(error){
+    console.error(error);
+    alert("❌ Erro ao excluir equipamento: "+error.message);
+    return;
+  }
+
+  equipamentosCadastro.splice(index,1);
+
+  criarListaEquipamentos();
+  atualizarListaEquipamentos();
+
+  alert("✅ Equipamento excluído.");
+
+}
+
+
+/* =========================================================
+   STATUS PREVENTIVA
+========================================================= */
+
+function statusPreventiva(pop){
+
+  if(!pop.proximaPreventiva){
+
+    return{
+      texto:"⚪ Preventiva não cadastrada",
+      classe:"status-sem",
+      tipo:"sem"
+    };
+
+  }
+
+
+  const hoje=new Date();
+
+  hoje.setHours(0,0,0,0);
+
+
+  const proxima=new Date(
+    pop.proximaPreventiva+"T00:00:00"
+  );
+
+
+  const dias=Math.ceil(
+    (proxima-hoje)/86400000
+  );
+
+
+  if(dias<0){
+
+    return{
+      texto:
+        `🔴 PREVENTIVA VENCIDA há ${Math.abs(dias)} dias`,
+      classe:"status-vencida",
+      tipo:"vencida"
+    };
+
+  }
+
+
+  if(dias<=7){
+
+    return{
+      texto:
+        `🟡 Preventiva vence em ${dias} dias`,
+      classe:"status-alerta",
+      tipo:"alerta"
+    };
+
+  }
+
+
+  return{
+    texto:
+      `🟢 Preventiva em dia — ${dias} dias`,
+    classe:"status-ok",
+    tipo:"ok"
+  };
+
+}
+
+
+/* =========================================================
+   STATUS BATERIA
+========================================================= */
+
+function statusBateria(validade){
+
+  if(!validade){
+
+    return{
+      texto:"⚪ Sem validade cadastrada",
+      classe:"status-sem"
+    };
+
+  }
+
+
+  const hoje=new Date();
+
+  hoje.setHours(0,0,0,0);
+
+
+  const dataValidade=new Date(
+    validade+"T00:00:00"
+  );
+
+
+  const diferenca=Math.ceil(
+    (dataValidade-hoje)/86400000
+  );
+
+
+  if(diferenca<0){
+
+    return{
+      texto:"🔴 BATERIA FORA DA GARANTIA",
+      classe:"status-vencida"
+    };
+
+  }
+
+
+  if(diferenca<=90){
+
+    return{
+      texto:
+        `🟡 Vence em ${diferenca} dias`,
+      classe:"status-alerta"
+    };
+
+  }
+
+
+  return{
+    texto:"🟢 Bateria dentro da Garantia",
+    classe:"status-ok"
+  };
+
+}
+
+
+/* =========================================================
+   IDADE
+========================================================= */
+
+function calcularIdadeBateria(dataInstalacao){
+
+  if(!dataInstalacao){
+
+    return{
+      anos:0,
+      meses:0,
+      totalMeses:0,
+      texto:"Não informado"
+    };
+
+  }
+
+
+  const inicio=new Date(
+    dataInstalacao+"T00:00:00"
+  );
+
+  const hoje=new Date();
+
+
+  if(
+    isNaN(inicio.getTime())||
+    inicio>hoje
+  ){
+
+    return{
+      anos:0,
+      meses:0,
+      totalMeses:0,
+      texto:"Data inválida"
+    };
+
+  }
+
+
+  let anos=
+    hoje.getFullYear()-
+    inicio.getFullYear();
+
+  let meses=
+    hoje.getMonth()-
+    inicio.getMonth();
+
+  let dias=
+    hoje.getDate()-
+    inicio.getDate();
+
+
+  if(dias<0) meses--;
+
+
+  if(meses<0){
+
+    anos--;
+    meses+=12;
+
+  }
+
+
+  const totalMeses=Math.max(
+    0,
+    anos*12+meses
+  );
+
+
+  let texto="";
+
+
+  if(anos>0)
+    texto=
+      `${anos} ano${anos>1?"s":""}`;
+
+
+  if(meses>0){
+
+    if(texto) texto+=" e ";
+
+    texto+=
+      `${meses} mês${meses>1?"es":""}`;
+
+  }
+
+
+  if(!texto)
+    texto="Menos de 1 mês";
+
+
+  return{
+    anos,
+    meses,
+    totalMeses,
+    texto
+  };
+
+}
+
+
+/* =========================================================
+   CAPACIDADE
+========================================================= */
+
+function calcularCapacidadeUtil(
+  dataInstalacao
+){
+
+  const idade=
+    calcularIdadeBateria(
+      dataInstalacao
+    );
+
+  const meses=idade.totalMeses;
+
+  let percentual=100;
+
+  if(meses<24)
+    percentual=100;
+
+  else if(meses<36)
+    percentual=90;
+
+  else if(meses<48)
+    percentual=75;
+
+  else if(meses<60)
+    percentual=60;
+
+  else
+    percentual=45;
+
+
+  return{
+    percentual,
+    idade
+  };
+
+}
+
+
+/* =========================================================
+   MONITORAMENTO
+========================================================= */
+
+function calcularFimGarantia(dataInstalacao){
+
+  if(!dataInstalacao) return null;
+
+  const inicio=new Date(String(dataInstalacao)+"T00:00:00");
+
+  if(isNaN(inicio.getTime())) return null;
+
+  const fim=new Date(inicio);
+  fim.setFullYear(fim.getFullYear()+2);
+
+  return fim;
+
+}
+
+function statusGarantiaBateria(dataInstalacao){
+
+  const fimGarantia=calcularFimGarantia(dataInstalacao);
+
+  if(!fimGarantia){
+    return{
+      classe:"status-sem",
+      texto:"⚪ Garantia não calculada",
+      fimGarantia:null,
+      diasAposGarantia:0,
+      categoria:"sem"
+    };
+  }
+
+  const hoje=new Date();
+  hoje.setHours(0,0,0,0);
+
+  const inicio=new Date(String(dataInstalacao)+"T00:00:00");
+  inicio.setHours(0,0,0,0);
+
+  const idadeMeses=
+    (hoje.getFullYear()-inicio.getFullYear())*12+
+    (hoje.getMonth()-inicio.getMonth())-
+    (hoje.getDate()<inicio.getDate()?1:0);
+
+  const diasRestantes=Math.ceil(
+    (fimGarantia-hoje)/86400000
+  );
+
+  const diasAposGarantia=
+    diasRestantes<0 ? Math.abs(diasRestantes) : 0;
+
+  /*
+   * VIDA ÚTIL ESTIMADA:
+   * 0–2 anos = garantia
+   * 2–3 anos = pós-garantia
+   * 3–5 anos = vida útil avançada
+   * 5 anos ou mais = muito antiga
+   */
+
+  if(idadeMeses<24){
+    return{
+      classe:"status-ok",
+      texto:`🟢 GARANTIA VÁLIDA — ${Math.max(0,diasRestantes)} dias restantes`,
+      fimGarantia,
+      diasAposGarantia:0,
+      categoria:"garantia",
+      idadeMeses
+    };
+  }
+
+  if(idadeMeses<36){
+    return{
+      classe:"status-alerta",
+      texto:"🟡 PÓS-GARANTIA — entre 2 e 3 anos",
+      fimGarantia,
+      diasAposGarantia,
+      categoria:"pos-garantia",
+      idadeMeses
+    };
+  }
+
+  if(idadeMeses<60){
+    return{
+      classe:"status-alerta-laranja",
+      texto:"🟠 VIDA ÚTIL AVANÇADA — entre 3 e 5 anos",
+      fimGarantia,
+      diasAposGarantia,
+      categoria:"vida-avancada",
+      idadeMeses
+    };
+  }
+
+  return{
+    classe:"status-vencida",
+    texto:"🔴 MUITO ANTIGA — 5 anos ou mais",
+    fimGarantia,
+    diasAposGarantia,
+    categoria:"muito-antiga",
+    idadeMeses
+  };
+}
+
+/* =========================================================
+   NOTIFICAÇÕES DE GARANTIA
+========================================================= */
+
+function obterBateriasGarantia(){
+
+  const resultado = [];
+
+  pops.forEach((pop, popIndex) => {
+
+    /*
+     * Se o POP possui baterias individuais,
+     * usa cada bateria individualmente.
+     */
+    if(
+      Array.isArray(pop.baterias) &&
+      pop.baterias.length > 0
+    ){
+
+      pop.baterias.forEach((bateria, bateriaIndex) => {
+
+        const instalacao =
+          bateria.dataInstalacao || "";
+
+        const status =
+          statusGarantiaBateria(instalacao);
+
+        if(!status.fimGarantia)
+          return;
+
+        const hoje = new Date();
+        hoje.setHours(0,0,0,0);
+
+        const fim = new Date(status.fimGarantia);
+        fim.setHours(0,0,0,0);
+
+        const diasRestantes = Math.ceil(
+          (fim - hoje) / 86400000
+        );
+
+        const diasVencida =
+          diasRestantes < 0
+            ? Math.abs(diasRestantes)
+            : 0;
+
+        resultado.push({
+
+          popIndex,
+
+          bateriaIndex,
+
+          bateria:
+            bateria.numero || bateriaIndex + 1,
+
+          local:
+            pop.nome || "POP não informado",
+
+          instalacao,
+
+          fimGarantia:
+            fim.toISOString().slice(0,10),
+
+          diasRestantes,
+
+          diasVencida,
+
+          vencendo:
+            diasRestantes >= 0 &&
+            diasRestantes <= 90,
+
+          fora:
+            diasRestantes < 0
+
+        });
+
+      });
+
+    }
+
+    /*
+     * Compatibilidade:
+     * caso o POP antigo não tenha baterias individuais.
+     */
+    else if(pop.dataInstalacao){
+
+      const status =
+        statusGarantiaBateria(
+          pop.dataInstalacao
+        );
+
+      if(!status.fimGarantia)
+        return;
+
+      const hoje = new Date();
+      hoje.setHours(0,0,0,0);
+
+      const fim = new Date(status.fimGarantia);
+      fim.setHours(0,0,0,0);
+
+      const diasRestantes = Math.ceil(
+        (fim - hoje) / 86400000
+      );
+
+      resultado.push({
+
+        popIndex,
+
+        bateriaIndex:0,
+
+        bateria:1,
+
+        local:
+          pop.nome || "POP não informado",
+
+        instalacao:
+          pop.dataInstalacao,
+
+        fimGarantia:
+          fim.toISOString().slice(0,10),
+
+        diasRestantes,
+
+        diasVencida:
+          diasRestantes < 0
+            ? Math.abs(diasRestantes)
+            : 0,
+
+        vencendo:
+          diasRestantes >= 0 &&
+          diasRestantes <= 90,
+
+        fora:
+          diasRestantes < 0
+
+      });
+
+    }
+
+  });
+
+  return resultado;
+
+}
+
+
+/* =========================================================
+   ATUALIZAR CONTADORES
+========================================================= */
+
+function atualizarNotificacoesGarantia(){
+
+  const baterias =
+    obterBateriasGarantia();
+
+  const vencendo =
+    baterias.filter(
+      bateria => bateria.vencendo
+    );
+
+  const fora =
+    baterias.filter(
+      bateria => bateria.fora
+    );
+
+  const elementoVencendo =
+    document.getElementById(
+      "totalGarantiasVencendo"
+    );
+
+  const elementoFora =
+    document.getElementById(
+      "totalGarantiasFora"
+    );
+
+  if(elementoVencendo){
+
+    elementoVencendo.textContent =
+      vencendo.length;
+
+  }
+
+  if(elementoFora){
+
+    elementoFora.textContent =
+      fora.length;
+
+  }
+
+}
+
+
+/* =========================================================
+   ABRIR POPUP
+========================================================= */
+
+function abrirGarantias(tipo){
+
+  const todas =
+    obterBateriasGarantia();
+
+  let lista = [];
+
+  const titulo =
+    document.getElementById(
+      "tituloModalGarantia"
+    );
+
+  if(tipo === "vencendo"){
+
+    lista =
+      todas.filter(
+        bateria => bateria.vencendo
+      );
+
+    if(titulo){
+
+      titulo.textContent =
+        "🟡 Garantias vencendo";
+
+    }
+
+  }
+
+  if(tipo === "fora"){
+
+    lista =
+      todas.filter(
+        bateria => bateria.fora
+      );
+
+    if(titulo){
+
+      titulo.textContent =
+        "🔴 Baterias fora da garantia";
+
+    }
+
+  }
+
+  /*
+   * Ordena pela data da garantia.
+   */
+  lista.sort(
+    (a,b) =>
+      new Date(a.fimGarantia) -
+      new Date(b.fimGarantia)
+  );
+
+  const container =
+    document.getElementById(
+      "listaGarantias"
+    );
+
+  if(!container)
+    return;
+
+  if(lista.length === 0){
+
+    container.innerHTML = `
+
+      <div class="garantia-vazia">
+
+        ${
+          tipo === "vencendo"
+            ? "🟢 Não existem baterias com garantia vencendo nos próximos 90 dias."
+            : "🟢 Não existem baterias em pós-garantia ou com vida útil avançada."
+        }
+
+      </div>
+
+    `;
+
+  }else{
+
+    container.innerHTML =
+      lista.map(
+        bateria => {
+
+          let situacao = "";
+          let classe = "";
+
+          if(bateria.vencendo){
+
+            situacao =
+              bateria.diasRestantes === 0
+                ? "⚠️ Vence hoje"
+                : `⚠️ Vence em ${bateria.diasRestantes} dias`;
+
+            classe = "vencendo";
+
+          }else{
+
+            situacao =
+              `🔴 Garantia vencida há ${bateria.diasVencida} dias`;
+
+            classe = "fora";
+
+          }
+
+          return `
+
+            <div
+              class="garantia-lista-item ${classe}"
+            >
+
+              <div class="garantia-grid">
+
+                <div class="garantia-info">
+
+                  <span>
+                    🔋 Bateria
+                  </span>
+
+                  <strong>
+                    Bateria ${escapeHtml(
+                      bateria.bateria
+                    )}
+                  </strong>
+
+                </div>
+
+
+                <div class="garantia-info">
+
+                  <span>
+                    📍 Local / POP
+                  </span>
+
+                  <strong>
+                    ${escapeHtml(
+                      bateria.local
+                    )}
+                  </strong>
+
+                </div>
+
+
+                <div class="garantia-info">
+
+                  <span>
+                    📅 Instalação
+                  </span>
+
+                  <strong>
+                    ${formatarData(
+                      bateria.instalacao
+                    )}
+                  </strong>
+
+                </div>
+
+
+                <div class="garantia-info">
+
+                  <span>
+                    🛡️ Fim da garantia
+                  </span>
+
+                  <strong>
+                    ${formatarData(
+                      bateria.fimGarantia
+                    )}
+                  </strong>
+
+                </div>
+
+              </div>
+
+
+              <div
+                class="garantia-status ${
+                  bateria.vencendo
+                    ? "status-alerta"
+                    : "status-vencida"
+                }"
+              >
+
+                ${situacao}
+
+              </div>
+
+            </div>
+
+          `;
+
+        }
+      ).join("");
+
+  }
+
+  const modal =
+    document.getElementById(
+      "modalGarantia"
+    );
+
+  if(modal){
+
+    modal.style.display = "block";
+
+    document.body.style.overflow =
+      "hidden";
+
+  }
+
+}
+
+
+/* =========================================================
+   FECHAR POPUP
+========================================================= */
+
+function fecharGarantias(){
+
+  const modal =
+    document.getElementById(
+      "modalGarantia"
+    );
+
+  if(modal)
+    modal.style.display = "none";
+
+  document.body.style.overflow = "";
+
+}
+
+
+/* =========================================================
+   FECHAR CLICANDO FORA
+========================================================= */
+
+function fecharModalGarantia(event){
+
+  if(
+    event.target &&
+    event.target.id ===
+      "modalGarantia"
+  ){
+
+    fecharGarantias();
+
+  }
+
+}
+
+
+/* =========================================================
+   ESC FECHA POPUP
+========================================================= */
+
+document.addEventListener(
+  "keydown",
+  function(event){
+
+    if(event.key === "Escape"){
+
+      fecharGarantias();
+
+    }
+
+  }
+);
+
+function statusMonitoramento(
+  idade,
+  percentual,
+  autonomia,
+  garantia
+){
+
+  if(!idade||!idade.totalMeses){
+    return{
+      classe:"monitor-atencao",
+      titulo:"⚪ MONITORAMENTO PARCIAL",
+      mensagem:
+        "Cadastre a data de instalação das baterias. A garantia é calculada em 2 anos por bateria."
+    };
+  }
+
+  /*
+   * Classificação da idade da bateria:
+   * 0–2 anos = garantia
+   * 2–3 anos = pós-garantia
+   * 3–5 anos = vida útil avançada
+   * 5+ anos = muito antiga
+   */
+
+  if(idade.totalMeses>=60){
+    return{
+      classe:"monitor-critico",
+      titulo:"🔴 BATERIA MUITO ANTIGA",
+      mensagem:
+        "A bateria possui 5 anos ou mais. Recomenda-se teste técnico e planejamento de substituição."
+    };
+  }
+
+  if(idade.totalMeses>=36){
+    return{
+      classe:"monitor-alerta-laranja",
+      titulo:"🟠 VIDA ÚTIL AVANÇADA",
+      mensagem:
+        "A bateria possui entre 3 e 5 anos e já está fora da garantia. Recomenda-se acompanhamento e avaliação técnica."
+    };
+  }
+
+  if(idade.totalMeses>=24){
+    return{
+      classe:"monitor-atencao",
+      titulo:"🟡 PÓS-GARANTIA",
+      mensagem:
+        "A bateria possui entre 2 e 3 anos. A garantia já terminou, mas ainda está no período estimado de pós-garantia."
+    };
+  }
+
+  if(autonomia>0&&autonomia<2){
+    return{
+      classe:"monitor-critico",
+      titulo:"🚨 AUTONOMIA CRÍTICA",
+      mensagem:
+        "A autonomia estimada está abaixo de 2 horas."
+    };
+  }
+
+  if(autonomia>0&&autonomia<6){
+    return{
+      classe:"monitor-alerta-laranja",
+      titulo:"🟠 AUTONOMIA REDUZIDA",
+      mensagem:
+        "A autonomia estimada está abaixo de 6 horas."
+    };
+  }
+
+  if(percentual<=45){
+    return{
+      classe:"monitor-critico",
+      titulo:"🔴 CAPACIDADE ESTIMADA MUITO REDUZIDA",
+      mensagem:
+        "A estimativa indica baixa capacidade disponível. Recomenda-se avaliar o banco com teste técnico."
+    };
+  }
+
+  if(percentual<=60){
+    return{
+      classe:"monitor-alerta-laranja",
+      titulo:"🟠 ATENÇÃO — DESGASTE ESTIMADO",
+      mensagem:
+        "A capacidade nominal permanece a mesma; a redução apresentada é apenas uma estimativa de capacidade disponível."
+    };
+  }
+
+  if(percentual<=75){
+    return{
+      classe:"monitor-atencao",
+      titulo:"🟡 ATENÇÃO — CAPACIDADE EM REDUÇÃO",
+      mensagem:
+        "Há redução estimada da capacidade disponível. A confirmação deve ser feita por teste técnico."
+    };
+  }
+
+  return{
+    classe:"monitor-normal",
+    titulo:"🟢 BANCO DENTRO DA ESTIMATIVA",
+    mensagem:
+      "A capacidade nominal está preservada no cadastro e a capacidade disponível estimada está em nível adequado."
+  };
+}
+
+/* =========================================================
+   AUTONOMIA
+========================================================= */
+
+function formatarAutonomia(horas){
+
+  if(
+    !horas||
+    horas<=0||
+    !isFinite(horas)
+  )
+    return "Sem cálculo";
+
+
+  let h=Math.floor(horas);
+
+  let m=Math.round(
+    (horas-h)*60
+  );
+
+
+  if(m>=60){
+
+    h++;
+    m=0;
+
+  }
+
+
+  return `${h}h ${m}min`;
+
+}
+
+
+/* =========================================================
+   BOT TELEGRAM - NOTIFICAÇÕES DE CONTINGÊNCIA
+========================================================= */
+const TELEGRAM_STORAGE_KEY="controle_pops_telegram_config_v1";
+const TELEGRAM_NOTIFICACOES_KEY="controle_pops_telegram_notificacoes_v1";
+const EQUIPE_PLANTAO_STORAGE_KEY="controle_pops_equipe_plantao_v1";
+const ESCALA_PLANTAO_STORAGE_KEY="controle_pops_plantao_mensal_v1";
+const ACIONAMENTOS_STORAGE_KEY="controle_pops_acionamentos_v1";
+
+function lerEquipesPlantao(){
+  try{const lista=JSON.parse(localStorage.getItem(EQUIPE_PLANTAO_STORAGE_KEY)||"[]");return Array.isArray(lista)?lista:[];}catch(e){return [];}
+}
+function salvarEquipesPlantao(lista){localStorage.setItem(EQUIPE_PLANTAO_STORAGE_KEY,JSON.stringify(Array.isArray(lista)?lista:[]));}
+
+function lerEscalasPlantao(){
+  try{const x=JSON.parse(localStorage.getItem(ESCALA_PLANTAO_STORAGE_KEY)||"{}");return x&&typeof x==="object"?x:{};}catch(e){return {};}
+}
+function salvarEscalasPlantao(x){localStorage.setItem(ESCALA_PLANTAO_STORAGE_KEY,JSON.stringify(x||{}));}
+function chaveMesEscala(valor){
+  if(/^\d{4}-\d{2}$/.test(String(valor||"")))return String(valor);
+  const d=valor instanceof Date?valor:new Date(valor||Date.now());
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+function diasDoMes(ano,mes){return new Date(ano,mes,0).getDate();}
+function periodoSemanaEscala(semana,ano,mes){
+  const total=diasDoMes(ano,mes);
+  const inicio=semana===1?1:((semana-1)*7-2);
+  const fim=Math.min(total,semana===1?4:inicio+6);
+  return {inicio,fim};
+}
+function montarLinhasEscalaMes(chave){
+  const [anoS,mesS]=String(chave).split("-");
+  const ano=Number(anoS),mes=Number(mesS);
+  const total=diasDoMes(ano,mes);
+  const semanas=total<=4?1:Math.ceil((total-4)/7)+1;
+  return Array.from({length:Math.min(5,semanas)},(_,idx)=>{
+    const semana=idx+1,p=periodoSemanaEscala(semana,ano,mes);
+    return {semana, inicio:p.inicio, fim:p.fim};
+  });
+}
+function escaparAttr(v){return escapeHtml(String(v??"")).replace(/\"/g,"&quot;");}
+function carregarEscalaMensal(){
+  const input=document.getElementById("escalaMes");
+  if(!input)return;
+  const chave=input.value||chaveMesEscala(new Date());
+  input.value=chave;
+  const salvo=lerEscalasPlantao()[chave]||{};
+  const linhas=montarLinhasEscalaMes(chave);
+  const body=document.getElementById("escalaPlantaoBody");
+  if(!body)return;
+  body.innerHTML=linhas.map((l)=>{
+    const d=salvo.semanas?.[l.semana]||{};
+    return `<tr>
+      <td><input id="escalaColab${l.semana}" type="text" value="${escaparAttr(d.colaborador||"")}" placeholder="Ex.: João Roberto - Vanderson Junior"></td>
+      <td style="text-align:center;font-weight:bold">${l.semana}ª SEMANA</td>
+      <td class="escala-periodo">Dias ${String(l.inicio).padStart(2,"0")} a ${String(l.fim).padStart(2,"0")}</td>
+      <td><input id="escalaCarro${l.semana}" type="text" value="${escaparAttr(d.carro||"")}" placeholder="Ex.: STRADA SLO2B54"></td>
+    </tr>`;
+  }).join("");
+  const status=document.getElementById("escalaPlantaoStatus");
+  if(status)status.textContent=Object.keys(salvo.semanas||{}).length?`🟢 Escala carregada: ${chave.split("-").reverse().join("/")}`:"⚪ Preencha as equipes e salve a escala.";
+  atualizarEquipeDaSemanaAtual();
+}
+function dadosEscalaFormulario(){
+  const chave=document.getElementById("escalaMes")?.value||chaveMesEscala(new Date());
+  const linhas=montarLinhasEscalaMes(chave);
+  const semanas={};
+  linhas.forEach(l=>{
+    const colaborador=document.getElementById(`escalaColab${l.semana}`)?.value.trim()||"";
+    const carro=document.getElementById(`escalaCarro${l.semana}`)?.value.trim()||"";
+    const partes=colaborador.split(/\s+-\s+/);
+    semanas[l.semana]={
+      colaborador,
+      tecnico:partes[0]?.trim()||"",
+      auxiliar:partes.slice(1).join(" - ").trim()||"",
+      carro,
+      inicio:l.inicio,
+      fim:l.fim,
+      semana:l.semana
+    };
+  });
+  return {mes:chave,semanas,atualizadaEm:new Date().toISOString()};
+}
+function salvarEscalaMensal(){
+  const dados=dadosEscalaFormulario();
+  const escalas=lerEscalasPlantao();
+  escalas[dados.mes]=dados;
+  salvarEscalasPlantao(escalas);
+  atualizarEquipeDaSemanaAtual();
+  const status=document.getElementById("escalaPlantaoStatus");
+  if(status)status.textContent=`✅ Escala ${dados.mes.split("-").reverse().join("/")} salva com sucesso.`;
+  carregarEscalaMensal();
+  alert("✅ Escala mensal salva. O acionamento usará automaticamente a equipe da semana correspondente.");
+}
+function limparEscalaMensal(){
+  const input=document.getElementById("escalaMes");
+  const chave=input?.value||chaveMesEscala(new Date());
+  if(!confirm(`Apagar a escala de ${chave.split("-").reverse().join("/")}?`))return;
+  const escalas=lerEscalasPlantao();delete escalas[chave];salvarEscalasPlantao(escalas);carregarEscalaMensal();
+}
+function escalaParaData(valor){
+  const d=valor instanceof Date?valor:new Date(`${String(valor).slice(0,10)}T12:00:00`);
+  if(isNaN(d.getTime()))return null;
+  const chave=chaveMesEscala(d),escala=lerEscalasPlantao()[chave];
+  if(!escala)return null;
+  const dia=d.getDate();
+  const semana=montarLinhasEscalaMes(chave).find(l=>dia>=l.inicio&&dia<=l.fim)?.semana;
+  return semana?({...escala.semanas?.[semana],semana,mes:chave}):null;
+}
+function equipePlantaoParaData(valor){
+  const escala=escalaParaData(valor);
+  if(escala&&((escala.tecnico||escala.auxiliar||escala.colaborador)||escala.carro))return {
+    tecnico:escala.tecnico||String(escala.colaborador||"").split(/\s+-\s+/)[0].trim(),
+    auxiliar:escala.auxiliar||String(escala.colaborador||"").split(/\s+-\s+/).slice(1).join(" - ").trim(),
+    carro:escala.carro||"",
+    semana:escala.semana,
+    mes:escala.mes
+  };
+  const legado=lerEquipesPlantao().find(e=>e.ativa);
+  return legado||null;
+}
+function equipePlantaoAtual(){return equipePlantaoParaData(new Date());}
+function atualizarEquipeDaSemanaAtual(){
+  const atual=equipePlantaoAtual();
+  const status=document.getElementById("escalaAtualStatus");
+  if(status){
+    if(atual)status.textContent=`🟢 Plantão atual: ${atual.semana||"--"}ª SEMANA — ${atual.tecnico||atual.colaborador||""}${atual.auxiliar?" + "+atual.auxiliar:""}${atual.carro?" — "+atual.carro:""}`;
+    else status.textContent="⚪ Nenhuma escala cadastrada para a semana atual.";
+  }
+}
+function carregarEquipePlantao(){
+  const equipe=equipePlantaoAtual();
+  const tecnico=document.getElementById("plantaoTecnico");
+  const auxiliar=document.getElementById("plantaoAuxiliar");
+  const carro=document.getElementById("plantaoCarro");
+  if(tecnico)tecnico.value=equipe?.tecnico||"";
+  if(auxiliar)auxiliar.value=equipe?.auxiliar||"";
+  if(carro)carro.value=equipe?.carro||"";
+  atualizarListaEquipePlantao();
+  atualizarEquipeDaSemanaAtual();
+}
+function salvarEquipePlantao(){
+  const tecnico=String(document.getElementById("plantaoTecnico")?.value||"").trim();
+  const auxiliar=String(document.getElementById("plantaoAuxiliar")?.value||"").trim();
+  const carro=String(document.getElementById("plantaoCarro")?.value||"").trim();
+  if(!tecnico){alert("Informe o técnico de plantão.");return;}
+  if(!carro){alert("Informe o veículo da equipe.");return;}
+  const lista=lerEquipesPlantao().map(e=>({...e,ativa:false}));
+  lista.push({id:crypto.randomUUID(),tecnico,auxiliar,carro,ativa:true,atualizadaEm:new Date().toISOString()});
+  salvarEquipesPlantao(lista);
+  carregarEquipePlantao();
+  const status=document.getElementById("equipePlantaoStatus");
+  if(status)status.textContent=`🟢 Equipe de plantão: ${tecnico}${auxiliar?" + "+auxiliar:""} — ${carro}`;
+}
+function limparEquipePlantao(){
+  localStorage.removeItem(EQUIPE_PLANTAO_STORAGE_KEY);
+  const tecnico=document.getElementById("plantaoTecnico");const auxiliar=document.getElementById("plantaoAuxiliar");const carro=document.getElementById("plantaoCarro");
+  if(tecnico)tecnico.value="";if(auxiliar)auxiliar.value="";if(carro)carro.value="";
+  atualizarListaEquipePlantao();atualizarEquipeDaSemanaAtual();
+}
+function atualizarListaEquipePlantao(){
+  const div=document.getElementById("listaEquipePlantao");const status=document.getElementById("equipePlantaoStatus");if(!div)return;
+  const lista=lerEquipesPlantao();const atual=lista.find(e=>e.ativa);
+  if(status)status.textContent=atual?`🟢 Equipe de plantão: ${atual.tecnico}${atual.auxiliar?" + "+atual.auxiliar:""} — ${atual.carro}`:"⚪ Nenhuma equipe de plantão cadastrada.";
+  if(!lista.length){div.innerHTML="";return;}
+  div.innerHTML=`<table><tr><th>Técnico</th><th>Auxiliar</th><th>Veículo</th><th>Status</th></tr>${lista.map(e=>`<tr><td>${escapeHtml(e.tecnico||"")}</td><td>${escapeHtml(e.auxiliar||"")}</td><td>${escapeHtml(e.carro||"")}</td><td class="equipe-plantao-ativo">${e.ativa?"🟢 DE PLANTÃO":"⚪ Inativa"}</td></tr>`).join("")}</table>`;
+}
+function lerDadosAcionamentos(){try{const x=JSON.parse(localStorage.getItem(ACIONAMENTOS_STORAGE_KEY)||"{}");return x&&typeof x==="object"?x:{};}catch(e){return {};}}
+function salvarDadosAcionamentos(x){localStorage.setItem(ACIONAMENTOS_STORAGE_KEY,JSON.stringify(x||{}));}
+function dadosAcionamentoPop(pop){return lerDadosAcionamentos()[pop.id]||{};}
+function formatarDataInput(valor){if(!valor)return "";const d=new Date(valor);if(isNaN(d.getTime()))return "";return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function formatarHora(valor){if(!valor)return "";const d=new Date(valor);if(isNaN(d.getTime()))return "";return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});}
+function montarScriptAcionamento(pop,campos={}){
+  const c=calcularContingencia(pop,new Date());
+  const equipe=equipePlantaoAtual()||{};
+  const dados={...dadosAcionamentoPop(pop),...campos};
+  const inicio=pop.quedaEnergiaEm?formatarDataHora(pop.quedaEnergiaEm):"--";
+  const limite=c.limite?formatarDataHora(c.limite.toISOString()):"--";
+  const acionamento=dados.horaAcionamento||formatarDataHora(new Date().toISOString());
+  const data=dados.data||formatarDataInput(new Date());
+  const distancia=Number(pop.distanciaKm||0).toFixed(1);
+  const desloc=formatarDuracaoMinutos(calcularDeslocamentoMinutos(pop));
+  const margem=formatarDuracaoMinutos(Number(pop.margemSegurancaMin)||30);
+  const autonomia=formatarAutonomia(c.autonomiaMin/60);
+  return `🚨 ACIONAMENTO DE EQUIPE
+
+📅 Data: ${data?data.split("-").reverse().join("/"):"--"}
+👷 Técnico: ${dados.tecnico||equipe.tecnico||"--"}
+👨‍🔧 Auxiliar: ${dados.auxiliar||equipe.auxiliar||"--"}
+
+📄 Protocolo OxenteNet: ${dados.protocoloOxenteNet||""}
+📄 Protocolo SPE: ${dados.protocoloSPE||""}
+
+📍 Local da Atividade: ${dados.localAtividade||pop.nome||"--"}
+
+⏰ CRONOGRAMA & LOGÍSTICA:
+⚡️ FALTA DE ENERGIA REGISTRADA
+
+📍 Distância: ${distancia} km
+🚗 Deslocamento: ${desloc}
+🛡 Margem: ${margem}
+🔋 Autonomia: ${autonomia}
+🕐 Início: ${inicio}
+🚨 Limite para acionar: ${limite}
+
+⏰ Hora do Acionamento: ${acionamento}
+🚗 Carro: ${dados.carro||equipe.carro||"--"}
+📍 KM Inicial: ${dados.kmInicial||""}
+🏁 KM Final: ${dados.kmFinal||""}
+🕒 Início do Deslocamento: ${dados.inicioDeslocamento||""}
+🕒 Início da Atividade: ${dados.inicioAtividade||""}
+🕒 Fim da Atividade: ${dados.fimAtividade||""}
+🕒 Fim do Deslocamento: ${dados.fimDeslocamento||""}
+
+🧰 Materiais Utilizados:
+${dados.materiais||""}
+
+📋 Como resolveu (RELATO TÉCNICO):
+${dados.relato||""}
+
+📌 Localização: ${dados.localizacao||""}`;
+}
+function abrirModalAcionamento(i){
+  const pop=pops[i]; if(!pop||!pop.quedaEnergiaEm||pop.energiaRestabelecidaEm)return;
+  const d=dadosAcionamentoPop(pop);
+  const equipe=equipePlantaoParaData(d.data||new Date());
+  if(!equipe){alert("⚠️ Cadastre a escala mensal do plantão antes de acionar a equipe.");return;}
+  window._acionamentoPopIndex=i;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||"";};
+  const dataEscala=d.data||formatarDataInput(new Date());
+  set("acionData",dataEscala);
+  window._acionamentoEquipeData=dataEscala;
+  set("acionTecnico",equipe.tecnico);set("acionAuxiliar",equipe.auxiliar);set("acionCarro",equipe.carro);
+  set("acionProtocoloOxenteNet",d.protocoloOxenteNet);set("acionProtocoloSPE",d.protocoloSPE);set("acionLocal",d.localAtividade||pop.nome);set("acionKmInicial",d.kmInicial);set("acionLocalizacao",d.localizacao);
+  set("acionScript",montarScriptAcionamento(pop,{...d,tecnico:equipe.tecnico,auxiliar:equipe.auxiliar,carro:equipe.carro}));
+  const modal=document.getElementById("modalAcionamento");if(modal)modal.style.display="block";
+}
+function fecharModalAcionamento(){const m=document.getElementById("modalAcionamento");if(m)m.style.display="none";}
+function dadosFormularioAcionamento(){return {data:document.getElementById("acionData")?.value||"",tecnico:document.getElementById("acionTecnico")?.value||"",auxiliar:document.getElementById("acionAuxiliar")?.value||"",carro:document.getElementById("acionCarro")?.value||"",protocoloOxenteNet:document.getElementById("acionProtocoloOxenteNet")?.value||"",protocoloSPE:document.getElementById("acionProtocoloSPE")?.value||"",localAtividade:document.getElementById("acionLocal")?.value||"",kmInicial:document.getElementById("acionKmInicial")?.value||"",localizacao:document.getElementById("acionLocalizacao")?.value||"",horaAcionamento:formatarDataHora(new Date().toISOString())};}
+function atualizarScriptAcionamento(){
+  const i=window._acionamentoPopIndex;const pop=pops[i];if(!pop)return;
+  const d=dadosFormularioAcionamento();
+  const equipe=equipePlantaoParaData(d.data||new Date());
+  const dataAtual=String(d.data||"");
+  if(equipe && window._acionamentoEquipeData!==dataAtual){
+    const ids=[["acionTecnico",equipe.tecnico],["acionAuxiliar",equipe.auxiliar],["acionCarro",equipe.carro]];
+    ids.forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v||"";});
+    window._acionamentoEquipeData=dataAtual;
+  }
+  d.tecnico=document.getElementById("acionTecnico")?.value||equipe?.tecnico||"";
+  d.auxiliar=document.getElementById("acionAuxiliar")?.value||equipe?.auxiliar||"";
+  d.carro=document.getElementById("acionCarro")?.value||equipe?.carro||"";
+  const el=document.getElementById("acionScript");if(el)el.value=montarScriptAcionamento(pop,d);
+}
+async function copiarScriptAcionamento(){atualizarScriptAcionamento();const el=document.getElementById("acionScript");if(!el)return;try{await navigator.clipboard.writeText(el.value);alert("✅ Script de acionamento copiado.");}catch(e){el.select();document.execCommand("copy");alert("✅ Script de acionamento copiado.");}}
+async function confirmarAcionamentoEquipe(){
+  const i=window._acionamentoPopIndex;const pop=pops[i];if(!pop)return;
+  if(pop.equipeEnviadaEm){alert("ℹ️ A equipe já foi registrada como enviada em "+formatarDataHora(pop.equipeEnviadaEm));fecharModalAcionamento();return;}
+  const d=dadosFormularioAcionamento();
+  if(!d.tecnico){alert("Informe o técnico.");return;}
+  const agora=new Date().toISOString();
+  d.horaAcionamento=formatarDataHora(agora);
+  const registros=lerDadosAcionamentos();
+  registros[pop.id]={...d,acionamentoEm:agora};
+  salvarDadosAcionamentos(registros);
+  pop.equipeEnviadaEm=agora;
+  try{
+    await salvarContingencia(pop);
+    const script=montarScriptAcionamento(pop,d);
+    const resultado=await enviarTelegram(script);
+    render();
+    fecharModalAcionamento();
+    if(resultado.ok)alert("✅ Equipe acionada e script enviado ao Telegram.");
+    else alert("✅ Equipe acionada e registro salvo. O Telegram não foi enviado; confira a configuração do bot.");
+  }catch(error){
+    console.error(error);pop.equipeEnviadaEm=null;
+    alert("❌ Erro ao registrar acionamento: "+error.message);
+  }
+}
+
+function lerConfigTelegram(){
+  try{
+    const cfg=JSON.parse(localStorage.getItem(TELEGRAM_STORAGE_KEY)||"{}");
+    return {
+      token:String(cfg.token||"").trim(),
+      chatId:String(cfg.chatId||"").trim(),
+      ativo:cfg.ativo!==false
+    };
+  }catch(e){
+    return {token:"",chatId:"",ativo:true};
+  }
+}
+
+function escaparXmlWord(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function nomeMesPt(chave){
+  const [a,m]=chave.split("-").map(Number);
+  return new Date(a,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"}).toUpperCase();
+}
+function escalaDoMesSelecionado(){
+  const chave=document.getElementById("escalaMes")?.value||chaveMesEscala(new Date());
+  const dados=lerEscalasPlantao()[chave]||null;
+  if(!dados)return null;
+  return {chave,dados,linhas:montarLinhasEscalaMes(chave)};
+}
+async function gerarEscalaWord(){
+  const pacote=escalaDoMesSelecionado();
+  if(!pacote){alert("⚠️ Salve a escala do mês antes de gerar o Word.");return;}
+  if(!window.docx){alert("❌ O módulo de Word ainda não carregou. Atualize a página e tente novamente.");return;}
+  const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,AlignmentType,BorderStyle,VerticalAlign}=window.docx;
+  const bordas={top:{style:BorderStyle.SINGLE,size:6,color:"000000"},bottom:{style:BorderStyle.SINGLE,size:6,color:"000000"},left:{style:BorderStyle.SINGLE,size:6,color:"000000"},right:{style:BorderStyle.SINGLE,size:6,color:"000000"},insideHorizontal:{style:BorderStyle.SINGLE,size:6,color:"000000"},insideVertical:{style:BorderStyle.SINGLE,size:6,color:"000000"}};
+  const celula=(texto,opts={})=>new TableCell({width:{size:opts.width||2500,type:WidthType.DXA},verticalAlign:VerticalAlign.CENTER,shading:opts.shading?{fill:opts.shading}:undefined,borders:bordas,children:[new Paragraph({alignment:opts.align||AlignmentType.CENTER,children:[new TextRun({text:String(texto||""),bold:!!opts.bold,size:opts.size||20,color:opts.color||"000000"})]})]});
+  const titulo=new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:100},children:[new TextRun({text:"AGENDA DE PLANTONISTAS",bold:true,size:34,color:"4F88C9"})]});
+  const mes=new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:180},children:[new TextRun({text:nomeMesPt(pacote.chave),bold:true,size:30,color:"4F88C9"})]});
+  const cab=new TableRow({children:[celula("COLABORADOR",{bold:true,shading:"B7B7B7",width:4700}),celula("SEMANA",{bold:true,shading:"B7B7B7",width:2300}),celula("PERÍODO",{bold:true,shading:"B7B7B7",width:2500})]});
+  const rows=[cab,...pacote.linhas.map(l=>{const d=pacote.dados.semanas?.[l.semana]||{};return new TableRow({children:[celula(d.colaborador||"",{bold:true,align:AlignmentType.LEFT,width:4700}),celula(`${l.semana}ª SEMANA`,{width:2300}),celula(`Dias ${String(l.inicio).padStart(2,"0")} a ${String(l.fim).padStart(2,"0")}`,{bold:true,color:"1F3F68",width:2500})]});})];
+  const tabela=new Table({width:{size:9500,type:WidthType.DXA},columnWidths:[4700,2300,2500],borders:bordas,rows});
+  const rodape=new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:300},children:[new TextRun({text:"Oxente Net Empreendimentos Ltda EPP",bold:true,size:16,italics:true}),new TextRun({text:"\nRua Aderbal da Silva Mauriz , SN – Gal. Branco – São Raimundo Nonato – PI   CEP: 64770-000   Tel: (89) 6747-000   CNPJ: 19.725.588/0001-80",size:13})]});
+  const doc=new Document({sections:[{properties:{page:{margin:{top:500,right:900,bottom:500,left:900}}},children:[titulo,mes,tabela,rodape]}]});
+  const blob=await Packer.toBlob(doc);
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`Agenda_de_Plantonistas_${pacote.chave}.docx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+function carregarConfigTelegram(){
+  const cfg=lerConfigTelegram();
+  const token=document.getElementById("telegramBotToken");
+  const chat=document.getElementById("telegramChatId");
+  const ativo=document.getElementById("telegramAtivo");
+  if(token)token.value=cfg.token;
+  if(chat)chat.value=cfg.chatId;
+  if(ativo)ativo.value=cfg.ativo?"true":"false";
+  atualizarStatusTelegram();
+}
+
+function salvarConfigTelegram(){
+  const token=String(document.getElementById("telegramBotToken")?.value||"").trim();
+  const chatId=String(document.getElementById("telegramChatId")?.value||"").trim();
+  const ativo=document.getElementById("telegramAtivo")?.value!=="false";
+  localStorage.setItem(TELEGRAM_STORAGE_KEY,JSON.stringify({token,chatId,ativo}));
+  atualizarStatusTelegram("✅ Configuração do Telegram salva neste navegador.");
+}
+
+function atualizarStatusTelegram(mensagem){
+  const el=document.getElementById("telegramStatus");
+  if(!el)return;
+  const cfg=lerConfigTelegram();
+  if(mensagem){el.textContent=mensagem;return;}
+  if(!cfg.token||!cfg.chatId){el.textContent="⚪ Bot Telegram não configurado.";return;}
+  el.textContent=cfg.ativo?"🟢 Bot Telegram configurado e ativo.":"⏸️ Bot Telegram configurado, mas as notificações estão desativadas.";
+}
+
+async function enviarTelegram(texto){
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo||!cfg.token||!cfg.chatId)return {ok:false,ignorado:true};
+  try{
+    const resposta=await fetch(`https://api.telegram.org/bot${encodeURIComponent(cfg.token)}/sendMessage`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({chat_id:cfg.chatId,text:texto,disable_web_page_preview:true})
+    });
+    const dados=await resposta.json().catch(()=>({}));
+    if(!resposta.ok||!dados.ok)throw new Error(dados.description||`HTTP ${resposta.status}`);
+    return {ok:true};
+  }catch(error){
+    console.error("Telegram:",error);
+    atualizarStatusTelegram("🔴 Erro ao enviar Telegram: "+error.message);
+    return {ok:false,error};
+  }
+}
+
+async function testarTelegram(){
+  salvarConfigTelegram();
+  const cfg=lerConfigTelegram();
+  if(!cfg.token||!cfg.chatId){alert("Informe o token do bot e o ID do grupo/chat.");return;}
+  atualizarStatusTelegram("⏳ Enviando mensagem de teste...");
+  const r=await enviarTelegram("🤖 TESTE — Controle de Autonomia dos POPs\\n\\nO bot Telegram está conectado e pronto para acompanhar as ocorrências de falta de energia.");
+  if(r.ok){atualizarStatusTelegram("🟢 Teste enviado com sucesso para o Telegram.");alert("✅ Mensagem de teste enviada!");}
+  else if(!r.ignorado)alert("❌ Não foi possível enviar o teste. Verifique o token e o ID do grupo.");
+}
+
+function obterNotificacoesTelegram(){
+  try{return JSON.parse(localStorage.getItem(TELEGRAM_NOTIFICACOES_KEY)||"{}");}
+  catch(e){return {};}
+}
+function salvarNotificacoesTelegram(obj){
+  localStorage.setItem(TELEGRAM_NOTIFICACOES_KEY,JSON.stringify(obj));
+}
+function chaveTelegram(pop,etapa){
+  return `${pop.id}|${pop.quedaEnergiaEm}|${etapa}`;
+}
+function formatarMensagemTelegram(pop,c,etapa){
+  const nome=pop.nome||"POP não informado";
+  const distancia=Number(pop.distanciaKm||0).toFixed(1);
+  const desloc=formatarDuracaoMinutos(calcularDeslocamentoMinutos(pop));
+  const margem=formatarDuracaoMinutos(Number(pop.margemSegurancaMin)||30);
+  const autonomia=formatarAutonomia(c.autonomiaMin/60);
+  const limite=c.limite?formatarDataHora(c.limite.toISOString()):"--";
+  const restante=c.restanteMin!=null?formatarContagem(c.restanteMin):"--";
+  const agora=formatarDataHora(new Date().toISOString());
+
+  const cabecalho=`🏷️ POP: ${nome}\n📍 Distância: ${distancia} km\n🚗 Deslocamento: ${desloc}\n🛡️ Margem: ${margem}\n🔋 Autonomia: ${autonomia}\n`;
+  if(etapa==="FALTA_REGISTRADA")return `⚡ FALTA DE ENERGIA REGISTRADA\n\n${cabecalho}🕐 Início: ${formatarDataHora(pop.quedaEnergiaEm)}\n🚨 Limite para acionar: ${limite}`;
+  if(etapa==="META_AUTONOMIA")return `🟡 50% DA AUTONOMIA\n\n${cabecalho}⏱️ Autonomia restante: ${restante}\n⚠️ Atenção para preparar a equipe.`;
+  if(etapa==="PREPARAR_EQUIPE")return `🟠 PREPARAR EQUIPE\n\n${cabecalho}⏱️ Tempo restante: ${restante}\n🚨 Limite para acionar: ${limite}`;
+  if(etapa==="PROXIMO_LIMITE")return `🔴 PRÓXIMO DO LIMITE DE ACIONAMENTO\n\n${cabecalho}⏱️ Tempo até o limite: ${c.restanteLimiteMin>0?formatarContagem(c.restanteLimiteMin):"00h 00min 00s"}\n🚗 Verificar equipe imediatamente.`;
+  if(etapa==="ACIONAR_AGORA")return `🚨 ACIONAR EQUIPE AGORA\n\n${cabecalho}⏰ O limite de acionamento foi atingido.\n🚗 Enviar equipe imediatamente.`;
+  if(etapa==="SEM_EQUIPE")return `🚨 LIMITE ULTRAPASSADO — EQUIPE NÃO REGISTRADA\n\n${cabecalho}⏰ O limite já foi ultrapassado há ${formatarContagem(Math.abs(c.restanteLimiteMin||0))}.\n⚠️ Registrar o envio da equipe no sistema.`;
+  if(etapa==="EQUIPE_ENVIADA")return `🚗 EQUIPE ENVIADA\n\n${cabecalho}🕐 Saída registrada: ${formatarDataHora(pop.equipeEnviadaEm)}\n⏱️ Registro realizado em: ${agora}`;
+  if(etapa==="ENERGIA_RESTABELECIDA"){
+    const inicio=new Date(pop.quedaEnergiaEm);
+    const fim=new Date(pop.energiaRestabelecidaEm);
+    const duracao=(fim-inicio)/60000;
+    return `💡 ENERGIA RESTABELECIDA\n\n${cabecalho}🕐 Restabelecida: ${formatarDataHora(pop.energiaRestabelecidaEm)}\n⏱️ Duração da falta: ${formatarDuracaoMinutos(duracao)}\n🚗 Equipe enviada: ${pop.equipeEnviadaEm?"Sim":"Não"}\n✅ Ocorrência encerrada.\n🔕 O monitoramento automático foi interrompido.`;
+  }
+  return `🤖 Atualização do POP ${nome}`;
+}
+
+
+
+function calcularConsumoPOP(pop){
+  return (Array.isArray(pop?.equipamentos) ? pop.equipamentos : [])
+    .reduce((total,e) => {
+      const ampere = Number(e?.ampere) || 0;
+      const quantidade = Number(e?.quantidade) || 0;
+      return total + ampere * quantidade;
+    }, 0);
+}
+
+function obterCorrenteCarregadorA(pop){
+  const corrente = Number(pop?.correnteCarregadorA);
+  return Number.isFinite(corrente) && corrente > 0 ? corrente : 20;
+}
+
+
+function capacidadeNominalAh(pop){
+  return Math.max(0, Number(pop?.ah) || 0);
+}
+
+function consumoAtualA(pop){
+  if(typeof calcularConsumoPOP === "function") return calcularConsumoPOP(pop);
+  return (Array.isArray(pop?.equipamentos) ? pop.equipamentos : [])
+    .reduce((t,e)=>t+(Number(e?.ampere)||0)*(Number(e?.quantidade)||0),0);
+}
+
+function inicializarSaldoEnergia(pop){
+  if(pop.energiaSaldoAh == null || !Number.isFinite(Number(pop.energiaSaldoAh))){
+    pop.energiaSaldoAh = capacidadeNominalAh(pop);
+  }
+  return Math.max(0, Number(pop.energiaSaldoAh)||0);
+}
+
+function atualizarSaldoDuranteDescarga(pop, agora){
+  if(!pop.quedaEnergiaEm || pop.energiaRestabelecidaEm) return inicializarSaldoEnergia(pop);
+
+  const ultimo = pop.energiaSaldoAtualizadoEm
+    ? new Date(pop.energiaSaldoAtualizadoEm)
+    : new Date(pop.quedaEnergiaEm);
+  const fim = agora instanceof Date ? agora : new Date(agora);
+  const minutos = Math.max(0, (fim - ultimo) / 60000);
+  const consumo = consumoAtualA(pop);
+  const consumido = (minutos / 60) * consumo;
+
+  pop.energiaSaldoAh = Math.max(0, inicializarSaldoEnergia(pop) - consumido);
+  pop.energiaSaldoAtualizadoEm = fim.toISOString();
+
+  return pop.energiaSaldoAh;
+}
+
+function atualizarSaldoDuranteRecarga(pop, agora){
+  if(!pop.energiaRestabelecidaEm) return inicializarSaldoEnergia(pop);
+
+  const ultimo = pop.energiaSaldoAtualizadoEm
+    ? new Date(pop.energiaSaldoAtualizadoEm)
+    : new Date(pop.energiaRestabelecidaEm);
+  const fim = agora instanceof Date ? agora : new Date(agora);
+  const minutos = Math.max(0, (fim - ultimo) / 60000);
+  const corrente = obterCorrenteCarregadorA(pop);
+
+  // Estimativa conservadora: 90% de eficiência da carga.
+  const reposto = (minutos / 60) * corrente * 0.90;
+  const capacidade = capacidadeNominalAh(pop);
+
+  pop.energiaSaldoAh = Math.min(
+    capacidade,
+    inicializarSaldoEnergia(pop) + reposto
+  );
+  pop.recargaAcumuladaAh = (Number(pop.recargaAcumuladaAh)||0) + reposto;
+  pop.energiaSaldoAtualizadoEm = fim.toISOString();
+
+  return pop.energiaSaldoAh;
+}
+
+function obterPercentualBanco(pop){
+  const capacidade = capacidadeNominalAh(pop);
+  if(capacidade <= 0) return 0;
+  return Math.max(0, Math.min(100, (inicializarSaldoEnergia(pop) / capacidade) * 100));
+}
+
+function autonomiaDisponivelHoras(pop){
+  const saldo = inicializarSaldoEnergia(pop);
+  const consumo = consumoAtualA(pop);
+  return consumo > 0 ? saldo / consumo : 0;
+}
+
+function formatarAh(valor){
+  return (Number(valor)||0).toFixed(2) + " Ah";
+}
+
+function calcularTempoCargaNecessario(pop, autonomiaHoras){
+  const correnteCarga = obterCorrenteCarregadorA(pop);
+  const consumo = calcularConsumoPOP(pop);
+  const ahConsumidos = Math.max(0, Number(autonomiaHoras) || 0) * consumo;
+  const fatorPerdas = 1.15;
+  const ahParaRepor = ahConsumidos * fatorPerdas;
+  const horas = correnteCarga > 0 ? ahParaRepor / correnteCarga : 0;
+
+  return {
+    consumoA: consumo,
+    correnteCargaA: correnteCarga,
+    ahConsumidos,
+    ahParaRepor,
+    horas
+  };
+}
+
+function formatarHorasCarga(horas){
+  const totalMin = Math.max(0, Math.round((Number(horas)||0) * 60));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if(h === 0) return `${m} min`;
+  if(m === 0) return `${h}h`;
+  return `${h}h ${m}min`;
+}
+
+function formatarMensagemTelegram30Min(pop,c){
+  const inicio = new Date(pop.quedaEnergiaEm);
+  const agora = new Date();
+  const decorridoMin = Math.max(0, (agora - inicio) / 60000);
+  const restante = c.restanteMin != null ? formatarContagem(c.restanteMin) : "--";
+  const saldoAh = inicializarSaldoEnergia(pop);
+  const saldoPct = obterPercentualBanco(pop);
+
+  const limite = c.limite ? formatarDataHora(c.limite.toISOString()) : "--";
+
+  let situacao = "🟢 Dentro da autonomia estimada.";
+  if(c.restanteLimiteMin <= 0) situacao = "🔴 Limite de acionamento ultrapassado.";
+  else if(c.restanteLimiteMin <= 30) situacao = "🚨 Muito próximo do limite de acionamento.";
+  else if(c.restanteLimiteMin <= 60) situacao = "🟠 Atenção: próximo do limite de acionamento.";
+
+  return `⏱️ ATUALIZAÇÃO — 30 MINUTOS
+
+🏷️ POP: ${pop.nome || "POP não informado"}
+⚡ Falta de energia: ${formatarDataHora(pop.quedaEnergiaEm)}
+⏳ Tempo sem energia: ${formatarDuracaoMinutos(decorridoMin)}
+🔋 Autonomia restante: ${restante}
+🚗 Equipe enviada: ${pop.equipeEnviadaEm ? "SIM — " + formatarDataHora(pop.equipeEnviadaEm) : "NÃO"}
+🚨 Limite de acionamento: ${limite}
+
+${situacao}`;
+}
+
+async function notificarTelegramPeriodic30Min(pop,c){
+  if(!pop.quedaEnergiaEm || pop.energiaRestabelecidaEm) return;
+
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo||!cfg.token||!cfg.chatId)return;
+
+  const inicio = new Date(pop.quedaEnergiaEm).getTime();
+  if(!Number.isFinite(inicio)) return;
+
+  const agora = Date.now();
+  const slot = Math.floor((agora - inicio) / (30 * 60 * 1000));
+
+  // slot 0 é a mensagem inicial, já enviada no registro da falta.
+  // A partir do slot 1, envia exatamente uma atualização a cada 30 minutos.
+  if(slot < 1) return;
+
+  const chave = chaveTelegram(pop, `ATUALIZACAO_30MIN_${slot}`);
+  const registros = obterNotificacoesTelegram();
+  if(registros[chave]) return;
+
+  const resultado = await enviarTelegram(formatarMensagemTelegram30Min(pop,c));
+  if(resultado.ok){
+    registros[chave] = new Date().toISOString();
+    salvarNotificacoesTelegram(registros);
+  }
+}
+
+async function notificarTelegramEtapa(pop,etapa,c){
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo||!cfg.token||!cfg.chatId)return;
+  const chave=chaveTelegram(pop,etapa);
+  const registros=obterNotificacoesTelegram();
+  if(registros[chave])return;
+  const resultado=await enviarTelegram(formatarMensagemTelegram(pop,c,etapa));
+  if(resultado.ok){
+    registros[chave]=new Date().toISOString();
+    salvarNotificacoesTelegram(registros);
+  }
+}
+
+async function verificarNotificacoesTelegram(){
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo||!cfg.token||!cfg.chatId||!Array.isArray(pops)||!pops.length)return;
+
+  for(const pop of pops){
+    if(pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm){
+      atualizarSaldoDuranteDescarga(pop,new Date());
+    }
+
+    // Energia normalizada: não envia mais nada para esta ocorrência.
+    if(!pop.quedaEnergiaEm || pop.energiaRestabelecidaEm) continue;
+
+    const c=calcularContingencia(pop,new Date());
+    if(!c.ativa)continue;
+
+    // Se a falta foi registrada e a mensagem inicial ainda não saiu, tenta enviar.
+    await notificarTelegramEtapa(pop,"FALTA_REGISTRADA",c);
+
+    // Atualização automática a cada 30 minutos enquanto a ocorrência estiver ativa.
+    await notificarTelegramPeriodic30Min(pop,c);
+  }
+}
+
+/* =========================================================
+   CONTINGÊNCIA / DESLOCAMENTO
+========================================================= */
+function formatarDataHora(valor){
+  if(!valor)return "--";
+  const d=new Date(valor);
+  if(isNaN(d.getTime()))return "--";
+  return d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+function formatarDuracaoMinutos(minutos){
+  if(!Number.isFinite(minutos))return "--";
+  const total=Math.max(0,Math.round(minutos));
+  const h=Math.floor(total/60),m=total%60;
+  return h>0?`${h}h ${m}min`:`${m}min`;
+}
+function calcularDeslocamentoMinutos(pop){
+  const distancia=Number(pop.distanciaKm)||0;
+  const velocidade=Number(pop.velocidadeKmH)||80;
+  return distancia>0&&velocidade>0?(distancia/velocidade)*60:0;
+}
+function calcularContingencia(pop,agora=new Date()){
+  const autonomiaHoras=Number(pop._autonomiaAjustada)||0;
+  const autonomiaMin=autonomiaHoras*60;
+  const deslocamentoMin=calcularDeslocamentoMinutos(pop);
+  const margemMin=Math.max(0,Number(pop.margemSegurancaMin ?? 30));
+  const reservado=deslocamentoMin+margemMin;
+  if(!pop.quedaEnergiaEm)return {ativa:false,autonomiaMin,deslocamentoMin,margemMin,reservado,limite:null,fimAutonomia:null,restanteMin:null,restanteLimiteMin:null,status:"normal"};
+  const inicio=new Date(pop.quedaEnergiaEm);
+  if(isNaN(inicio.getTime()))return {ativa:false,autonomiaMin,deslocamentoMin,margemMin,reservado,status:"normal"};
+  const fimAutonomia=new Date(inicio.getTime()+autonomiaMin*60000);
+  const limite=new Date(fimAutonomia.getTime()-reservado*60000);
+
+  // Quando a energia volta, a ocorrência fica encerrada.
+  // O operador só precisa informar o restabelecimento; a partir daí
+  // o monitoramento de contingência deixa de contar e nenhuma nova
+  // etapa de contingência deve ser disparada.
+  if(pop.energiaRestabelecidaEm){
+    return {
+      ativa:false,
+      encerrada:true,
+      inicio,
+      fimAutonomia:null,
+      limite:null,
+      autonomiaMin:
+      deslocamentoMin,
+      margemMin,
+      reservado,
+      restanteMin:null,
+      restanteLimiteMin:null,
+      status:"restaurado"
+    };
+  }
+
+  const restanteMin=(fimAutonomia-agora)/60000;
+  const restanteLimiteMin=(limite-agora)/60000;
+  let status="normal";
+  if(restanteLimiteMin<=0)status="vencido";
+  else if(restanteLimiteMin<=30)status="critico";
+  else if(restanteLimiteMin<=60)status="atencao";
+  return {ativa:true,encerrada:false,inicio,fimAutonomia,limite,autonomiaMin,deslocamentoMin,margemMin,reservado,restanteMin,restanteLimiteMin,status};
+}
+function formatarContagem(minutos){
+  if(!Number.isFinite(minutos))return "--";
+  const segundos=Math.max(0,Math.round(minutos*60));
+  const h=Math.floor(segundos/3600),m=Math.floor((segundos%3600)/60),s=segundos%60;
+  return `${String(h).padStart(2,"0")}h ${String(m).padStart(2,"0")}min ${String(s).padStart(2,"0")}s`;
+}
+async function salvarContingencia(pop){
+  const {error}=await supabaseClient.from("pops_autonomia").update({queda_energia_em:pop.quedaEnergiaEm||null,equipe_enviada_em:pop.equipeEnviadaEm||null,energia_restabelecida_em:pop.energiaRestabelecidaEm||null}).eq("id",pop.id);
+  if(error)throw error;
+}
+async function registrarFaltaEnergia(i){
+  const pop=pops[i];if(!pop)return;
+  if(pop.quedaEnergiaEm&&!pop.energiaRestabelecidaEm){alert("⚠️ Este POP já está em contingência de energia.");return;}
+  if(!Number(pop._autonomiaAjustada)||Number(pop._autonomiaAjustada)<=0){alert("❌ Não foi possível calcular a autonomia deste POP. Verifique consumo e banco de baterias.");return;}
+  pop.quedaEnergiaEm=new Date().toISOString();pop.equipeEnviadaEm=null;pop.energiaRestabelecidaEm=null;
+  try{await salvarContingencia(pop);render(); await notificarTelegramEtapa(pop,"FALTA_REGISTRADA",calcularContingencia(pop,new Date()));}catch(error){console.error(error);pop.quedaEnergiaEm=null;alert("❌ Erro ao registrar a falta de energia: "+error.message);}
+}
+async function marcarEquipeEnviada(i){
+  const pop=pops[i];if(!pop||!pop.quedaEnergiaEm)return;
+  abrirModalAcionamento(i);
+}
+async function registrarEnergiaRestabelecida(i){
+  const pop=pops[i];if(!pop||!pop.quedaEnergiaEm)return;
+  if(!confirm(`Confirmar energia restabelecida no POP "${pop.nome}"?`))return;
+  pop.energiaRestabelecidaEm=new Date().toISOString();
+  try{await salvarContingencia(pop);render(); await notificarTelegramEtapa(pop,"ENERGIA_RESTABELECIDA",calcularContingencia(pop,new Date()));}catch(error){console.error(error);pop.energiaRestabelecidaEm=null;alert("❌ Erro ao registrar restabelecimento: "+error.message);}
+}
+async function limparContingencia(i){
+  const pop=pops[i];if(!pop)return;
+  if(!confirm(`Apagar o registro de falta de energia do POP "${pop.nome}"?`))return;
+  const anterior={quedaEnergiaEm:pop.quedaEnergiaEm,equipeEnviadaEm:pop.equipeEnviadaEm,energiaRestabelecidaEm:pop.energiaRestabelecidaEm};
+  pop.quedaEnergiaEm=null;pop.equipeEnviadaEm=null;pop.energiaRestabelecidaEm=null;
+  try{await salvarContingencia(pop);render();}catch(error){console.error(error);Object.assign(pop,anterior);alert("❌ Erro ao limpar o registro: "+error.message);}
+}
+function atualizarRelogiosContingencia(){
+  pops.forEach(pop=>{
+    const box=document.querySelector(`[data-contingencia-pop-id="${CSS.escape(String(pop.id))}"]`);if(!box)return;
+    const c=calcularContingencia(pop,new Date());
+    const restante=box.querySelector("[data-contingencia-restante]"),limite=box.querySelector("[data-contingencia-limite]"),status=box.querySelector("[data-contingencia-status]");
+    if(restante)restante.textContent=c.ativa&&c.restanteMin!=null?formatarContagem(c.restanteMin):"--";
+    if(limite)limite.textContent=c.ativa&&c.restanteLimiteMin!=null?(c.restanteLimiteMin>0?formatarContagem(c.restanteLimiteMin):"00h 00min 00s"):"--";
+    if(status)status.textContent=c.status==="vencido"?"🚨 LIMITE DE ACIONAMENTO ULTRAPASSADO":c.status==="critico"?"🔴 ACIONAR EQUIPE AGORA":c.status==="atencao"?"🟡 PREPARAR / ACIONAR EQUIPE":c.status==="restaurado"?"🟢 ENERGIA RESTABELECIDA — MONITORAMENTO ENCERRADO":"🟢 MONITORANDO AUTONOMIA";
+    box.classList.remove("contingencia-normal","contingencia-atencao","contingencia-critico","contingencia-vencido");
+    if(c.status==="atencao")box.classList.add("contingencia-atencao");else if(c.status==="critico")box.classList.add("contingencia-critico");else if(c.status==="vencido")box.classList.add("contingencia-vencido");else box.classList.add("contingencia-normal");
+  });
+}
+
+/* =========================================================
+   BATERIA
+========================================================= */
+
+function adicionarBateria(i){
+
+  if(!modoEdicao) return;
+
+
+  if(!Array.isArray(pops[i].baterias))
+    pops[i].baterias=[];
+
+
+  pops[i].baterias.push({
+
+    numero:
+      pops[i].baterias.length+1,
+
+    dataInstalacao:"",
+
+    validade:""
+
+  });
+
+
+  existemAlteracoes=true;
+
+
+  renderVisivel(
+    i,
+    false,
+    false
+  );
+
+}
+
+
+function removerBateria(i,j){
+
+  if(!modoEdicao) return;
+
+
+  pops[i].baterias.splice(j,1);
+
+
+  pops[i].baterias.forEach(
+    (bateria,index)=>{
+      bateria.numero=index+1;
+    }
+  );
+
+
+  existemAlteracoes=true;
+
+
+  renderVisivel(i,false,false);
+
+}
+
+
+/* =========================================================
+   RENDER
+========================================================= */
+
+
+function obterDeslocamentoMin(pop){
+  const distancia = Number(pop?.distanciaKm) || 0;
+  const velocidade = Number(pop?.velocidadeKmH) || 80;
+  if(distancia <= 0 || velocidade <= 0) return 0;
+  return (distancia / velocidade) * 60;
+}
+
+function obterMargemMin(pop){
+  const margem = Number(pop?.margemSegurancaMin);
+  return Number.isFinite(margem) && margem >= 0 ? margem : 30;
+}
+
+
+function ocultarContingenciaNormalizada(){
+  document.querySelectorAll(".contingencia-box").forEach(el=>{
+    const id = el.getAttribute("data-contingencia-pop-id");
+    const pop = pops.find(p=>String(p.id)===String(id));
+    if(pop?.energiaRestabelecidaEm){
+      const deadline = el.querySelector("[data-contingencia-limite]");
+      if(deadline) deadline.textContent="--";
+    }
+  });
+}
+
+function render(preservarBusca=true){
+
+  const buscaElemento=
+    document.getElementById("busca");
+
+  const busca=
+    preservarBusca&&buscaElemento
+      ?buscaElemento.value:"";
+
+
+  const container=
+    document.getElementById("pops");
+
+  container.innerHTML="";
+
+
+  let totalOk=0;
+  let totalAlerta=0;
+  let totalVencida=0;
+
+
+  pops.forEach((pop,i)=>{
+
+    const status=statusPreventiva(pop);
+
+
+    if(status.tipo==="ok") totalOk++;
+    if(status.tipo==="alerta") totalAlerta++;
+    if(status.tipo==="vencida") totalVencida++;
+
+
+    let consumo=0;
+    let linhas="";
+
+
+    /* =========================
+       EQUIPAMENTOS DO POP
+    ========================= */
+
+    (pop.equipamentos||[])
+      .forEach((e,j)=>{
+
+        const ampere=
+          Number(e.ampere)||0;
+
+        const quantidade=
+          Number(e.quantidade)||0;
+
+        consumo+=ampere*quantidade;
+
+
+        /*
+         * PATRIMÔNIO:
+         *
+         * e.patrimonio pertence somente ao vínculo
+         * do equipamento dentro deste POP.
+         */
+
+        const patrimonio=
+          e.patrimonio||"";
+
+
+        linhas+=`
+
+          <tr>
+
+            <td>
+
+              <input
+
+                value="${escapeHtml(e.nome)}"
+
+                list="listaEquipamentos"
+
+                placeholder="Digite o equipamento"
+
+                ${!modoEdicao?"disabled":""}
+
+                onchange="
+                  preencherEquipamento(
+                    ${i},
+                    ${j},
+                    this
+                  );
+                "
+
+              >
+
+            </td>
+
+
+            <td>
+
+              <input
+
+                value="${escapeHtml(e.modelo)}"
+
+                disabled
+
+                placeholder="Modelo"
+
+              >
+
+            </td>
+
+
+            <td>
+
+              <input
+
+                class="patrimonio-pop"
+
+                value="${escapeHtml(patrimonio)}"
+
+                placeholder="Patrimônio"
+
+                ${!modoEdicao?"disabled":""}
+
+                onchange="
+                  alterarPatrimonio(
+                    ${i},
+                    ${j},
+                    this.value
+                  );
+                "
+
+              >
+
+            </td>
+
+
+            <td>
+
+              <input
+
+                type="number"
+
+                step="0.01"
+
+                value="${e.ampere||0}"
+
+                ${!modoEdicao?"disabled":""}
+
+                onchange="
+                  pops[${i}]
+                    .equipamentos[${j}].ampere
+                    =
+                    Number(this.value)||0;
+
+                  existemAlteracoes=true;
+
+                  renderVisivel(
+                    ${i},
+                    false,
+                    true
+                  );
+                "
+
+              >
+
+            </td>
+
+
+            <td>
+
+              <input
+
+                type="number"
+
+                min="1"
+
+                value="${e.quantidade||1}"
+
+                ${!modoEdicao?"disabled":""}
+
+                onchange="
+                  pops[${i}]
+                    .equipamentos[${j}].quantidade
+                    =
+                    Number(this.value)||1;
+
+                  existemAlteracoes=true;
+
+                  renderVisivel(
+                    ${i},
+                    false,
+                    true
+                  );
+                "
+
+              >
+
+            </td>
+
+
+            <td>
+
+              <button
+
+                class="remove btn-edicao"
+
+                ${!modoEdicao?"disabled":""}
+
+                onclick="
+                  pops[${i}]
+                    .equipamentos
+                    .splice(${j},1);
+
+                  existemAlteracoes=true;
+
+                  renderVisivel(
+                    ${i},
+                    false,
+                    true
+                  );
+                "
+
+              >
+                X
+              </button>
+
+            </td>
+
+          </tr>
+
+        `;
+
+      });
+
+
+    /* =========================
+       AUTONOMIA
+    ========================= */
+
+    const ahNominal=
+      Number(pop.ah)||0;
+
+
+    const autonomiaTeorica=
+      consumo>0
+        ?ahNominal/consumo
+        :0;
+
+
+    let dataPrincipal=
+      pop.dataInstalacao||"";
+
+
+    if(
+      Array.isArray(pop.baterias)&&
+      pop.baterias.length
+    ){
+
+      const datas=
+        pop.baterias
+          .map(b=>b.dataInstalacao)
+          .filter(Boolean)
+          .sort();
+
+
+      if(datas.length)
+        dataPrincipal=datas[0];
+
+    }
+
+
+    const dadosBateria=
+      calcularCapacidadeUtil(
+        dataPrincipal
+      );
+
+
+    const percentual=
+      dadosBateria.percentual;
+
+
+    const capacidadeUtil=
+      ahNominal*percentual/100;
+
+
+    const autonomiaAjustada=
+      consumo>0
+        ?capacidadeUtil/consumo
+        :0;
+
+    // Disponibiliza a autonomia calculada para o módulo de contingência.
+    pop._autonomiaAjustada=autonomiaAjustada;
+    const deslocamentoMin=calcularDeslocamentoMinutos(pop);
+    const margemMin=Math.max(0,Number(pop.margemSegurancaMin ?? 30));
+    const contingencia=calcularContingencia(pop,new Date());
+
+
+    const perda=
+      Math.max(
+        0,
+        100-percentual
+      );
+
+
+    /*
+     * GARANTIA: cada bateria possui 2 anos de garantia
+     * contados a partir da sua própria data de instalação.
+     * Para o status geral usamos a bateria cuja garantia termina primeiro.
+     */
+    let garantiasBaterias=[];
+
+    if(Array.isArray(pop.baterias)&&pop.baterias.length){
+      garantiasBaterias=pop.baterias
+        .map((b,j)=>({
+          numero:j+1,
+          instalacao:b.dataInstalacao||"",
+          status:statusGarantiaBateria(b.dataInstalacao)
+        }));
+    }else if(pop.dataInstalacao){
+      garantiasBaterias=[{
+        numero:1,
+        instalacao:pop.dataInstalacao,
+        status:statusGarantiaBateria(pop.dataInstalacao)
+      }];
+    }
+
+    const garantiasValidas=garantiasBaterias
+      .filter(g=>g.status.fimGarantia)
+      .sort((a,b)=>a.status.fimGarantia-b.status.fimGarantia);
+
+    const garantiaPrincipal=
+      garantiasValidas.length
+        ?garantiasValidas[0].status
+        :null;
+
+    const validadePrincipal=
+      garantiaPrincipal&&garantiaPrincipal.fimGarantia
+        ?garantiaPrincipal.fimGarantia.toISOString().slice(0,10)
+        :"";
+
+    const monitor=
+      statusMonitoramento(
+        dadosBateria.idade,
+        percentual,
+        autonomiaAjustada,
+        garantiaPrincipal
+      );
+
+    const bateria=garantiaPrincipal
+      ?garantiaPrincipal
+      :statusBateria(validadePrincipal);
+
+
+    /* =========================
+       BATERIAS
+    ========================= */
+
+    let bateriasHtml="";
+
+
+    if(!Array.isArray(pop.baterias))
+      pop.baterias=[];
+
+
+    pop.baterias.forEach((bat,j)=>{
+
+      bateriasHtml+=`
+
+        <div class="bateria-item">
+
+          <strong>
+            Bateria ${j+1}
+          </strong>
+
+
+          <div>
+
+            <label>
+              Data de instalação
+            </label>
+
+            <input
+
+              type="date"
+
+              value="${bat.dataInstalacao||""}"
+
+              ${!modoEdicao?"disabled":""}
+
+              onchange="
+                pops[${i}]
+                  .baterias[${j}]
+                  .dataInstalacao=
+                  this.value;
+
+                existemAlteracoes=true;
+
+                renderVisivel(
+                  ${i},
+                  false,
+                  false
+                );
+              "
+
+            >
+
+          </div>
+
+
+          <div>
+
+            <label>
+              Garantia (2 anos)
+            </label>
+
+            <div class="status ${statusGarantiaBateria(bat.dataInstalacao).classe}">
+              ${statusGarantiaBateria(bat.dataInstalacao).texto}
+            </div>
+
+            <small>
+              Até:
+              ${statusGarantiaBateria(bat.dataInstalacao).fimGarantia
+                ?formatarData(statusGarantiaBateria(bat.dataInstalacao).fimGarantia.toISOString().slice(0,10))
+                :"cadastre a data de instalação"}
+            </small>
+
+          </div>
+
+
+          <button
+
+            class="remove btn-edicao"
+
+            ${!modoEdicao?"disabled":""}
+
+            onclick="
+              removerBateria(
+                ${i},
+                ${j}
+              );
+            "
+
+          >
+            X
+          </button>
+
+        </div>
+
+      `;
+
+    });
+
+
+    /* =========================
+       POP
+    ========================= */
+
+    container.innerHTML+=`
+
+      <div
+
+        class="pop"
+
+        data-nome="${escapeHtml(
+          pop.nome.toLowerCase()
+        )}"
+
+      >
+
+        <div class="nome-pop-edicao">
+
+          <label>
+            <strong>Nome do POP</strong>
+          </label>
+
+          <input
+
+            type="text"
+
+            value="${escapeHtml(pop.nome)}"
+
+            ${!modoEdicao?"disabled":""}
+
+            onchange="
+              pops[${i}].nome=
+                this.value.trim();
+
+              existemAlteracoes=true;
+
+              atualizarListaPOPs();
+            "
+
+          >
+
+        </div>
+
+
+        <!-- CONFIGURAÇÃO DE DESLOCAMENTO -->
+        <div class="info configuracao-deslocamento-leitura">
+          <strong>📍 Configuração do POP para atendimento</strong>
+          <br><br>
+          <div class="preventiva-grid">
+            <div>
+              <label>Distância da base (km)</label>
+              <input type="number" min="0" step="0.1" value="${Number(pop.distanciaKm||0)}" ${!modoEdicao?"disabled":""}
+                onchange="pops[${i}].distanciaKm=Number(this.value)||0;existemAlteracoes=true;renderVisivel(${i});">
+            </div>
+            <div>
+              <label>Velocidade média (km/h)</label>
+              <input type="number" min="1" step="1" value="${Number(pop.velocidadeKmH||80)}" ${!modoEdicao?"disabled":""}
+                onchange="pops[${i}].velocidadeKmH=Number(this.value)||80;existemAlteracoes=true;renderVisivel(${i});">
+            </div>
+            <div>
+              <label>Margem de segurança (min)</label>
+              <input type="number" min="0" step="1" value="${Number(pop.margemSegurancaMin ?? 30)}" ${!modoEdicao?"disabled":""}
+                onchange="pops[${i}].margemSegurancaMin=Math.max(0,Number(this.value)||0);existemAlteracoes=true;renderVisivel(${i});">
+            
+          <label>🔌 Corrente do carregador (A)
+            <input type="number" min="0.1" step="0.1"
+                   value="${Number(pop.correnteCarregadorA)||20}"
+                   ${!modoEdicao?"disabled":""}
+                   onchange="
+                     pops[${i}].correnteCarregadorA=Number(this.value)||20;
+                     existemAlteracoes=true;
+                     renderVisivel(${i},false,true);
+                   ">
+          </label>
+</div>
+            <div>
+              <label>Deslocamento calculado</label>
+              <div class="status status-ok">${formatarDuracaoMinutos(obterDeslocamentoMin(pop))}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BANCO + MONITORAMENTO -->
+        <div class="leitura-grid-superior">
+
+        <!-- BANCO -->
+
+        <div class="banco">
+
+          <h3>
+            🔋 Banco de Baterias
+          </h3>
+
+          <div class="resumo-banco-leitura">
+            <div class="resumo-item-leitura">
+              <span>🔋 Banco</span>
+              <strong>${ahNominal.toFixed(2)} Ah</strong>
+            </div>
+            <div class="resumo-item-leitura">
+              <span>⚡ Tensão</span>
+              <strong>${Number(pop.tensaoBancoV)||48} V</strong>
+            </div>
+            <div class="resumo-item-leitura">
+              <span>📅 Garantia</span>
+              <strong>${validadePrincipal ? formatarData(validadePrincipal) : "--"}</strong>
+            </div>
+          </div>
+
+
+          <div class="banco-grid">
+
+            <div>
+
+              <label>
+                Capacidade do Banco
+              </label>
+
+              <input
+
+                type="number"
+
+                step="0.01"
+
+                value="${pop.ah}"
+
+                ${!modoEdicao?"disabled":""}
+
+                onchange="
+                  pops[${i}].ah=
+                    Number(this.value)||0;
+
+                  existemAlteracoes=true;
+
+                  renderVisivel(${i});
+                "
+
+              >
+
+              <small>Ah</small>
+
+            </div>
+
+
+            <div>
+               <label>
+                 Tensão do banco
+               </label>
+
+               <select
+                 ${!modoEdicao?"disabled":""}
+                 onchange="
+                   pops[${i}].tensaoBancoV=Number(this.value)||48;
+                   existemAlteracoes=true;
+                   renderVisivel(${i});
+                 "
+                 style="width:95%;padding:9px;border:1px solid #ccc;border-radius:4px"
+               >
+                 <option value="12" ${Number(pop.tensaoBancoV)===12?"selected":""}>12 V</option>
+                 <option value="24" ${Number(pop.tensaoBancoV)===24?"selected":""}>24 V</option>
+                 <option value="48" ${![12,24].includes(Number(pop.tensaoBancoV))?"selected":""}>48 V</option>
+               </select>
+             </div>
+
+
+             <div>
+
+              <label>
+                Data principal
+              </label>
+
+              <input
+
+                type="date"
+
+                value="${dataPrincipal}"
+
+                disabled
+
+              >
+
+            </div>
+
+
+            <div>
+
+              <label>
+                Fim da garantia principal
+              </label>
+
+              <input
+
+                type="date"
+
+                value="${validadePrincipal}"
+
+                disabled
+
+              >
+
+            </div>
+
+
+            <div>
+
+              <label>
+                Situação
+              </label>
+
+              <div class="status ${bateria.classe}">
+                ${bateria.texto}
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <details>
+
+            <summary>
+              🔋 Baterias individuais
+              (${pop.baterias.length})
+            </summary>
+
+
+            <div class="baterias-box">
+
+              <h4>
+                Datas individuais das baterias
+              </h4>
+
+
+              <p>
+                Cadastre aqui quando as baterias
+                possuem datas diferentes.
+              </p>
+
+
+              ${bateriasHtml}
+
+
+              <button
+
+                class="btn-edicao"
+
+                ${!modoEdicao?"disabled":""}
+
+                onclick="
+                  adicionarBateria(${i});
+                "
+
+              >
+                ➕ Adicionar Bateria
+              </button>
+
+            </div>
+
+          </details>
+
+
+          <div class="info">
+
+            📅 Data considerada:
+
+            <strong>
+              ${formatarData(dataPrincipal)}
+            </strong>
+
+            <br>
+
+            📅 Fim da garantia considerada:
+
+            <strong>
+              ${formatarData(validadePrincipal)}
+            </strong>
+
+            <br>
+
+            <small>
+              Garantia calculada individualmente: 2 anos a partir da instalação de cada bateria.
+            </small>
+
+          </div>
+
+        </div>
+
+
+        <!-- MONITORAMENTO -->
+
+        <div class="monitor-bateria">
+
+          <h3>
+            📊 Monitoramento do Banco
+          </h3>
+
+          <div class="resumo-monitor-leitura">
+            <div class="resumo-item-leitura">
+              <span>⚡ Consumo</span>
+              <strong>${consumo.toFixed(2)} A</strong>
+            </div>
+            <div class="resumo-item-leitura">
+              <span>⏱️ Autonomia</span>
+              <strong>${formatarAutonomia(autonomiaAjustada)}</strong>
+            </div>
+            <div class="resumo-item-leitura">
+              <span>📊 Saúde</span>
+              <strong>${percentual}%</strong>
+            </div>
+          </div>
+
+
+          <div class="monitor-grid">
+
+            <div class="monitor-card">
+
+              <span>
+                🔋 Capacidade nominal
+              </span>
+
+              <strong>
+                ${ahNominal.toFixed(2)} Ah
+              </strong>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+              <span>
+                📅 Tempo de uso
+              </span>
+
+              <strong>
+                ${dadosBateria.idade.texto}
+              </strong>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+              <span>
+                📊 Saúde estimada do banco
+              </span>
+
+              <strong>
+                ${percentual}%
+              </strong>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+              <span>
+                🔋 Capacidade disponível estimada
+              </span>
+
+              <strong>
+                ${capacidadeUtil.toFixed(2)} Ah
+              </strong>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+              <span>
+                ⚡ Consumo atual
+              </span>
+
+              <strong id="consumo-${i}">
+                ${consumo.toFixed(2)} A
+              </strong>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+              <span>
+                ⏱️ Autonomia teórica
+              </span>
+
+              <strong>
+                ${formatarAutonomia(
+                  autonomiaTeorica
+                )}
+              </strong>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+              <span>
+                ⏱️ Autonomia ajustada
+              </span>
+
+              <strong class="autonomia-grande">
+                ${formatarAutonomia(
+                  autonomiaAjustada
+                )}
+              </strong>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+              <span>
+                📉 Perda estimada
+              </span>
+
+              <strong class="perda-capacidade">
+                ${perda}%
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <div class="monitor-alerta ${monitor.classe}">
+
+            <div>
+              ${monitor.titulo}
+            </div>
+
+            <div>
+              ${monitor.mensagem}
+            </div>
+
+          </div>
+
+          <div class="info" style="margin-top:10px;">
+
+            <strong>ℹ️ Como interpretar:</strong>
+
+            <br>
+
+            A capacidade nominal cadastrada continua sendo
+            <strong>${ahNominal.toFixed(2)} Ah</strong>.
+            O valor de
+            <strong>${capacidadeUtil.toFixed(2)} Ah</strong>
+            representa somente a capacidade disponível
+            <strong>estimada</strong> considerando o envelhecimento
+            calculado pelo sistema.
+
+            <br><br>
+
+            <strong>🛡️ Garantia:</strong>
+            até a data de validade o banco permanece em condição normal;
+            após o vencimento, o sistema usa <strong>laranja por até 18 meses</strong>
+            e depois <strong>vermelho</strong>.
+
+            <br><br>
+
+            <strong>⚠️ Importante:</strong>
+            esta estimativa não substitui um teste de capacidade,
+            condutância ou descarga controlada das baterias.
+
+          </div>
+
+        </div>
+
+        </div>
+
+
+        <!-- CONTINGÊNCIA / DESLOCAMENTO -->
+        <!-- CONTINGÊNCIA / DESLOCAMENTO -->
+        <div class="contingencia-box ${contingencia.status==="restaurado"?"contingencia-restaurado":contingencia.status==="vencido"?"contingencia-vencido":contingencia.status==="critico"?"contingencia-critico":contingencia.status==="atencao"?"contingencia-atencao":"contingencia-normal"}" data-contingencia-pop-id="${escapeHtml(pop.id)}">
+          <h3>⚡ Contingência de Energia e Deslocamento</h3>
+          <div class="contingencia-grid">
+            <div class="contingencia-card"><span>📍 Distância da base</span><strong>${Number(pop.distanciaKm||0).toFixed(1)} km</strong></div>
+            <div class="contingencia-card"><span>🚗 Deslocamento estimado</span><strong>${formatarDuracaoMinutos(obterDeslocamentoMin(pop))}</strong></div>
+            <div class="contingencia-card"><span>🛡️ Margem de segurança</span><strong>${formatarDuracaoMinutos(obterMargemMin(pop))}</strong></div>
+            <div class="contingencia-card"><span>🚗 Velocidade considerada</span><strong>${Number(pop.velocidadeKmH||80).toFixed(0)} km/h</strong></div>
+            <div class="contingencia-card"><span>🔋 Autonomia calculada</span><strong>${formatarAutonomia(autonomiaAjustada)}</strong></div>
+            <div class="contingencia-card"><span>⏱️ Autonomia restante</span><strong data-contingencia-restante>${contingencia.ativa?formatarContagem(contingencia.restanteMin):"--"}</strong></div>
+            <div class="contingencia-card"><span>🚨 Tempo até limite de acionamento</span><strong data-contingencia-limite>${contingencia.ativa?(contingencia.restanteLimiteMin>0?formatarContagem(contingencia.restanteLimiteMin):"00h 00min 00s"):"--"}</strong></div>
+            <div class="contingencia-card"><span>📅 Horário limite para acionar</span><strong>${contingencia.status==="restaurado"?"🟢 ENCERRADO":contingencia.limite?formatarDataHora(contingencia.limite.toISOString()):"--"}</strong></div>
+          </div>
+          <div class="info" style="margin-top:10px;">
+            <strong>📌 Regra:</strong> autonomia calculada − deslocamento − margem de segurança.
+            <br><strong>⚠️ Estado:</strong> <span data-contingencia-status>${contingencia.status==="restaurado"?"🟢 ENERGIA RESTABELECIDA — MONITORAMENTO ENCERRADO":!contingencia.ativa?"🟢 Sem falta de energia registrada":contingencia.status==="vencido"?"🚨 LIMITE DE ACIONAMENTO ULTRAPASSADO":contingencia.status==="critico"?"🔴 ACIONAR EQUIPE AGORA":contingencia.status==="atencao"?"🟡 PREPARAR / ACIONAR EQUIPE":"🟢 MONITORANDO AUTONOMIA"}</span>
+            ${contingencia.ativa?`<br>⚡ Falta registrada: <strong>${formatarDataHora(pop.quedaEnergiaEm)}</strong>`:""}
+            ${pop.equipeEnviadaEm?`<br>🚗 Equipe enviada: <strong>${formatarDataHora(pop.equipeEnviadaEm)}</strong>`:""}
+            ${pop.energiaRestabelecidaEm?`<br>💡 Energia restabelecida: <strong>${formatarDataHora(pop.energiaRestabelecidaEm)}</strong>`:""}
+          </div>
+          <div class="contingencia-acoes">
+            ${!contingencia.ativa||pop.energiaRestabelecidaEm?`<button class="btn-energia queda" onclick="registrarFaltaEnergia(${i})">⚡ Registrar falta de energia AGORA</button>`:""}
+            ${contingencia.ativa&&!pop.equipeEnviadaEm&&!pop.energiaRestabelecidaEm?`<button class="btn-energia equipe" onclick="marcarEquipeEnviada(${i})">🚨 Acionar equipe / gerar script</button>`:""}
+            ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia restaurar" onclick="registrarEnergiaRestabelecida(${i})">💡 Registrar energia restabelecida</button>`:""}
+            ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia cancelar" onclick="limparContingencia(${i})">🗑️ Limpar ocorrência</button>`:""}
+          </div>
+        </div>
+
+        <!-- PREVENTIVA -->
+
+        <div class="preventiva">
+
+          <h3>
+            🔧 Controle de Preventiva
+          </h3>
+
+
+          <div class="preventiva-grid">
+
+            <div>
+
+              <label>
+                Última Preventiva
+              </label>
+
+              <input
+
+                type="date"
+
+                value="${pop.ultimaPreventiva||""}"
+
+                ${!modoEdicao?"disabled":""}
+
+                onchange="
+                  pops[${i}]
+                    .ultimaPreventiva=
+                    this.value;
+
+                  pops[${i}]
+                    .proximaPreventiva=
+                    calcularProximaPreventiva(
+                      this.value,
+                      pops[${i}]
+                        .periodicidadePreventiva
+                    );
+
+                  existemAlteracoes=true;
+
+                  renderVisivel(${i});
+                "
+
+              >
+
+            </div>
+
+
+            <div>
+
+              <label>
+                Periodicidade
+              </label>
+
+              <input
+
+                type="number"
+
+                min="1"
+
+                value="${
+                  pop.periodicidadePreventiva||30
+                }"
+
+                ${!modoEdicao?"disabled":""}
+
+                onchange="
+                  pops[${i}]
+                    .periodicidadePreventiva=
+                    Math.round(
+                      Number(this.value)||30
+                    );
+
+                  pops[${i}]
+                    .proximaPreventiva=
+                    calcularProximaPreventiva(
+                      pops[${i}]
+                        .ultimaPreventiva,
+                      pops[${i}]
+                        .periodicidadePreventiva
+                    );
+
+                  existemAlteracoes=true;
+
+                  renderVisivel(${i});
+                "
+
+              >
+
+              <small>dias</small>
+
+            </div>
+
+
+            <div>
+
+              <label>
+                Próxima Preventiva
+              </label>
+
+              <input
+
+                class="campo-proxima-preventiva"
+
+                type="date"
+
+                value="${
+                  pop.proximaPreventiva||""
+                }"
+
+                disabled
+
+              >
+
+            </div>
+
+
+            <div>
+
+              <label>
+                Status
+              </label>
+
+              <div class="status ${status.classe}">
+                ${status.texto}
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="info">
+
+            📅 Última:
+
+            <strong>
+              ${formatarData(
+                pop.ultimaPreventiva
+              )}
+            </strong>
+
+            <br>
+
+            📅 Próxima:
+
+            <strong>
+              ${formatarData(
+                pop.proximaPreventiva
+              )}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <!-- =========================
+             EQUIPAMENTOS DO POP
+        ========================= -->
+
+        <details
+          class="detalhes-equipamentos"
+          data-pop-id="${escapeHtml(pop.id)}"
+        >
+
+          <summary>
+            📡 Equipamentos
+            (${pop.equipamentos.length})
+          </summary>
+
+
+          <div class="equipamentos-conteudo">
+
+            <table class="tabela-equipamentos-pop">
+
+              <colgroup>
+                <col style="width:24%">
+                <col style="width:22%">
+                <col style="width:18%">
+                <col style="width:14%">
+                <col style="width:10%">
+                <col style="width:55px">
+              </colgroup>
+
+              <tr>
+
+                <th>
+                  Equipamento
+                </th>
+
+                <th>
+                  Modelo
+                </th>
+
+                <th>
+                  Patrimônio
+                </th>
+
+                <th>
+                  Ampere
+                </th>
+
+                <th>
+                  Qt
+                </th>
+
+                <th></th>
+
+              </tr>
+
+
+              ${linhas}
+
+
+              <tr class="total">
+
+                <td colspan="3">
+                  Consumo Total
+                </td>
+
+                <td colspan="3">
+                  ${consumo.toFixed(2)} A
+                </td>
+
+              </tr>
+
+            </table>
+
+
+            <button
+
+              class="btn-edicao"
+
+              ${!modoEdicao?"disabled":""}
+
+              onclick="
+                adicionarEquipamentoPOP(${i});
+              "
+
+            >
+              ➕ Adicionar Equipamento
+            </button>
+
+
+            <div class="info">
+
+              <strong>
+                ℹ️ Patrimônio
+              </strong>
+
+              <br>
+
+              O patrimônio é cadastrado somente no vínculo
+              com este POP. A mesma RB/equipamento pode
+              ter outro patrimônio em outro POP.
+
+            </div>
+
+          </div>
+
+        </details>
+
+
+        <!-- RESUMO -->
+
+        <div class="info">
+
+          🔋 Banco:
+
+          <strong>
+            ${ahNominal.toFixed(2)} Ah
+          </strong>
+
+          &nbsp;&nbsp;
+
+          ⚡ Consumo:
+
+          <strong>
+            ${consumo.toFixed(2)} A
+          </strong>
+
+          &nbsp;&nbsp;
+
+          ⏱️ Autonomia:
+
+          <span class="autonomia">
+            ${formatarAutonomia(
+              autonomiaAjustada
+            )}
+          </span>
+
+        </div>
+
+
+        <button
+
+          class="remove btn-edicao"
+
+          ${!modoEdicao?"disabled":""}
+
+          onclick="
+            excluirPOP(${i})
+          "
+
+        >
+          🗑️ Excluir POP
+        </button>
+
+      </div>
+
+    `;
+
+  });
+
+
+  document.getElementById(
+    "totalPops"
+  ).textContent=pops.length;
+
+  document.getElementById(
+    "preventivasOk"
+  ).textContent=totalOk;
+
+  document.getElementById(
+    "preventivasAlerta"
+  ).textContent=totalAlerta;
+
+  document.getElementById(
+    "preventivasVencidas"
+  ).textContent=totalVencida;
+
+atualizarNotificacoesGarantia();
+
+  atualizarListaPOPs();
+  criarListaEquipamentos();
+  atualizarCampos();
+
+
+  if(busca)
+    buscarPOP();
+
+}
+
+
+/* =========================================================
+   ADICIONAR EQUIPAMENTO NO POP
+========================================================= */
+
+function adicionarEquipamentoPOP(i){
+
+  if(!modoEdicao) return;
+
+
+  if(!Array.isArray(pops[i].equipamentos))
+    pops[i].equipamentos=[];
+
+
+  /*
+   * Vínculo equipamento -> POP.
+   * O patrimônio fica neste registro, permitindo que a mesma
+   * RB/equipamento tenha patrimônios diferentes em POPs diferentes.
+   */
+  pops[i].equipamentos.push({
+    equipamento_id: null,
+    nome: "",
+    modelo: "",
+    ampere: 0,
+    quantidade: 1,
+    patrimonio: ""
+  });
+
+
+  existemAlteracoes=true;
+
+
+  /*
+   * O terceiro parâmetro diz:
+   * ABRIR O BLOCO DE EQUIPAMENTOS.
+   */
+  renderVisivel(
+    i,
+    false,
+    true
+  );
+
+}
+
+
+/* =========================================================
+   RENDER VISÍVEL
+   CORRIGIDO
+========================================================= */
+
+function renderVisivel(
+  i,
+  abrirPop=false,
+  abrirEquipamentos=false
+){
+
+  const buscaElemento=
+    document.getElementById("busca");
+
+  const busca=
+    buscaElemento
+      ?buscaElemento.value
+      :"";
+
+
+  /*
+   * Guarda quais equipamentos estavam abertos.
+   */
+  const equipamentosAbertos={};
+
+
+  document
+    .querySelectorAll(
+      ".detalhes-equipamentos"
+    )
+    .forEach(detalhe=>{
+
+      const popId=
+        detalhe.dataset.popId;
+
+      if(popId)
+        equipamentosAbertos[popId]=
+          detalhe.open;
+
+    });
+
+
+  /*
+   * Guarda baterias abertas.
+   */
+  const bateriasAbertas={};
+
+
+  document
+    .querySelectorAll(
+      ".pop"
+    )
+    .forEach(popElement=>{
+
+      const detalhes=
+        popElement.querySelectorAll(
+          ".banco details"
+        );
+
+      detalhes.forEach((detalhe,index)=>{
+
+        bateriasAbertas[
+          popElement.dataset.nome+
+          "_" +
+          index
+        ]=detalhe.open;
+
+      });
+
+    });
+
+
+  /*
+   * Renderiza novamente.
+   */
+  render(true);
+
+
+  /*
+   * Restaura busca.
+   */
+  if(buscaElemento)
+    buscaElemento.value=busca;
+
+
+  if(busca){
+
+    buscarPOP();
+
+  }else{
+
+    /*
+     * Se solicitado, mostra o POP.
+     */
+    const elementos=
+      document.querySelectorAll(".pop");
+
+    if(abrirPop&&elementos[i])
+      elementos[i].style.display="block";
+
+  }
+
+
+  /*
+   * Restaura equipamentos abertos.
+   */
+  document
+    .querySelectorAll(
+      ".detalhes-equipamentos"
+    )
+    .forEach(detalhe=>{
+
+      const popId=
+        detalhe.dataset.popId;
+
+      if(
+        popId&&
+        equipamentosAbertos[popId]
+      ){
+
+        detalhe.open=true;
+
+      }
+
+    });
+
+
+  /*
+   * Se adicionou/alterou equipamento,
+   * garante que fique aberto.
+   */
+  if(abrirEquipamentos){
+
+    // Usa o ID do POP em vez do índice, evitando que o bloco errado
+    // seja aberto quando a lista estiver filtrada/pesquisada.
+    const popAlvo=pops[i];
+
+    if(popAlvo){
+      const detalhe=document.querySelector(
+        `.detalhes-equipamentos[data-pop-id="${CSS.escape(String(popAlvo.id))}"]`
+      );
+
+      if(detalhe){
+        detalhe.open=true;
+      }
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   CONSUMO
+========================================================= */
+
+function atualizarConsumoVisual(i){
+
+  const pop=pops[i];
+
+  let consumo=0;
+
+
+  (pop.equipamentos||[])
+    .forEach(e=>{
+
+      const ampere=
+        Number(e.ampere)||0;
+
+      const quantidade=
+        Number(e.quantidade)||0;
+
+      consumo+=ampere*quantidade;
+
+    });
+
+
+  const elemento=
+    document.getElementById(
+      `consumo-${i}`
+    );
+
+
+  if(elemento)
+    elemento.textContent=
+      `${consumo.toFixed(2)} A`;
+
+}
+
+
+/* =========================================================
+   LISTA POPS
+========================================================= */
+
+function atualizarListaPOPs(){
+
+  const lista=
+    document.getElementById(
+      "listaPOPs"
+    );
+
+  if(!lista) return;
+
+
+  lista.innerHTML="";
+
+
+  pops
+    .slice()
+    .sort(
+      (a,b)=>
+        a.nome.localeCompare(
+          b.nome,
+          "pt-BR"
+        )
+    )
+    .forEach(pop=>{
+
+      const option=
+        document.createElement("option");
+
+      option.value=pop.nome;
+
+      lista.appendChild(option);
+
+    });
+
+}
+
+
+/* =========================================================
+   BUSCAR POP
+========================================================= */
+
+function buscarPOP(){
+
+  const campo=document.getElementById("busca");
+
+  const texto=
+    campo
+      ?campo.value.trim().toLowerCase()
+      :"";
+
+
+  document
+    .querySelectorAll(".pop")
+    .forEach(pop=>{
+
+      const corresponde=
+        !!texto &&
+        pop.dataset.nome.includes(texto);
+
+      /*
+       * No modo leitura, a seleção mostra apenas o resumo operacional.
+       * No modo edição, remove o resumo compacto e libera a visão completa.
+       */
+      pop.classList.toggle(
+        "leitura-compacta",
+        !modoEdicao && corresponde
+      );
+
+      pop.style.display=
+        corresponde
+          ?"block"
+          :"none";
+
+    });
+
+}
+
+
+/* =========================================================
+   CRIAR POP
+========================================================= */
+
+async function criarPOP(){
+
+  if(!modoEdicao) return;
+
+
+  const nome=
+    document.getElementById(
+      "novoNome"
+    ).value.trim();
+
+
+  const ah=Number(
+    document.getElementById(
+      "novoAh"
+    ).value
+  );
+
+
+  const data=
+    document.getElementById(
+      "novaData"
+    ).value;
+
+
+  const validade=
+    document.getElementById(
+      "novaValidade"
+    ).value;
+
+
+  if(!nome||!ah){
+
+    alert(
+      "Preencha o nome do POP e a capacidade."
+    );
+
+    return;
+
+  }
+
+
+  const existe=
+    pops.some(
+      pop=>
+        pop.nome.trim().toLowerCase()===
+        nome.trim().toLowerCase()
+    );
+
+
+  if(existe){
+
+    alert(
+      "⚠️ Já existe um POP com esse nome."
+    );
+
+    return;
+
+  }
+
+
+  const novoPOP={
+
+    id:novoId(),
+
+    nome:nome,
+
+    ah:ah,
+
+     tensaoBancoV:Number(document.getElementById("novaTensaoBanco").value)||48,
+
+    dataInstalacao:data,
+
+    validade:validade,
+
+    baterias:[{
+
+      numero:1,
+
+      dataInstalacao:data,
+
+      validade:validade
+
+    }],
+
+    ultimaPreventiva:"",
+
+    proximaPreventiva:"",
+
+    periodicidadePreventiva:30,
+
+    distanciaKm:Number(document.getElementById("novoDistancia").value)||0,
+    velocidadeKmH:Number(document.getElementById("novoVelocidade").value)||80,
+    margemSegurancaMin:Number(document.getElementById("novoMargem").value)||30,
+    quedaEnergiaEm:null,
+    equipeEnviadaEm:null,
+    energiaRestabelecidaEm:null,
+
+    equipamentos:[]
+
+  };
+
+
+  pops.push(novoPOP);
+
+  existemAlteracoes=true;
+
+
+  document.getElementById(
+    "novoNome"
+  ).value="";
+
+  document.getElementById(
+    "novoAh"
+  ).value="";
+
+   document.getElementById("novaTensaoBanco").value="48";
+
+  document.getElementById(
+    "novaData"
+  ).value="";
+
+  document.getElementById(
+    "novaValidade"
+  ).value="";
+  document.getElementById("novoDistancia").value="";
+  document.getElementById("novoVelocidade").value="80";
+  document.getElementById("novoMargem").value="30";
+
+
+  render();
+
+}
+
+
+/* =========================================================
+   EXCLUIR POP
+========================================================= */
+
+async function excluirPOP(i){
+
+  if(!modoEdicao) return;
+
+
+  const pop=pops[i];
+
+  if(!pop) return;
+
+
+  if(!confirm(
+    `Deseja excluir o POP "${pop.nome}"?`
+  ))
+    return;
+
+
+  const {error}=
+    await supabaseClient
+      .from("pops_autonomia")
+      .delete()
+      .eq("id",pop.id);
+
+
+  if(error){
+
+    alert(
+      "Erro ao excluir POP: "+
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  pops.splice(i,1);
+
+  existemAlteracoes=false;
+
+  render();
+
+}
+
+
+/* =========================================================
+   SALVAR TUDO
+========================================================= */
+
+async function salvarTudo(){
+
+  if(!modoEdicao) return;
+
+
+  const btn=
+    document.getElementById(
+      "btnSalvar"
+    );
+
+
+  btn.disabled=true;
+  btn.textContent="💾 Salvando...";
+
+
+  try{
+
+    const registros=
+      pops.map(popParaBanco);
+
+
+    if(registros.length>0){
+
+      const {error}=
+        await supabaseClient
+          .from("pops_autonomia")
+          .upsert(
+            registros,
+            {
+              onConflict:"id"
+            }
+          );
+
+
+      if(error)
+        throw error;
+
+    }
+
+
+    existemAlteracoes=false;
+
+
+    alert(
+      "✅ Todas as alterações foram salvas com sucesso."
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    alert(
+      "❌ Erro ao salvar: "+
+      error.message
+    );
+
+  }
+
+
+  btn.disabled=false;
+  btn.textContent="💾 Salvar Alterações";
+
+}
+
+
+/* =========================================================
+   CARREGAR DADOS
+========================================================= */
+
+async function carregarDados(){
+
+  const {data,error}=
+    await supabaseClient
+      .from("pops_autonomia")
+      .select("*")
+      .order(
+        "nome",
+        {
+          ascending:true
+        }
+      );
+
+
+  if(error){
+
+    console.error(error);
+
+    alert(
+      "Erro ao carregar os POPs: "+
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  pops=
+    (data||[])
+      .map(bancoParaPop);
+
+
+  render();
+
+}
+
+
+/* =========================================================
+   INICIAR
+========================================================= */
+
+async function iniciar(){
+
+  try{
+
+    await carregarEquipamentos();
+
+    await carregarDados();
+
+    modoEdicao=false;
+
+    atualizarModoEdicao();
+
+    atualizarListaEquipamentos();
+
+  }catch(error){
+
+    console.error(
+      "Erro ao iniciar:",
+      error
+    );
+
+  }
+
+}
+
+
+carregarConfigTelegram();
+const _escalaMesInicial=document.getElementById("escalaMes");
+if(_escalaMesInicial)_escalaMesInicial.value=chaveMesEscala(new Date());
+carregarEscalaMensal();
+carregarEquipePlantao();
+iniciar();
+
+// Atualização em tempo real dos cronômetros, sem recarregar a página.
+setInterval(atualizarRelogiosContingencia,1000);
+
+// Verifica as etapas do bot sem precisar do operador acompanhar o relógio.
+setInterval(verificarNotificacoesTelegram,15000);
+setTimeout(verificarNotificacoesTelegram,3000);
+
+</script>
+
+<!-- =========================
+     MODAL DE ACIONAMENTO
+========================= -->
+<div id="modalAcionamento" class="modal-acionamento" onclick="if(event.target===this)fecharModalAcionamento()">
+  <div class="modal-acionamento-conteudo">
+    <div class="modal-acionamento-cabecalho">
+      <h2>🚨 Acionamento de Equipe</h2>
+      <button type="button" style="background:#555;margin:0" onclick="fecharModalAcionamento()">✕</button>
+    </div>
+    <div class="acionamento-grid">
+      <div><label>📅 Data</label><input id="acionData" type="date" oninput="atualizarScriptAcionamento()"></div>
+      <div><label>⏰ Hora do Acionamento</label><input id="acionHora" type="text" value="Automática" disabled></div>
+      <div><label>👷 Técnico de Plantão</label><input id="acionTecnico" type="text" oninput="atualizarScriptAcionamento()"></div>
+      <div><label>👨‍🔧 Auxiliar</label><input id="acionAuxiliar" type="text" oninput="atualizarScriptAcionamento()"></div>
+      <div><label>🚗 Carro</label><input id="acionCarro" type="text" oninput="atualizarScriptAcionamento()"></div>
+      <div><label>📍 KM Inicial</label><input id="acionKmInicial" type="text" placeholder="Ex.: 125430" oninput="atualizarScriptAcionamento()"></div>
+      <div><label>📄 Protocolo OxenteNet</label><input id="acionProtocoloOxenteNet" type="text" oninput="atualizarScriptAcionamento()"></div>
+      <div><label>📄 Protocolo SPE</label><input id="acionProtocoloSPE" type="text" oninput="atualizarScriptAcionamento()"></div>
+      <div class="campo-completo"><label>📍 Local da Atividade</label><input id="acionLocal" type="text" oninput="atualizarScriptAcionamento()"></div>
+      <div class="campo-completo"><label>📌 Localização</label><input id="acionLocalizacao" type="text" placeholder="Cole endereço, coordenadas ou link do mapa" oninput="atualizarScriptAcionamento()"></div>
+    </div>
+    <textarea id="acionScript" class="acionamento-script" rows="20" readonly></textarea>
+    <div class="acionamento-acoes">
+      <button type="button" class="btn-copiar-acionamento" onclick="copiarScriptAcionamento()">📋 Copiar script</button>
+      <button type="button" class="btn-confirmar-acionamento" onclick="confirmarAcionamentoEquipe()">🚨 Confirmar acionamento e enviar Telegram</button>
+      <button type="button" style="background:#555" onclick="fecharModalAcionamento()">Cancelar</button>
+    </div>
+    <div class="info" style="margin-top:10px">O sistema já preenche POP, falta de energia, distância, deslocamento, margem, autonomia, início e limite de acionamento. Técnico, auxiliar e carro vêm da equipe de plantão cadastrada.</div>
+  </div>
+</div>
+
+<!-- =========================
+     POPUP DE GARANTIAS
+========================= -->
+
+<div
+  id="modalGarantia"
+  class="modal-garantia"
+  onclick="fecharModalGarantia(event)"
+>
+
+  <div
+    class="modal-garantia-conteudo"
+    onclick="event.stopPropagation()"
+  >
+
+    <div class="modal-garantia-cabecalho">
+
+      <h2 id="tituloModalGarantia">
+        🔋 Garantias
+      </h2>
+
+      <button
+        type="button"
+        class="btn-fechar-modal"
+        onclick="fecharGarantias()"
+      >
+        ✕ Fechar
+      </button>
+
+    </div>
+
+    <div
+      id="listaGarantias"
+      class="lista-garantias"
+    ></div>
+
+  </div>
+
+</div>
+</body>
+</html>
