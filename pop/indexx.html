@@ -192,18 +192,37 @@ body.modo-edicao .form-equipamento{
 }
 
 /* =========================================================
-   MODO LEITURA — OCULTAR CONFIGURAÇÕES ADMINISTRATIVAS
-   Telegram, equipe de plantão e escala mensal ficam invisíveis
-   quando a edição está bloqueada. Ao ativar a edição, reaparecem.
+   MODO LEITURA — CONFIGURAÇÕES ADMINISTRATIVAS
+   Telegram aparece somente no modo edição.
+   A equipe atual do plantão permanece visível nos dois modos.
+   A escala mensal fica recolhida por padrão.
 ========================================================= */
-body:not(.modo-edicao) > .telegram-config,
-body:not(.modo-edicao) > .equipe-plantao-config{
+body:not(.modo-edicao) > .telegram-config{
   display:none !important;
 }
-
-body.modo-edicao > .telegram-config,
-body.modo-edicao > .equipe-plantao-config{
+body.modo-edicao > .telegram-config{
   display:block;
+}
+
+.equipe-plantao-atual{
+  margin:12px 0 15px;
+  background:#fff;
+  padding:13px 15px;
+  border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  border-left:5px solid #8e44ad;
+}
+.equipe-plantao-atual-titulo{
+  font-weight:bold;
+  color:#71368a;
+  margin-bottom:6px;
+}
+.equipe-plantao-atual-status{
+  font-weight:bold;
+  color:#176b3a;
+  background:#f0faf4;
+  border-radius:6px;
+  padding:9px 11px;
 }
 
 .form-pop input,
@@ -1160,34 +1179,12 @@ details[open]>summary::before{
   </div>
 </details>
 
-<details class="equipe-plantao-config">
-  <summary>👷 Cadastro da Equipe de Plantão / Veículo</summary>
-  <div class="equipe-plantao-grid">
-    <div>
-      <label>Técnico</label>
-      <input id="plantaoTecnico" type="text" placeholder="Ex.: JOAO">
-    </div>
-    <div>
-      <label>Auxiliar</label>
-      <input id="plantaoAuxiliar" type="text" placeholder="Ex.: VANDERSON">
-    </div>
-    <div>
-      <label>Carro</label>
-      <input id="plantaoCarro" type="text" placeholder="Ex.: STRADA SLO2B54">
-    </div>
-  </div>
-  <div class="equipe-plantao-acoes">
-    <button type="button" onclick="salvarEquipePlantao()">💾 Salvar equipe de plantão</button>
-    <button type="button" style="background:#555" onclick="limparEquipePlantao()">🧹 Limpar</button>
-  </div>
-  <div id="equipePlantaoStatus" class="equipe-plantao-status">⚪ Nenhuma equipe de plantão cadastrada.</div>
-  <div id="listaEquipePlantao" class="equipe-plantao-lista"></div>
-  <div class="info" style="margin-top:10px">
-    A equipe de plantão fica salva neste navegador. Ao acionar um POP, técnico, auxiliar e veículo entram automaticamente no script.
-  </div>
-</details>
+<div class="equipe-plantao-atual">
+  <div class="equipe-plantao-atual-titulo">👷 Cadastro da Equipe de Plantão / Veículo</div>
+  <div id="equipePlantaoStatus" class="equipe-plantao-atual-status">⚪ Nenhuma equipe cadastrada para o plantão atual.</div>
+</div>
 
-<details class="escala-plantao-config" open>
+<details class="escala-plantao-config">
   <summary>📅 Escala Mensal de Plantonistas</summary>
   <div class="escala-cabecalho">
     <div class="escala-mes">
@@ -3643,21 +3640,17 @@ function equipePlantaoParaData(valor){
 function equipePlantaoAtual(){return equipePlantaoParaData(new Date());}
 function atualizarEquipeDaSemanaAtual(){
   const atual=equipePlantaoAtual();
-  const status=document.getElementById("escalaAtualStatus");
-  if(status){
-    if(atual)status.textContent=`🟢 Plantão atual: ${atual.semana||"--"}ª SEMANA — ${atual.tecnico||atual.colaborador||""}${atual.auxiliar?" + "+atual.auxiliar:""}${atual.carro?" — "+atual.carro:""}`;
-    else status.textContent="⚪ Nenhuma escala cadastrada para a semana atual.";
-  }
+  const status=document.getElementById("equipePlantaoStatus");
+  const escalaStatus=document.getElementById("escalaAtualStatus");
+  const texto=atual
+    ? `🟢 Equipe de plantão: ${atual.tecnico||atual.colaborador||""}${atual.auxiliar?" + "+atual.auxiliar:""}${atual.carro?" — "+atual.carro:""}`
+    : "⚪ Nenhuma equipe cadastrada para o plantão atual.";
+  if(status)status.textContent=texto;
+  if(escalaStatus)escalaStatus.textContent=atual
+    ? `🟢 Plantão atual: ${atual.semana||"--"}ª SEMANA — ${atual.tecnico||atual.colaborador||""}${atual.auxiliar?" + "+atual.auxiliar:""}${atual.carro?" — "+atual.carro:""}`
+    : "⚪ Nenhuma escala cadastrada para a semana atual.";
 }
 function carregarEquipePlantao(){
-  const equipe=equipePlantaoAtual();
-  const tecnico=document.getElementById("plantaoTecnico");
-  const auxiliar=document.getElementById("plantaoAuxiliar");
-  const carro=document.getElementById("plantaoCarro");
-  if(tecnico)tecnico.value=equipe?.tecnico||"";
-  if(auxiliar)auxiliar.value=equipe?.auxiliar||"";
-  if(carro)carro.value=equipe?.carro||"";
-  atualizarListaEquipePlantao();
   atualizarEquipeDaSemanaAtual();
 }
 function salvarEquipePlantao(){
