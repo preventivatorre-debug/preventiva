@@ -179,6 +179,18 @@ button:disabled{
   box-shadow:0 2px 6px rgba(0,0,0,.1)
 }
 
+/* No modo leitura, os cadastros ficam totalmente ocultos.
+ * Eles reaparecem automaticamente ao entrar no modo edição. */
+body:not(.modo-edicao) .form-pop,
+body:not(.modo-edicao) .form-equipamento{
+  display:none !important;
+}
+
+body.modo-edicao .form-pop,
+body.modo-edicao .form-equipamento{
+  display:block;
+}
+
 .form-pop input,
 .form-equipamento input{
   padding:9px;
@@ -1494,6 +1506,9 @@ function bloquearEdicao(){
 
 
 function atualizarModoEdicao(){
+
+  /* Marca o modo atual no body para controlar a interface. */
+  document.body.classList.toggle("modo-edicao", modoEdicao);
 
   const status=document.getElementById("statusEdicao");
   const btnEditar=document.getElementById("btnEditar");
