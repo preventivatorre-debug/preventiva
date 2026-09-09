@@ -3618,6 +3618,16 @@ function escalaParaData(valor){
   const semana=montarLinhasEscalaMes(chave).find(l=>dia>=l.inicio&&dia<=l.fim)?.semana;
   return semana?({...escala.semanas?.[semana],semana,mes:chave}):null;
 }
+function obterSemanaEscala(valor){
+  const escala=escalaParaData(valor);
+  if(escala && escala.semana) return Number(escala.semana);
+  const d=valor instanceof Date?valor:new Date(`${String(valor||"").slice(0,10)}T12:00:00`);
+  if(isNaN(d.getTime())) return null;
+  const chave=chaveMesEscala(d);
+  const dia=d.getDate();
+  const linha=montarLinhasEscalaMes(chave).find(l=>dia>=l.inicio&&dia<=l.fim);
+  return linha?.semana||null;
+}
 function equipePlantaoParaData(valor){
   const escala=escalaParaData(valor);
   if(escala&&((escala.tecnico||escala.auxiliar||escala.colaborador)||escala.carro))return {
@@ -4218,7 +4228,7 @@ function montarScriptProblema(pop,campos={}){
   const dados={...dadosProblemaPop(pop),...campos};
   const equipe=equipePlantaoParaData(dados.data||new Date())||{};
   const data=dados.data||formatarDataInput(new Date());
-  const semana=obterSemanaEscala(data);
+  const semana=equipe.semana||null;
   return `🚨 ACIONAMENTO / ATENDIMENTO TÉCNICO
 
 📅 Data: ${data?data.split("-").reverse().join("/"):"--"}
