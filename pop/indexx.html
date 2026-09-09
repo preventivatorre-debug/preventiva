@@ -4074,6 +4074,10 @@ ${situacao}`;
 }
 
 async function notificarTelegramPeriodic30Min(pop,c){
+  // Nunca enviar atualização de uma ocorrência já encerrada.
+  // Revalida o estado local imediatamente antes do envio para evitar
+  // que uma atualização que estava aguardando o Telegram seja disparada
+  // depois que o operador registrou o restabelecimento.
   if(!pop.quedaEnergiaEm || pop.energiaRestabelecidaEm) return;
 
   const cfg=lerConfigTelegram();
@@ -4092,6 +4096,9 @@ async function notificarTelegramPeriodic30Min(pop,c){
   const chave = chaveTelegram(pop, `ATUALIZACAO_30MIN_${slot}`);
   const registros = obterNotificacoesTelegram();
   if(registros[chave]) return;
+
+  // A ocorrência pode ter sido encerrada enquanto outra rotina estava aguardando.
+  if(pop.energiaRestabelecidaEm) return;
 
   const resultado = await enviarTelegram(formatarMensagemTelegram30Min(pop,c));
   if(resultado.ok){
@@ -4113,8 +4120,15 @@ async function notificarTelegramEtapa(pop,etapa,c){
   }
 }
 
+let verificacaoTelegramEmAndamento=false;
+
 async function verificarNotificacoesTelegram(){
-  const cfg=lerConfigTelegram();
+  // Evita duas verificações simultâneas (ex.: uma execução de 15s ainda
+  // aguardando o Telegram quando a próxima execução começa).
+  if(verificacaoTelegramEmAndamento) return;
+  verificacaoTelegramEmAndamento=true;
+  try{
+    const cfg=lerConfigTelegram();
   if(!cfg.ativo||!cfg.token||!cfg.chatId||!Array.isArray(pops)||!pops.length)return;
 
   for(const pop of pops){
@@ -4132,7 +4146,10 @@ async function verificarNotificacoesTelegram(){
     await notificarTelegramEtapa(pop,"FALTA_REGISTRADA",c);
 
     // Atualização automática a cada 30 minutos enquanto a ocorrência estiver ativa.
-    await notificarTelegramPeriodic30Min(pop,c);
+      await notificarTelegramPeriodic30Min(pop,c);
+    }
+  }finally{
+    verificacaoTelegramEmAndamento=false;
   }
 }
 
