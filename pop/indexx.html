@@ -3853,7 +3853,8 @@ let configGlobalDB={
   telegramToken:"",
   telegramChatId:"",
   telegramAtivo:true,
-  equipesPlantao:[]
+  equipesPlantao:[],
+  escalaPlantao:{}
 };
 let configGlobalCarregada=false;
 
@@ -3872,7 +3873,10 @@ async function carregarConfigGlobalDB(){
         telegramToken:String(data.telegram_token||"").trim(),
         telegramChatId:String(data.telegram_chat_id||"").trim(),
         telegramAtivo:data.telegram_ativo!==false,
-        equipesPlantao:Array.isArray(data.equipe_plantao)?data.equipe_plantao:[]
+        equipesPlantao:Array.isArray(data.equipe_plantao)?data.equipe_plantao:[],
+        escalaPlantao:data.escala_plantao && typeof data.escala_plantao==="object"
+          ? data.escala_plantao
+          : {}
       };
     }
     configGlobalCarregada=true;
@@ -3891,6 +3895,9 @@ async function salvarConfigGlobalDB(){
     telegram_chat_id:configGlobalDB.telegramChatId||null,
     telegram_ativo:configGlobalDB.telegramAtivo!==false,
     equipe_plantao:Array.isArray(configGlobalDB.equipesPlantao)?configGlobalDB.equipesPlantao:[],
+    escala_plantao:configGlobalDB.escalaPlantao && typeof configGlobalDB.escalaPlantao==="object"
+      ? configGlobalDB.escalaPlantao
+      : {},
     updated_at:new Date().toISOString()
   };
 
@@ -3931,9 +3938,36 @@ async function salvarEquipesPlantao(lista){
 }
 
 function lerEscalasPlantao(){
-  try{const x=JSON.parse(localStorage.getItem(ESCALA_PLANTAO_STORAGE_KEY)||"{}");return x&&typeof x==="object"?x:{};}catch(e){return {};}
+  if(configGlobalDB.escalaPlantao && typeof configGlobalDB.escalaPlantao==="object")
+    return configGlobalDB.escalaPlantao;
+
+  try{
+    const x=JSON.parse(localStorage.getItem(ESCALA_PLANTAO_STORAGE_KEY)||"{}");
+    return x&&typeof x==="object"?x:{};
+  }catch(e){
+    return {};
+  }
 }
-function salvarEscalasPlantao(x){localStorage.setItem(ESCALA_PLANTAO_STORAGE_KEY,JSON.stringify(x||{}));}
+
+async function salvarEscalasPlantao(x){
+  const valor=(x && typeof x==="object")?x:{};
+  configGlobalDB.escalaPlantao=valor;
+
+  try{
+    await salvarConfigGlobalDB();
+
+    /* Mantém cópia local somente como fallback/migração. */
+    localStorage.setItem(
+      ESCALA_PLANTAO_STORAGE_KEY,
+      JSON.stringify(valor)
+    );
+
+    return true;
+  }catch(error){
+    console.error("Erro ao salvar escala no banco:",error);
+    throw error;
+  }
+}
 function chaveMesEscala(valor){
   if(/^\d{4}-\d{2}$/.test(String(valor||"")))return String(valor);
   const d=valor instanceof Date?valor:new Date(valor||Date.now());
@@ -3999,22 +4033,63 @@ function dadosEscalaFormulario(){
   });
   return {mes:chave,semanas,atualizadaEm:new Date().toISOString()};
 }
-function salvarEscalaMensal(){
+async function salvarEscalaMensal(){
+  if(!modoEdicao)return;
+
   const dados=dadosEscalaFormulario();
-  const escalas=lerEscalasPlantao();
+  const escalas={...lerEscalasPlantao()};
   escalas[dados.mes]=dados;
-  salvarEscalasPlantao(escalas);
-  atualizarEquipeDaSemanaAtual();
-  const status=document.getElementById("escalaPlantaoStatus");
-  if(status)status.textContent=`✅ Escala ${dados.mes.split("-").reverse().join("/")} salva com sucesso.`;
-  carregarEscalaMensal();
-  alert("✅ Escala mensal salva. O acionamento usará automaticamente a equipe da semana correspondente.");
+
+  try{
+    await salvarEscalasPlantao(escalas);
+
+    atualizarEquipeDaSemanaAtual();
+
+    const status=document.getElementById("escalaPlantaoStatus");
+    if(status){
+      status.textContent=
+        `✅ Escala ${dados.mes.split("-").reverse().join("/")} salva no banco de dados.`;
+    }
+
+    carregarEscalaMensal();
+
+    alert(
+      "✅ Escala mensal salva no banco de dados.\n\n" +
+      "O acionamento usará automaticamente a equipe da semana correspondente."
+    );
+  }catch(error){
+    console.error("Erro ao salvar escala mensal:",error);
+
+    const status=document.getElementById("escalaPlantaoStatus");
+    if(status){
+      status.textContent="❌ Erro ao salvar a escala no banco.";
+    }
+
+    alert(
+      "❌ Não foi possível salvar a escala no banco de dados.\n\n" +
+      error.message
+    );
+  }
 }
-function limparEscalaMensal(){
+async function limparEscalaMensal(){
+  if(!modoEdicao)return;
+
   const input=document.getElementById("escalaMes");
   const chave=input?.value||chaveMesEscala(new Date());
+
   if(!confirm(`Apagar a escala de ${chave.split("-").reverse().join("/")}?`))return;
-  const escalas=lerEscalasPlantao();delete escalas[chave];salvarEscalasPlantao(escalas);carregarEscalaMensal();
+
+  const escalas={...lerEscalasPlantao()};
+  delete escalas[chave];
+
+  try{
+    await salvarEscalasPlantao(escalas);
+    carregarEscalaMensal();
+    alert("✅ Escala removida do banco de dados.");
+  }catch(error){
+    console.error("Erro ao apagar escala:",error);
+    alert("❌ Não foi possível apagar a escala do banco: "+error.message);
+  }
 }
 function escalaParaData(valor){
   const d=valor instanceof Date?valor:new Date(`${String(valor).slice(0,10)}T12:00:00`);
@@ -6898,6 +6973,28 @@ async function iniciar(){
         }
       }catch(e){
         console.warn("Migração equipe:",e);
+      }
+    }
+
+    /* Migração da escala mensal antiga:
+       se existir no localStorage e o banco ainda estiver vazio,
+       envia a escala para o Supabase. */
+    if(!configGlobalDB.escalaPlantao || !Object.keys(configGlobalDB.escalaPlantao).length){
+      try{
+        const legadoEscala=JSON.parse(
+          localStorage.getItem(ESCALA_PLANTAO_STORAGE_KEY)||"{}"
+        );
+
+        if(
+          legadoEscala &&
+          typeof legadoEscala==="object" &&
+          Object.keys(legadoEscala).length
+        ){
+          configGlobalDB.escalaPlantao=legadoEscala;
+          await salvarConfigGlobalDB();
+        }
+      }catch(e){
+        console.warn("Migração escala mensal:",e);
       }
     }
 
