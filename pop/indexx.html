@@ -197,12 +197,12 @@ body.modo-edicao .form-equipamento{
    A equipe atual do plantão permanece visível nos dois modos.
    A escala mensal fica recolhida por padrão.
 ========================================================= */
-body:not(.modo-edicao) > .telegram-config,
-body:not(.modo-edicao) > .equipe-plantao-config{
+body:not(.modo-edicao) .telegram-config,
+body:not(.modo-edicao) .equipe-plantao-config{
   display:none !important;
 }
-body.modo-edicao > .telegram-config,
-body.modo-edicao > .equipe-plantao-config{
+body.modo-edicao .telegram-config,
+body.modo-edicao .equipe-plantao-config{
   display:block;
 }
 
@@ -1312,7 +1312,7 @@ details[open]>summary::before{
   </div>
   <div id="telegramStatus" class="telegram-status">⚪ Bot Telegram não configurado.</div>
   <div class="info" style="margin-top:10px">
-    O token e o ID do grupo ficam salvos somente neste navegador. O bot envia uma notificação por etapa e para automaticamente quando o operador registrar <strong>energia restabelecida</strong>.
+    O token e o ID do grupo ficam salvos no banco de dados. O bot envia uma notificação por etapa e para automaticamente quando o operador registrar <strong>energia restabelecida</strong>.
   </div>
 </details>
 
@@ -1782,6 +1782,14 @@ function atualizarModoEdicao(){
 
   /* Marca o modo atual no body para controlar a interface. */
   document.body.classList.toggle("modo-edicao", modoEdicao);
+
+  /* Telegram e equipe aparecem somente no modo edição.
+     Ao bloquear, os dois detalhes também voltam a ficar fechados. */
+  document.querySelectorAll(".telegram-config, .equipe-plantao-config")
+    .forEach(bloco => {
+      bloco.style.display = modoEdicao ? "block" : "none";
+      if(!modoEdicao) bloco.open = false;
+    });
 
   const status=document.getElementById("statusEdicao");
   const btnEditar=document.getElementById("btnEditar");
@@ -6833,14 +6841,50 @@ async function iniciar(){
 
   try{
 
-    await carregarEquipamentos();
+    /* Carrega primeiro a configuração global do banco. */
+    await carregarConfigGlobalDB();
 
+    /* Migração automática das configurações antigas do navegador,
+       somente se ainda não houver dados no banco. */
+    if(!configGlobalDB.telegramToken && !configGlobalDB.telegramChatId){
+      try{
+        const legado=JSON.parse(localStorage.getItem(TELEGRAM_STORAGE_KEY)||"{}");
+        if(legado.token||legado.chatId){
+          configGlobalDB.telegramToken=String(legado.token||"").trim();
+          configGlobalDB.telegramChatId=String(legado.chatId||"").trim();
+          configGlobalDB.telegramAtivo=legado.ativo!==false;
+          await salvarConfigGlobalDB();
+        }
+      }catch(e){
+        console.warn("Migração Telegram:",e);
+      }
+    }
+
+    if(!Array.isArray(configGlobalDB.equipesPlantao) || !configGlobalDB.equipesPlantao.length){
+      try{
+        const legadoEquipe=JSON.parse(localStorage.getItem(EQUIPE_PLANTAO_STORAGE_KEY)||"[]");
+        if(Array.isArray(legadoEquipe)&&legadoEquipe.length){
+          configGlobalDB.equipesPlantao=legadoEquipe;
+          await salvarConfigGlobalDB();
+        }
+      }catch(e){
+        console.warn("Migração equipe:",e);
+      }
+    }
+
+    carregarConfigTelegram();
+
+    const _escalaMesInicial=document.getElementById("escalaMes");
+    if(_escalaMesInicial)_escalaMesInicial.value=chaveMesEscala(new Date());
+
+    carregarEscalaMensal();
+    carregarEquipePlantao();
+
+    await carregarEquipamentos();
     await carregarDados();
 
     modoEdicao=false;
-
     atualizarModoEdicao();
-
     atualizarListaEquipamentos();
 
   }catch(error){
@@ -6854,38 +6898,6 @@ async function iniciar(){
 
 }
 
-
-await carregarConfigGlobalDB();
-
-/* Migração automática: se o banco ainda estiver vazio,
-   aproveita configurações antigas deste navegador. */
-if(!configGlobalDB.telegramToken && !configGlobalDB.telegramChatId){
-  try{
-    const legado=JSON.parse(localStorage.getItem(TELEGRAM_STORAGE_KEY)||"{}");
-    if(legado.token||legado.chatId){
-      configGlobalDB.telegramToken=String(legado.token||"").trim();
-      configGlobalDB.telegramChatId=String(legado.chatId||"").trim();
-      configGlobalDB.telegramAtivo=legado.ativo!==false;
-      await salvarConfigGlobalDB();
-    }
-  }catch(e){console.warn("Migração Telegram:",e);}
-}
-
-if(!configGlobalDB.equipesPlantao.length){
-  try{
-    const legadoEquipe=JSON.parse(localStorage.getItem(EQUIPE_PLANTAO_STORAGE_KEY)||"[]");
-    if(Array.isArray(legadoEquipe)&&legadoEquipe.length){
-      configGlobalDB.equipesPlantao=legadoEquipe;
-      await salvarConfigGlobalDB();
-    }
-  }catch(e){console.warn("Migração equipe:",e);}
-}
-
-carregarConfigTelegram();
-const _escalaMesInicial=document.getElementById("escalaMes");
-if(_escalaMesInicial)_escalaMesInicial.value=chaveMesEscala(new Date());
-carregarEscalaMensal();
-carregarEquipePlantao();
 iniciar();
 
 // Atualização em tempo real dos cronômetros, sem recarregar a página.
