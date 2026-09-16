@@ -329,8 +329,8 @@ input:disabled{
 /* Banco + monitoramento lado a lado e mais compactos. */
 .pop.leitura-compacta .leitura-grid-superior{
   display:grid;
-  grid-template-columns:minmax(260px, .9fr) minmax(320px, 1.4fr);
-  gap:10px;
+  grid-template-columns:minmax(320px,1fr) minmax(420px,1.35fr);
+  gap:12px;
   align-items:stretch;
 }
 
@@ -505,12 +505,36 @@ input:disabled{
 }
 
 .pop.leitura-compacta .contingencia-grid{
-  grid-template-columns:repeat(4,1fr);
-  gap:7px;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
 }
 
 .pop.leitura-compacta .contingencia-card{
-  padding:8px;
+  min-width:0;
+  padding:9px 10px;
+  background:#fff;
+  border:1px solid #e1e6e3;
+  border-radius:7px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:58px;
+}
+
+.contingencia-card span{
+  display:block;
+  font-size:10px;
+  line-height:1.15;
+  color:#666;
+  margin-bottom:4px;
+}
+
+.contingencia-card strong{
+  display:block;
+  font-size:14px;
+  line-height:1.15;
+  overflow-wrap:anywhere;
 }
 
 .pop.leitura-compacta .contingencia-card span{
@@ -527,9 +551,88 @@ input:disabled{
   padding:11px;
 }
 
+.preventiva{
+  margin-top:10px;
+  padding:11px;
+}
+
+.preventiva h3{
+  margin:0 0 9px;
+  font-size:15px;
+}
+
+.preventiva-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+
+.preventiva-item{
+  min-width:0;
+  padding:9px 10px;
+  background:#fff;
+  border:1px solid #dfe8e2;
+  border-radius:7px;
+}
+
+.preventiva-item label{
+  display:block;
+  font-size:11px;
+  color:#666;
+  font-weight:bold;
+  margin-bottom:5px;
+}
+
+.preventiva-item input{
+  width:100%;
+  padding:7px;
+  font-size:12px;
+}
+
+.preventiva-item .status{
+  min-height:31px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 8px;
+  font-size:12px;
+  margin:0;
+}
+
+.pop.leitura-compacta .preventiva{
+  margin-top:10px;
+  padding:10px;
+}
+
 .pop.leitura-compacta .preventiva h3{
   margin:0 0 8px;
-  font-size:15px;
+  font-size:14px;
+}
+
+.pop.leitura-compacta .preventiva-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+}
+
+.pop.leitura-compacta .preventiva-item{
+  padding:8px;
+}
+
+.pop.leitura-compacta .preventiva-item input{
+  padding:6px;
+  font-size:11px;
+}
+
+.pop.leitura-compacta .preventiva-item label{
+  font-size:10px;
+}
+
+.pop.leitura-compacta .preventiva-item .status{
+  font-size:11px;
+}
+
+.pop.leitura-compacta .preventiva .info{
+  display:none !important;
 }
 
 .pop.leitura-compacta .preventiva-grid{
@@ -575,9 +678,12 @@ input:disabled{
 }
 
 @media(max-width:520px){
-  .pop.leitura-compacta .contingencia-grid,
-  .pop.leitura-compacta .preventiva-grid{
+  .pop.leitura-compacta .contingencia-grid{
     grid-template-columns:1fr 1fr;
+  }
+
+  .pop.leitura-compacta .preventiva-grid{
+    grid-template-columns:1fr;
   }
   .pop.leitura-compacta .nome-pop-edicao input{
     font-size:18px;
@@ -657,6 +763,60 @@ input:disabled{
 }
 
 .monitor-bateria h3{margin-top:0}
+
+/* =========================================================
+   LAYOUT OPERACIONAL LIMPO
+   Preventiva fica dentro do Banco.
+   Contingência fica dentro do Monitoramento.
+========================================================= */
+.banco,
+.monitor-bateria{
+  box-sizing:border-box;
+}
+
+.banco > .preventiva,
+.monitor-bateria > .contingencia-box{
+  margin-top:12px;
+  padding:11px 12px;
+  border-radius:7px;
+  background:#fff;
+  border:1px solid #dfe8e2;
+  box-shadow:none;
+}
+
+.banco > .preventiva{
+  border-left:4px solid #8e44ad;
+}
+
+.monitor-bateria > .contingencia-box{
+  border-left:4px solid #f39c12;
+}
+
+.banco > .preventiva h3,
+.monitor-bateria > .contingencia-box h3{
+  margin:0 0 9px;
+  font-size:14px;
+}
+
+.banco > .preventiva .preventiva-grid{
+  margin-top:0;
+}
+
+.monitor-bateria > .contingencia-box .contingencia-grid{
+  margin-top:0;
+}
+
+@media(min-width:1101px){
+  .pop.leitura-compacta .banco,
+  .pop.leitura-compacta .monitor-bateria{
+    min-height:100%;
+  }
+
+  .pop.leitura-compacta .banco > .preventiva,
+  .pop.leitura-compacta .monitor-bateria > .contingencia-box{
+    margin-top:10px;
+  }
+}
 
 .monitor-grid{
   display:grid;
@@ -5476,6 +5636,64 @@ function render(preservarBusca=true){
 
           </div>
 
+
+
+        <!-- PREVENTIVA -->
+
+        <div class="preventiva">
+
+          <h3>🔧 Controle de Preventiva</h3>
+
+          <div class="preventiva-grid">
+
+            <div class="preventiva-item">
+
+              <label>Última Preventiva</label>
+
+              <input
+                type="date"
+                value="${pop.ultimaPreventiva||""}"
+                ${!modoEdicao?"disabled":""}
+                onchange="
+                  pops[${i}].ultimaPreventiva=this.value;
+                  pops[${i}].proximaPreventiva=
+                    calcularProximaPreventiva(
+                      this.value,
+                      pops[${i}].periodicidadePreventiva
+                    );
+                  existemAlteracoes=true;
+                  renderVisivel(${i});
+                "
+              >
+
+            </div>
+
+            <div class="preventiva-item">
+
+              <label>Próxima Preventiva</label>
+
+              <input
+                class="campo-proxima-preventiva"
+                type="date"
+                value="${pop.proximaPreventiva||""}"
+                disabled
+              >
+
+            </div>
+
+            <div class="preventiva-item">
+
+              <label>Status</label>
+
+              <div class="status ${status.classe}">
+                ${status.texto}
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
         </div>
 
 
@@ -5506,125 +5724,51 @@ function render(preservarBusca=true){
           <div class="monitor-grid">
 
             <div class="monitor-card">
-
-              <span>
-                🔋 Capacidade nominal
-              </span>
-
-              <strong>
-                ${ahNominal.toFixed(2)} Ah
-              </strong>
-
+              <span>🔋 Capacidade nominal</span>
+              <strong>${ahNominal.toFixed(2)} Ah</strong>
             </div>
 
-
             <div class="monitor-card">
-
-              <span>
-                📅 Tempo de uso
-              </span>
-
-              <strong>
-                ${dadosBateria.idade.texto}
-              </strong>
-
+              <span>📅 Tempo de uso</span>
+              <strong>${dadosBateria.idade.texto}</strong>
             </div>
 
-
             <div class="monitor-card">
-
-              <span>
-                📊 Saúde estimada do banco
-              </span>
-
-              <strong>
-                ${percentual}%
-              </strong>
-
+              <span>📊 Saúde estimada do banco</span>
+              <strong>${percentual}%</strong>
             </div>
 
-
             <div class="monitor-card">
-
-              <span>
-                🔋 Capacidade disponível estimada
-              </span>
-
-              <strong>
-                ${capacidadeUtil.toFixed(2)} Ah
-              </strong>
-
+              <span>🔋 Capacidade disponível estimada</span>
+              <strong>${capacidadeUtil.toFixed(2)} Ah</strong>
             </div>
 
-
             <div class="monitor-card">
-
-              <span>
-                ⚡ Consumo atual
-              </span>
-
-              <strong id="consumo-${i}">
-                ${consumo.toFixed(2)} A
-              </strong>
-
+              <span>⚡ Consumo atual</span>
+              <strong id="consumo-${i}">${consumo.toFixed(2)} A</strong>
             </div>
 
-
             <div class="monitor-card">
-
-              <span>
-                ⏱️ Autonomia teórica
-              </span>
-
-              <strong>
-                ${formatarAutonomia(
-                  autonomiaTeorica
-                )}
-              </strong>
-
+              <span>⏱️ Autonomia teórica</span>
+              <strong>${formatarAutonomia(autonomiaTeorica)}</strong>
             </div>
 
-
             <div class="monitor-card">
-
-              <span>
-                ⏱️ Autonomia ajustada
-              </span>
-
-              <strong class="autonomia-grande">
-                ${formatarAutonomia(
-                  autonomiaAjustada
-                )}
-              </strong>
-
+              <span>⏱️ Autonomia ajustada</span>
+              <strong class="autonomia-grande">${formatarAutonomia(autonomiaAjustada)}</strong>
             </div>
 
-
             <div class="monitor-card">
-
-              <span>
-                📉 Perda estimada
-              </span>
-
-              <strong class="perda-capacidade">
-                ${perda}%
-              </strong>
-
+              <span>📉 Perda estimada</span>
+              <strong class="perda-capacidade">${perda}%</strong>
             </div>
 
           </div>
 
 
           <div class="monitor-alerta ${monitor.classe}">
-
-            <div>
-              ${monitor.titulo}
-            </div>
-
-            <div>
-              ${monitor.mensagem}
-            </div>
-
+            <div>${monitor.titulo}</div>
+            <div>${monitor.mensagem}</div>
           </div>
 
           <div class="info" style="margin-top:10px;">
@@ -5656,9 +5800,81 @@ function render(preservarBusca=true){
 
           </div>
 
+
+        <!-- CONTINGÊNCIA / DESLOCAMENTO -->
+
+        <div class="contingencia-box ${contingencia.status==="restaurado"?"contingencia-restaurado":contingencia.status==="vencido"?"contingencia-vencido":contingencia.status==="critico"?"contingencia-critico":contingencia.status==="atencao"?"contingencia-atencao":"contingencia-normal"}" data-contingencia-pop-id="${escapeHtml(pop.id)}">
+
+          <h3>⚡ Contingência de Energia e Deslocamento</h3>
+
+          <div class="contingencia-grid">
+
+            <div class="contingencia-card">
+              <span>📍 Distância da base</span>
+              <strong>${Number(pop.distanciaKm||0).toFixed(1)} km</strong>
+            </div>
+
+            <div class="contingencia-card">
+              <span>🚗 Deslocamento estimado</span>
+              <strong>${formatarDuracaoMinutos(obterDeslocamentoMin(pop))}</strong>
+            </div>
+
+            <div class="contingencia-card">
+              <span>🛡️ Margem de segurança</span>
+              <strong>${formatarDuracaoMinutos(obterMargemMin(pop))}</strong>
+            </div>
+
+            <div class="contingencia-card">
+              <span>🚗 Velocidade considerada</span>
+              <strong>${Number(pop.velocidadeKmH||80).toFixed(0)} km/h</strong>
+            </div>
+
+            <div class="contingencia-card">
+              <span>🔋 Autonomia calculada</span>
+              <strong>${formatarAutonomia(autonomiaAjustada)}</strong>
+            </div>
+
+            <div class="contingencia-card">
+              <span>⏱️ Autonomia restante</span>
+              <strong data-contingencia-restante>${contingencia.ativa?formatarContagem(contingencia.restanteMin):"--"}</strong>
+            </div>
+
+            <div class="contingencia-card">
+              <span>🚨 Tempo até limite de acionamento</span>
+              <strong data-contingencia-limite>${contingencia.ativa?(contingencia.restanteLimiteMin>0?formatarContagem(contingencia.restanteLimiteMin):"00h 00min 00s"):"--"}</strong>
+            </div>
+
+            <div class="contingencia-card">
+              <span>📅 Horário limite para acionar</span>
+              <strong>${contingencia.status==="restaurado"?"🟢 ENCERRADO":contingencia.limite?formatarDataHora(contingencia.limite.toISOString()):"--"}</strong>
+            </div>
+
+          </div>
+
+          <div class="info" style="margin-top:10px;">
+            <strong>📌 Regra:</strong> autonomia calculada − deslocamento − margem de segurança.
+            <br>
+            <strong>⚠️ Estado:</strong>
+            <span data-contingencia-status>
+              ${contingencia.status==="restaurado"?"🟢 ENERGIA RESTABELECIDA — MONITORAMENTO ENCERRADO":!contingencia.ativa?"🟢 Sem falta de energia registrada":contingencia.status==="vencido"?"🚨 LIMITE DE ACIONAMENTO ULTRAPASSADO":contingencia.status==="critico"?"🔴 ACIONAR EQUIPE AGORA":contingencia.status==="atencao"?"🟡 PREPARAR / ACIONAR EQUIPE":"🟢 MONITORANDO AUTONOMIA"}
+            </span>
+            ${contingencia.ativa?`<br>⚡ Falta registrada: <strong>${formatarDataHora(pop.quedaEnergiaEm)}</strong>`:""}
+            ${pop.equipeEnviadaEm?`<br>🚗 Equipe enviada: <strong>${formatarDataHora(pop.equipeEnviadaEm)}</strong>`:""}
+            ${pop.energiaRestabelecidaEm?`<br>💡 Energia restabelecida: <strong>${formatarDataHora(pop.energiaRestabelecidaEm)}</strong>`:""}
+          </div>
+
+          <div class="contingencia-acoes">
+            ${!contingencia.ativa||pop.energiaRestabelecidaEm?`<button class="btn-energia queda" onclick="registrarFaltaEnergia(${i})">⚡ Registrar falta de energia AGORA</button>`:""}
+            ${contingencia.ativa&&!pop.equipeEnviadaEm&&!pop.energiaRestabelecidaEm?`<button class="btn-energia equipe" onclick="marcarEquipeEnviada(${i})">🚨 Acionar equipe / gerar script</button>`:""}
+            <button class="btn-energia equipe" onclick="abrirModalProblema(${i})">📋 Registrar problema / gerar script</button>
+            ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia restaurar" onclick="registrarEnergiaRestabelecida(${i})">💡 Registrar energia restabelecida</button>`:""}
+            ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia cancelar" onclick="limparContingencia(${i})">🗑️ Limpar ocorrência</button>`:""}
+          </div>
+
+        </div>
         </div>
 
-        <!-- FOTO DO POP -->
+        <!-- FOTO DO POP --><!-- FOTO DO POP -->
         <div class="foto-pop-card">
           <h3>📷 Foto do POP</h3>
 
@@ -5692,193 +5908,6 @@ function render(preservarBusca=true){
             ${pop.fotoUrl ? `<small style="text-align:center;color:#666">Clique na imagem para ampliar</small>` : ""}
           `}
         </div>
-
-        </div>
-
-
-        <!-- CONTINGÊNCIA / DESLOCAMENTO -->
-        <!-- CONTINGÊNCIA / DESLOCAMENTO -->
-        <div class="contingencia-box ${contingencia.status==="restaurado"?"contingencia-restaurado":contingencia.status==="vencido"?"contingencia-vencido":contingencia.status==="critico"?"contingencia-critico":contingencia.status==="atencao"?"contingencia-atencao":"contingencia-normal"}" data-contingencia-pop-id="${escapeHtml(pop.id)}">
-          <h3>⚡ Contingência de Energia e Deslocamento</h3>
-          <div class="contingencia-grid">
-            <div class="contingencia-card"><span>📍 Distância da base</span><strong>${Number(pop.distanciaKm||0).toFixed(1)} km</strong></div>
-            <div class="contingencia-card"><span>🚗 Deslocamento estimado</span><strong>${formatarDuracaoMinutos(obterDeslocamentoMin(pop))}</strong></div>
-            <div class="contingencia-card"><span>🛡️ Margem de segurança</span><strong>${formatarDuracaoMinutos(obterMargemMin(pop))}</strong></div>
-            <div class="contingencia-card"><span>🚗 Velocidade considerada</span><strong>${Number(pop.velocidadeKmH||80).toFixed(0)} km/h</strong></div>
-            <div class="contingencia-card"><span>🔋 Autonomia calculada</span><strong>${formatarAutonomia(autonomiaAjustada)}</strong></div>
-            <div class="contingencia-card"><span>⏱️ Autonomia restante</span><strong data-contingencia-restante>${contingencia.ativa?formatarContagem(contingencia.restanteMin):"--"}</strong></div>
-            <div class="contingencia-card"><span>🚨 Tempo até limite de acionamento</span><strong data-contingencia-limite>${contingencia.ativa?(contingencia.restanteLimiteMin>0?formatarContagem(contingencia.restanteLimiteMin):"00h 00min 00s"):"--"}</strong></div>
-            <div class="contingencia-card"><span>📅 Horário limite para acionar</span><strong>${contingencia.status==="restaurado"?"🟢 ENCERRADO":contingencia.limite?formatarDataHora(contingencia.limite.toISOString()):"--"}</strong></div>
-          </div>
-          <div class="info" style="margin-top:10px;">
-            <strong>📌 Regra:</strong> autonomia calculada − deslocamento − margem de segurança.
-            <br><strong>⚠️ Estado:</strong> <span data-contingencia-status>${contingencia.status==="restaurado"?"🟢 ENERGIA RESTABELECIDA — MONITORAMENTO ENCERRADO":!contingencia.ativa?"🟢 Sem falta de energia registrada":contingencia.status==="vencido"?"🚨 LIMITE DE ACIONAMENTO ULTRAPASSADO":contingencia.status==="critico"?"🔴 ACIONAR EQUIPE AGORA":contingencia.status==="atencao"?"🟡 PREPARAR / ACIONAR EQUIPE":"🟢 MONITORANDO AUTONOMIA"}</span>
-            ${contingencia.ativa?`<br>⚡ Falta registrada: <strong>${formatarDataHora(pop.quedaEnergiaEm)}</strong>`:""}
-            ${pop.equipeEnviadaEm?`<br>🚗 Equipe enviada: <strong>${formatarDataHora(pop.equipeEnviadaEm)}</strong>`:""}
-            ${pop.energiaRestabelecidaEm?`<br>💡 Energia restabelecida: <strong>${formatarDataHora(pop.energiaRestabelecidaEm)}</strong>`:""}
-          </div>
-          <div class="contingencia-acoes">
-            ${!contingencia.ativa||pop.energiaRestabelecidaEm?`<button class="btn-energia queda" onclick="registrarFaltaEnergia(${i})">⚡ Registrar falta de energia AGORA</button>`:""}
-            ${contingencia.ativa&&!pop.equipeEnviadaEm&&!pop.energiaRestabelecidaEm?`<button class="btn-energia equipe" onclick="marcarEquipeEnviada(${i})">🚨 Acionar equipe / gerar script</button>`:""}
-            <button class="btn-energia equipe" onclick="abrirModalProblema(${i})">📋 Registrar problema / gerar script</button>
-            ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia restaurar" onclick="registrarEnergiaRestabelecida(${i})">💡 Registrar energia restabelecida</button>`:""}
-            ${contingencia.ativa&&!pop.energiaRestabelecidaEm?`<button class="btn-energia cancelar" onclick="limparContingencia(${i})">🗑️ Limpar ocorrência</button>`:""}
-          </div>
-        </div>
-
-        <!-- PREVENTIVA -->
-
-        <div class="preventiva">
-
-          <h3>
-            🔧 Controle de Preventiva
-          </h3>
-
-
-          <div class="preventiva-grid">
-
-            <div>
-
-              <label>
-                Última Preventiva
-              </label>
-
-              <input
-
-                type="date"
-
-                value="${pop.ultimaPreventiva||""}"
-
-                ${!modoEdicao?"disabled":""}
-
-                onchange="
-                  pops[${i}]
-                    .ultimaPreventiva=
-                    this.value;
-
-                  pops[${i}]
-                    .proximaPreventiva=
-                    calcularProximaPreventiva(
-                      this.value,
-                      pops[${i}]
-                        .periodicidadePreventiva
-                    );
-
-                  existemAlteracoes=true;
-
-                  renderVisivel(${i});
-                "
-
-              >
-
-            </div>
-
-
-            <div>
-
-              <label>
-                Periodicidade
-              </label>
-
-              <input
-
-                type="number"
-
-                min="1"
-
-                value="${
-                  pop.periodicidadePreventiva||30
-                }"
-
-                ${!modoEdicao?"disabled":""}
-
-                onchange="
-                  pops[${i}]
-                    .periodicidadePreventiva=
-                    Math.round(
-                      Number(this.value)||30
-                    );
-
-                  pops[${i}]
-                    .proximaPreventiva=
-                    calcularProximaPreventiva(
-                      pops[${i}]
-                        .ultimaPreventiva,
-                      pops[${i}]
-                        .periodicidadePreventiva
-                    );
-
-                  existemAlteracoes=true;
-
-                  renderVisivel(${i});
-                "
-
-              >
-
-              <small>dias</small>
-
-            </div>
-
-
-            <div>
-
-              <label>
-                Próxima Preventiva
-              </label>
-
-              <input
-
-                class="campo-proxima-preventiva"
-
-                type="date"
-
-                value="${
-                  pop.proximaPreventiva||""
-                }"
-
-                disabled
-
-              >
-
-            </div>
-
-
-            <div>
-
-              <label>
-                Status
-              </label>
-
-              <div class="status ${status.classe}">
-                ${status.texto}
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div class="info">
-
-            📅 Última:
-
-            <strong>
-              ${formatarData(
-                pop.ultimaPreventiva
-              )}
-            </strong>
-
-            <br>
-
-            📅 Próxima:
-
-            <strong>
-              ${formatarData(
-                pop.proximaPreventiva
-              )}
-            </strong>
-
-          </div>
 
         </div>
 
