@@ -197,11 +197,26 @@ body.modo-edicao .form-equipamento{
    A equipe atual do plantão permanece visível nos dois modos.
    A escala mensal fica recolhida por padrão.
 ========================================================= */
-body:not(.modo-edicao) > .telegram-config{
+body:not(.modo-edicao) > .telegram-config,
+body:not(.modo-edicao) > .equipe-plantao-config{
   display:none !important;
 }
-body.modo-edicao > .telegram-config{
+body.modo-edicao > .telegram-config,
+body.modo-edicao > .equipe-plantao-config{
   display:block;
+}
+
+/* Os blocos administrativos ficam recolhidos ao carregar.
+   O conteúdo só aparece quando o usuário clicar no cabeçalho. */
+.telegram-config,
+.equipe-plantao-config,
+.escala-plantao-config{
+  overflow:hidden;
+}
+.telegram-config summary,
+.equipe-plantao-config summary,
+.escala-plantao-config summary{
+  cursor:pointer;
 }
 
 .equipe-plantao-atual{
@@ -1194,7 +1209,16 @@ details[open]>summary::before{
 .escala-atual{margin-top:10px;padding:12px;border-radius:8px;background:#eef7ff;border-left:5px solid #2980b9;font-weight:bold}
 @media(max-width:700px){.escala-acoes{flex-direction:column}.escala-acoes button{width:100%}}
 
-.equipe-plantao-config summary{cursor:pointer;font-weight:bold;color:#71368a}
+ .equipe-plantao-config summary{cursor:pointer;font-weight:bold;color:#71368a}
+.equipe-plantao-config summary{
+  background:#f4ecf8;
+  padding:12px;
+  border-radius:6px;
+  list-style:none;
+}
+.equipe-plantao-config summary::-webkit-details-marker{display:none}
+.equipe-plantao-config summary::before{content:"▶ "}
+.equipe-plantao-config[open] summary::before{content:"▼ "}
 .equipe-plantao-grid{display:grid;grid-template-columns:1.2fr 1.2fr 1fr;gap:10px;margin-top:12px}
 .equipe-plantao-grid label{display:block;font-size:12px;color:#666;margin-bottom:4px}
 .equipe-plantao-grid input,.equipe-plantao-grid select{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px}
@@ -1292,10 +1316,29 @@ details[open]>summary::before{
   </div>
 </details>
 
-<div class="equipe-plantao-atual">
-  <div class="equipe-plantao-atual-titulo">👷 Cadastro da Equipe de Plantão / Veículo</div>
-  <div id="equipePlantaoStatus" class="equipe-plantao-atual-status">⚪ Nenhuma equipe cadastrada para o plantão atual.</div>
-</div>
+<details class="equipe-plantao-config">
+  <summary>👷 Cadastro da Equipe de Plantão / Veículo</summary>
+  <div class="equipe-plantao-grid">
+    <div>
+      <label>👷 Técnico de plantão</label>
+      <input id="plantaoTecnico" type="text" placeholder="Nome do técnico">
+    </div>
+    <div>
+      <label>👨‍🔧 Auxiliar</label>
+      <input id="plantaoAuxiliar" type="text" placeholder="Nome do auxiliar">
+    </div>
+    <div>
+      <label>🚗 Veículo</label>
+      <input id="plantaoCarro" type="text" placeholder="Ex.: STRADA SLO2B54">
+    </div>
+  </div>
+  <div class="equipe-plantao-acoes">
+    <button type="button" class="btn-acionamento" onclick="salvarEquipePlantao()">💾 Salvar equipe</button>
+    <button type="button" style="background:#555" onclick="limparEquipePlantao()">🧹 Limpar equipe</button>
+  </div>
+  <div id="equipePlantaoStatus" class="equipe-plantao-status">⚪ Nenhuma equipe cadastrada para o plantão atual.</div>
+  <div id="listaEquipePlantao" class="equipe-plantao-lista"></div>
+</details>
 
 <details class="escala-plantao-config">
   <summary>📅 Escala Mensal de Plantonistas</summary>
@@ -3632,11 +3675,92 @@ const EQUIPE_PLANTAO_STORAGE_KEY="controle_pops_equipe_plantao_v1";
 const ESCALA_PLANTAO_STORAGE_KEY="controle_pops_plantao_mensal_v1";
 const ACIONAMENTOS_STORAGE_KEY="controle_pops_acionamentos_v1";
 const PROBLEMAS_STORAGE_KEY="controle_pops_problemas_v1";
+/* =========================================================
+   CONFIGURAÇÕES GLOBAIS — SUPABASE
+   Telegram e equipe de plantão ficam persistidos no banco.
+   A variável em memória evita consultas repetidas.
+========================================================= */
+const CONFIG_GLOBAL_ID="controle-pops-global";
+let configGlobalDB={
+  telegramToken:"",
+  telegramChatId:"",
+  telegramAtivo:true,
+  equipesPlantao:[]
+};
+let configGlobalCarregada=false;
+
+async function carregarConfigGlobalDB(){
+  try{
+    const {data,error}=await supabaseClient
+      .from("controle_pops_config")
+      .select("*")
+      .eq("id",CONFIG_GLOBAL_ID)
+      .maybeSingle();
+
+    if(error) throw error;
+
+    if(data){
+      configGlobalDB={
+        telegramToken:String(data.telegram_token||"").trim(),
+        telegramChatId:String(data.telegram_chat_id||"").trim(),
+        telegramAtivo:data.telegram_ativo!==false,
+        equipesPlantao:Array.isArray(data.equipe_plantao)?data.equipe_plantao:[]
+      };
+    }
+    configGlobalCarregada=true;
+    return configGlobalDB;
+  }catch(error){
+    console.error("Configuração global:",error);
+    configGlobalCarregada=false;
+    return configGlobalDB;
+  }
+}
+
+async function salvarConfigGlobalDB(){
+  const payload={
+    id:CONFIG_GLOBAL_ID,
+    telegram_token:configGlobalDB.telegramToken||null,
+    telegram_chat_id:configGlobalDB.telegramChatId||null,
+    telegram_ativo:configGlobalDB.telegramAtivo!==false,
+    equipe_plantao:Array.isArray(configGlobalDB.equipesPlantao)?configGlobalDB.equipesPlantao:[],
+    updated_at:new Date().toISOString()
+  };
+
+  const {error}=await supabaseClient
+    .from("controle_pops_config")
+    .upsert(payload,{onConflict:"id"});
+
+  if(error) throw error;
+  configGlobalCarregada=true;
+}
+
 
 function lerEquipesPlantao(){
-  try{const lista=JSON.parse(localStorage.getItem(EQUIPE_PLANTAO_STORAGE_KEY)||"[]");return Array.isArray(lista)?lista:[];}catch(e){return [];}
+  if(Array.isArray(configGlobalDB.equipesPlantao))
+    return configGlobalDB.equipesPlantao;
+
+  try{
+    const lista=JSON.parse(localStorage.getItem(EQUIPE_PLANTAO_STORAGE_KEY)||"[]");
+    return Array.isArray(lista)?lista:[];
+  }catch(e){
+    return [];
+  }
 }
-function salvarEquipesPlantao(lista){localStorage.setItem(EQUIPE_PLANTAO_STORAGE_KEY,JSON.stringify(Array.isArray(lista)?lista:[]));}
+
+async function salvarEquipesPlantao(lista){
+  const valor=Array.isArray(lista)?lista:[];
+  configGlobalDB.equipesPlantao=valor;
+
+  try{
+    await salvarConfigGlobalDB();
+    // Mantém uma cópia local somente como fallback de compatibilidade.
+    localStorage.setItem(EQUIPE_PLANTAO_STORAGE_KEY,JSON.stringify(valor));
+    return true;
+  }catch(error){
+    console.error("Erro ao salvar equipe no banco:",error);
+    throw error;
+  }
+}
 
 function lerEscalasPlantao(){
   try{const x=JSON.parse(localStorage.getItem(ESCALA_PLANTAO_STORAGE_KEY)||"{}");return x&&typeof x==="object"?x:{};}catch(e){return {};}
@@ -3770,25 +3894,73 @@ function atualizarEquipeDaSemanaAtual(){
 }
 function carregarEquipePlantao(){
   atualizarEquipeDaSemanaAtual();
+
+  const atual=lerEquipesPlantao().find(e=>e.ativa);
+  const tecnico=document.getElementById("plantaoTecnico");
+  const auxiliar=document.getElementById("plantaoAuxiliar");
+  const carro=document.getElementById("plantaoCarro");
+
+  if(atual){
+    if(tecnico)tecnico.value=atual.tecnico||"";
+    if(auxiliar)auxiliar.value=atual.auxiliar||"";
+    if(carro)carro.value=atual.carro||"";
+  }
+  atualizarListaEquipePlantao();
 }
-function salvarEquipePlantao(){
+async function salvarEquipePlantao(){
+  if(!modoEdicao)return;
+
   const tecnico=String(document.getElementById("plantaoTecnico")?.value||"").trim();
   const auxiliar=String(document.getElementById("plantaoAuxiliar")?.value||"").trim();
   const carro=String(document.getElementById("plantaoCarro")?.value||"").trim();
+
   if(!tecnico){alert("Informe o técnico de plantão.");return;}
   if(!carro){alert("Informe o veículo da equipe.");return;}
+
   const lista=lerEquipesPlantao().map(e=>({...e,ativa:false}));
-  lista.push({id:crypto.randomUUID(),tecnico,auxiliar,carro,ativa:true,atualizadaEm:new Date().toISOString()});
-  salvarEquipesPlantao(lista);
-  carregarEquipePlantao();
-  const status=document.getElementById("equipePlantaoStatus");
-  if(status)status.textContent=`🟢 Equipe de plantão: ${tecnico}${auxiliar?" + "+auxiliar:""} — ${carro}`;
+  lista.push({
+    id:crypto.randomUUID(),
+    tecnico,
+    auxiliar,
+    carro,
+    ativa:true,
+    atualizadaEm:new Date().toISOString()
+  });
+
+  try{
+    await salvarEquipesPlantao(lista);
+    carregarEquipePlantao();
+    const status=document.getElementById("equipePlantaoStatus");
+    if(status)status.textContent=`🟢 Equipe de plantão: ${tecnico}${auxiliar?" + "+auxiliar:""} — ${carro}`;
+    alert("✅ Equipe de plantão salva no banco de dados.");
+  }catch(error){
+    alert("❌ Não foi possível salvar a equipe no banco: "+error.message);
+  }
 }
-function limparEquipePlantao(){
-  localStorage.removeItem(EQUIPE_PLANTAO_STORAGE_KEY);
-  const tecnico=document.getElementById("plantaoTecnico");const auxiliar=document.getElementById("plantaoAuxiliar");const carro=document.getElementById("plantaoCarro");
-  if(tecnico)tecnico.value="";if(auxiliar)auxiliar.value="";if(carro)carro.value="";
-  atualizarListaEquipePlantao();atualizarEquipeDaSemanaAtual();
+async function limparEquipePlantao(){
+  if(!modoEdicao)return;
+
+  if(!confirm("Apagar a equipe de plantão atual?"))return;
+
+  configGlobalDB.equipesPlantao=[];
+  try{
+    await salvarConfigGlobalDB();
+    localStorage.removeItem(EQUIPE_PLANTAO_STORAGE_KEY);
+
+    const tecnico=document.getElementById("plantaoTecnico");
+    const auxiliar=document.getElementById("plantaoAuxiliar");
+    const carro=document.getElementById("plantaoCarro");
+
+    if(tecnico)tecnico.value="";
+    if(auxiliar)auxiliar.value="";
+    if(carro)carro.value="";
+
+    atualizarListaEquipePlantao();
+    atualizarEquipeDaSemanaAtual();
+    alert("✅ Equipe removida do banco de dados.");
+  }catch(error){
+    alert("❌ Não foi possível remover a equipe: "+error.message);
+  }
 }
 function atualizarListaEquipePlantao(){
   const div=document.getElementById("listaEquipePlantao");const status=document.getElementById("equipePlantaoStatus");if(!div)return;
@@ -3912,6 +4084,14 @@ async function confirmarAcionamentoEquipe(){
 }
 
 function lerConfigTelegram(){
+  if(configGlobalCarregada){
+    return {
+      token:String(configGlobalDB.telegramToken||"").trim(),
+      chatId:String(configGlobalDB.telegramChatId||"").trim(),
+      ativo:configGlobalDB.telegramAtivo!==false
+    };
+  }
+
   try{
     const cfg=JSON.parse(localStorage.getItem(TELEGRAM_STORAGE_KEY)||"{}");
     return {
@@ -3964,12 +4144,32 @@ function carregarConfigTelegram(){
   atualizarStatusTelegram();
 }
 
-function salvarConfigTelegram(){
+async function salvarConfigTelegram(){
+  if(!modoEdicao)return;
+
   const token=String(document.getElementById("telegramBotToken")?.value||"").trim();
   const chatId=String(document.getElementById("telegramChatId")?.value||"").trim();
   const ativo=document.getElementById("telegramAtivo")?.value!=="false";
-  localStorage.setItem(TELEGRAM_STORAGE_KEY,JSON.stringify({token,chatId,ativo}));
-  atualizarStatusTelegram("✅ Configuração do Telegram salva neste navegador.");
+
+  configGlobalDB.telegramToken=token;
+  configGlobalDB.telegramChatId=chatId;
+  configGlobalDB.telegramAtivo=ativo;
+
+  try{
+    await salvarConfigGlobalDB();
+
+    // Cópia local apenas para compatibilidade/migração.
+    localStorage.setItem(
+      TELEGRAM_STORAGE_KEY,
+      JSON.stringify({token,chatId,ativo})
+    );
+
+    atualizarStatusTelegram("✅ Configuração do Telegram salva no banco de dados.");
+  }catch(error){
+    console.error("Telegram DB:",error);
+    atualizarStatusTelegram("🔴 Erro ao salvar no banco: "+error.message);
+    alert("❌ Não foi possível salvar a configuração do Telegram no banco: "+error.message);
+  }
 }
 
 function atualizarStatusTelegram(mensagem){
@@ -4001,7 +4201,7 @@ async function enviarTelegram(texto){
 }
 
 async function testarTelegram(){
-  salvarConfigTelegram();
+  await salvarConfigTelegram();
   const cfg=lerConfigTelegram();
   if(!cfg.token||!cfg.chatId){alert("Informe o token do bot e o ID do grupo/chat.");return;}
   atualizarStatusTelegram("⏳ Enviando mensagem de teste...");
@@ -6654,6 +6854,32 @@ async function iniciar(){
 
 }
 
+
+await carregarConfigGlobalDB();
+
+/* Migração automática: se o banco ainda estiver vazio,
+   aproveita configurações antigas deste navegador. */
+if(!configGlobalDB.telegramToken && !configGlobalDB.telegramChatId){
+  try{
+    const legado=JSON.parse(localStorage.getItem(TELEGRAM_STORAGE_KEY)||"{}");
+    if(legado.token||legado.chatId){
+      configGlobalDB.telegramToken=String(legado.token||"").trim();
+      configGlobalDB.telegramChatId=String(legado.chatId||"").trim();
+      configGlobalDB.telegramAtivo=legado.ativo!==false;
+      await salvarConfigGlobalDB();
+    }
+  }catch(e){console.warn("Migração Telegram:",e);}
+}
+
+if(!configGlobalDB.equipesPlantao.length){
+  try{
+    const legadoEquipe=JSON.parse(localStorage.getItem(EQUIPE_PLANTAO_STORAGE_KEY)||"[]");
+    if(Array.isArray(legadoEquipe)&&legadoEquipe.length){
+      configGlobalDB.equipesPlantao=legadoEquipe;
+      await salvarConfigGlobalDB();
+    }
+  }catch(e){console.warn("Migração equipe:",e);}
+}
 
 carregarConfigTelegram();
 const _escalaMesInicial=document.getElementById("escalaMes");
