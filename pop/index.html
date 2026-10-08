@@ -485,6 +485,39 @@ input:disabled{
   color:#1f6f43;
 }
 
+/* Apenas o card Garantia é clicável */
+.pop.leitura-compacta .garantia-clicavel{
+  cursor:pointer;
+}
+.pop.leitura-compacta .garantia-baterias-expansao{
+  display:none;
+  margin-top:8px;
+  padding:8px;
+  background:#f7f7f7;
+  border:1px solid #ddd;
+  border-radius:6px;
+}
+.pop.leitura-compacta .garantia-baterias-expansao.aberta{
+  display:block;
+}
+.pop.leitura-compacta .garantia-bateria-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  padding:6px 8px;
+  margin-top:5px;
+  background:#fff;
+  border:1px solid #e5e5e5;
+  border-radius:5px;
+  font-size:11px;
+}
+.pop.leitura-compacta .garantia-bateria-item strong{font-size:11px;}
+.pop.leitura-compacta .garantia-bateria-item small{color:#666;}
+@media(max-width:700px){
+  .pop.leitura-compacta .garantia-bateria-item{flex-direction:column;align-items:flex-start;gap:2px;}
+}
+
 .pop.leitura-compacta .banco-grid,
 .pop.leitura-compacta .banco details,
 .pop.leitura-compacta .banco .info,
@@ -3132,6 +3165,13 @@ function calcularCapacidadeUtil(
 }
 
 
+function toggleGarantias(index){
+  const painel=document.getElementById("garantias-pop-"+index);
+  if(!painel) return;
+  painel.classList.toggle("aberta");
+}
+
+
 /* =========================================================
    MONITORAMENTO
 ========================================================= */
@@ -5439,6 +5479,7 @@ function render(preservarBusca=true){
     ========================= */
 
     let bateriasHtml="";
+    let bateriasGarantiaLeituraHtml="";
 
 
     if(!Array.isArray(pop.baterias))
@@ -5446,6 +5487,19 @@ function render(preservarBusca=true){
 
 
     pop.baterias.forEach((bat,j)=>{
+
+      const statusBatLeitura=statusGarantiaBateria(bat.dataInstalacao);
+      const fimBatLeitura=statusBatLeitura.fimGarantia
+        ? formatarData(statusBatLeitura.fimGarantia.toISOString().slice(0,10))
+        : "--";
+
+      bateriasGarantiaLeituraHtml+=`
+        <div class="garantia-bateria-item">
+          <strong>🔋 Bateria ${j+1}</strong>
+          <small>Instalação: ${bat.dataInstalacao ? formatarData(bat.dataInstalacao) : "--"}</small>
+          <small>Garantia: ${fimBatLeitura}</small>
+        </div>
+      `;
 
       bateriasHtml+=`
 
@@ -5636,10 +5690,18 @@ function render(preservarBusca=true){
               <span>⚡ Tensão</span>
               <strong>${Number(pop.tensaoBancoV)||48} V</strong>
             </div>
-            <div class="resumo-item-leitura">
+            <div
+              class="resumo-item-leitura garantia-clicavel"
+              onclick="toggleGarantias(${i})"
+              title="Clique para ver as baterias"
+            >
               <span>📅 Garantia</span>
               <strong>${validadePrincipal ? formatarData(validadePrincipal) : "--"}</strong>
             </div>
+          </div>
+
+          <div id="garantias-pop-${i}" class="garantia-baterias-expansao">
+            ${bateriasGarantiaLeituraHtml || '<small>Nenhuma bateria cadastrada.</small>'}
           </div>
 
 
