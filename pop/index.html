@@ -4666,8 +4666,16 @@ function obterCorrenteCarregadorA(pop){
 }
 
 
+// Regra operacional: reservar 20% da capacidade nominal e usar até 80% para autonomia.
+// O percentual é centralizado aqui para manter autonomia e contingência consistentes.
+const PERCENTUAL_CAPACIDADE_OPERACIONAL = 80;
+
 function capacidadeNominalAh(pop){
   return Math.max(0, Number(pop?.ah) || 0);
+}
+
+function capacidadeOperacionalAh(pop){
+  return capacidadeNominalAh(pop) * PERCENTUAL_CAPACIDADE_OPERACIONAL / 100;
 }
 
 function consumoAtualA(pop){
@@ -4677,10 +4685,13 @@ function consumoAtualA(pop){
 }
 
 function inicializarSaldoEnergia(pop){
+  const limiteOperacional = capacidadeOperacionalAh(pop);
   if(pop.energiaSaldoAh == null || !Number.isFinite(Number(pop.energiaSaldoAh))){
-    pop.energiaSaldoAh = capacidadeNominalAh(pop);
+    pop.energiaSaldoAh = limiteOperacional;
   }
-  return Math.max(0, Number(pop.energiaSaldoAh)||0);
+  // Não permite que o saldo operacional ultrapasse os 80% disponíveis após a reserva de 20%.
+  pop.energiaSaldoAh = Math.max(0, Math.min(limiteOperacional, Number(pop.energiaSaldoAh)||0));
+  return pop.energiaSaldoAh;
 }
 
 function atualizarSaldoDuranteDescarga(pop, agora){
@@ -4712,7 +4723,7 @@ function atualizarSaldoDuranteRecarga(pop, agora){
 
   // Estimativa conservadora: 90% de eficiência da carga.
   const reposto = (minutos / 60) * corrente * 0.90;
-  const capacidade = capacidadeNominalAh(pop);
+  const capacidade = capacidadeOperacionalAh(pop);
 
   pop.energiaSaldoAh = Math.min(
     capacidade,
@@ -5414,8 +5425,10 @@ function render(preservarBusca=true){
       dadosBateria.percentual;
 
 
+    // Capacidade operacional estimada: envelhecimento da bateria aplicado
+    // e, depois, uso de até 80% do banco, preservando 20% como reserva.
     const capacidadeUtil=
-      ahNominal*percentual/100;
+      ahNominal*(percentual/100)*(PERCENTUAL_CAPACIDADE_OPERACIONAL/100);
 
 
     const autonomiaAjustada=
@@ -5980,7 +5993,7 @@ function render(preservarBusca=true){
           <div class="monitor-grid">
 
             <div class="monitor-card">
-              <span>🔋 Capacidade nominal</span>
+              <span>🔋 Capacidade nominal do banco</span>
               <strong>${ahNominal.toFixed(2)} Ah</strong>
             </div>
 
@@ -5995,7 +6008,7 @@ function render(preservarBusca=true){
             </div>
 
             <div class="monitor-card">
-              <span>🔋 Capacidade disponível estimada</span>
+              <span>🔋 Capacidade operacional (80%, reserva de 20%)</span>
               <strong>${capacidadeUtil.toFixed(2)} Ah</strong>
             </div>
 
@@ -6037,9 +6050,10 @@ function render(preservarBusca=true){
             <strong>${ahNominal.toFixed(2)} Ah</strong>.
             O valor de
             <strong>${capacidadeUtil.toFixed(2)} Ah</strong>
-            representa somente a capacidade disponível
-            <strong>estimada</strong> considerando o envelhecimento
-            calculado pelo sistema.
+            representa a capacidade operacional estimada após aplicar
+            o fator de envelhecimento e reservar 20% da capacidade nominal, usando até
+            <strong>${PERCENTUAL_CAPACIDADE_OPERACIONAL}% do banco</strong>,
+            preservando 20% do banco como reserva operacional.
 
             <br><br>
 
@@ -6047,6 +6061,14 @@ function render(preservarBusca=true){
             até a data de validade o banco permanece em condição normal;
             após o vencimento, o sistema usa <strong>laranja por até 18 meses</strong>
             e depois <strong>vermelho</strong>.
+
+            <br><br>
+
+            <strong>🔋 Regra operacional:</strong>
+            para autonomia ajustada, o sistema considera até
+            <strong>${PERCENTUAL_CAPACIDADE_OPERACIONAL}% da capacidade nominal</strong>
+            do banco estacionário, após aplicar o fator estimado de envelhecimento.
+            Os 20% restantes ficam reservados. O saldo usado na contingência também respeita esse limite.
 
             <br><br>
 
