@@ -1478,6 +1478,10 @@ details[open]>summary::before{
     🔒 Bloquear Edição
   </button>
 
+  <button type="button" class="salvar" onclick="exportarPlanilhaAutonomia()" style="background:#217346">
+    📊 Gerar Planilha de Autonomia (Excel)
+  </button>
+
 </div>
 
 <details class="telegram-config">
@@ -1634,6 +1638,13 @@ details[open]>summary::before{
 
 </div>
 
+<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <button type="button" class="btn-edicao" onclick="mostrarPOPsSemNome()" style="background:#b45309;color:#fff" disabled>
+    ⚠️ Ver POPs sem nome
+  </button>
+</div>
+<div id="painelPOPsSemNome" style="display:none;margin:10px 0;padding:14px;border:1px solid #f59e0b;border-radius:10px;background:#fffbeb;color:#1f2937"></div>
+
 <div class="busca-container">
 
   <input id="busca"
@@ -1770,6 +1781,7 @@ details[open]>summary::before{
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://unpkg.com/docx@9.5.3/dist/index.umd.cjs" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/docx@9.5.3/dist/index.umd.cjs'"></script>
 
 <script>
@@ -6948,6 +6960,37 @@ async function criarPOP(){
 
 
 /* =========================================================
+   LOCALIZAR POPS SEM NOME
+========================================================= */
+function mostrarPOPsSemNome(){
+  if(!modoEdicao){
+    alert("Ative o modo edição para localizar ou excluir POPs.");
+    return;
+  }
+  const painel=document.getElementById("painelPOPsSemNome");
+  const semNome=pops.map((pop,i)=>({pop,i})).filter(({pop})=>!String(pop?.nome??"").trim());
+  painel.style.display="block";
+  if(!semNome.length){
+    painel.innerHTML='<strong>✅ Nenhum POP sem nome encontrado.</strong><p>Todos os POPs carregados possuem nome.</p>';
+    return;
+  }
+  painel.innerHTML=`<strong>⚠️ Encontrados ${semNome.length} POP(s) sem nome</strong>
+    <p>Confira o ID e a quantidade de equipamentos antes de excluir. A exclusão é permanente no banco de dados.</p>
+    <div style="display:grid;gap:10px">${semNome.map(({pop,i})=>{
+      const equipamentos=Array.isArray(pop.equipamentos)?pop.equipamentos.length:0;
+      const ah=Number(pop.ah||pop.bancoAh||0);
+      return `<div style="background:#fff;border:1px solid #fcd34d;border-radius:8px;padding:10px;overflow-wrap:anywhere">
+        <div><strong>POP sem nome</strong></div>
+        <div><b>ID:</b> ${escapeHtml(pop.id||"sem ID")}</div>
+        <div><b>Banco:</b> ${ah.toLocaleString("pt-BR")} Ah</div>
+        <div><b>Equipamentos vinculados:</b> ${equipamentos}</div>
+        <button type="button" class="remove" style="margin-top:8px" onclick="excluirPOP(${i})">🗑️ Excluir este POP</button>
+      </div>`;
+    }).join("")}</div>`;
+}
+
+
+/* =========================================================
    EXCLUIR POP
 ========================================================= */
 
@@ -6962,7 +7005,7 @@ async function excluirPOP(i){
 
 
   if(!confirm(
-    `Deseja excluir o POP "${pop.nome}"?`
+    `Deseja excluir o POP "${String(pop.nome||"").trim() || "SEM NOME"}" (ID: ${pop.id})?`
   ))
     return;
 
@@ -6991,6 +7034,8 @@ async function excluirPOP(i){
   existemAlteracoes=false;
 
   render();
+  const painelSemNome=document.getElementById("painelPOPsSemNome");
+  if(painelSemNome && painelSemNome.style.display!=="none") mostrarPOPsSemNome();
 
 }
 
@@ -7201,6 +7246,107 @@ setInterval(atualizarRelogiosContingencia,1000);
 // Verifica as etapas do bot sem precisar do operador acompanhar o relógio.
 setInterval(verificarNotificacoesTelegram,15000);
 setTimeout(verificarNotificacoesTelegram,3000);
+
+
+/* =========================================================
+   EXPORTAR PLANILHA DE AUTONOMIA — MODELO EXCEL ENVIADO
+   Plan1: blocos de POPs com EQUIPAMENTO / MODELO / AMPERE / QT
+   Plan2: resumo geral de banco, consumo e autonomia por POP
+========================================================= */
+function exportarPlanilhaAutonomia(){
+  if(!Array.isArray(pops) || pops.length===0){
+    alert("Não há POPs carregados para exportar.");
+    return;
+  }
+  if(typeof XLSX==="undefined"){
+    alert("Não foi possível carregar o gerador Excel. Verifique a internet e tente novamente.");
+    return;
+  }
+
+  const wb=XLSX.utils.book_new();
+  const linhas=[];
+  const merges=[];
+  const resumo=[[
+    "POP","TENSÃO DO BANCO (V)","BANCO (Ah)","CONSUMO TOTAL (A)",
+    "AUTONOMIA ESTIMADA","DISTÂNCIA DA BASE (km)","MARGEM DE SEGURANÇA (min)",
+    "ÚLTIMA PREVENTIVA","PRÓXIMA PREVENTIVA","EQUIPAMENTOS"
+  ]];
+
+  const fmtData=v=>{
+    if(!v) return "";
+    const d=new Date(String(v).length===10?String(v)+"T12:00:00":v);
+    return Number.isNaN(d.getTime())?String(v):d.toLocaleDateString("pt-BR");
+  };
+  const autonomiaTexto=h=>{
+    if(!Number.isFinite(h)||h<=0) return "Sem cálculo";
+    const total=Math.round(h*60);
+    const horas=Math.floor(total/60), minutos=total%60;
+    return `${horas}h${String(minutos).padStart(2,"0")}min`;
+  };
+  const borda={top:{style:"thin",color:{rgb:"B7C9BE"}},bottom:{style:"thin",color:{rgb:"B7C9BE"}},left:{style:"thin",color:{rgb:"B7C9BE"}},right:{style:"thin",color:{rgb:"B7C9BE"}}};
+  const estiloTitulo={font:{bold:true,color:{rgb:"FFFFFF"},sz:12},fill:{fgColor:{rgb:"1F6F43"}},alignment:{horizontal:"left",vertical:"center"},border:borda};
+  const estiloCab={font:{bold:true,color:{rgb:"17452B"}},fill:{fgColor:{rgb:"DDEFE3"}},alignment:{horizontal:"center",vertical:"center"},border:borda};
+  const estiloTotal={font:{bold:true},fill:{fgColor:{rgb:"FFF2A8"}},border:borda};
+
+  pops.slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR")).forEach(pop=>{
+    const start=linhas.length;
+    linhas.push([String(pop.nome||"POP SEM NOME"),"","",""]);
+    merges.push({s:{r:start,c:0},e:{r:start,c:3}});
+    linhas.push(["EQUIPAMENTO","MODELO","AMPERE","QT"]);
+
+    let consumo=0;
+    const equipamentos=Array.isArray(pop.equipamentos)?pop.equipamentos:[];
+    equipamentos.forEach(e=>{
+      const ampere=Number(e.ampere)||0;
+      const qt=Math.max(0,Number(e.quantidade)||1);
+      consumo+=ampere*qt;
+      linhas.push([String(e.nome||e.equipamento||""),String(e.modelo||""),`${ampere.toLocaleString("pt-BR",{maximumFractionDigits:3})} A`,qt]);
+    });
+    if(equipamentos.length===0) linhas.push(["Nenhum equipamento cadastrado","","",""]);
+    linhas.push(["Consumo total","",`${consumo.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} A`,""]);
+    linhas.push([`Autonomia estimada: ${autonomiaTexto(Number(pop._autonomiaAjustada)||0)}`,"Banco de baterias",`${Number(pop.ah)||0} Ah`,`${Number(pop.tensaoBancoV)||48} V`]);
+    linhas.push([`Data das baterias: ${fmtData(pop.dataInstalacao)}`,"Próxima preventiva",fmtData(pop.proximaPreventiva),""]);
+    linhas.push(["","","",""]);
+
+    const ah=Number(pop.ah)||0;
+    const autonomia=consumo>0?ah/consumo:0;
+    resumo.push([
+      String(pop.nome||""),Number(pop.tensaoBancoV)||48,ah,Number(consumo.toFixed(3)),
+      autonomiaTexto(Number(pop._autonomiaAjustada)||autonomia),Number(pop.distanciaKm)||0,
+      Number(pop.margemSegurancaMin??30),fmtData(pop.ultimaPreventiva),fmtData(pop.proximaPreventiva),equipamentos.length
+    ]);
+  });
+
+  const ws=XLSX.utils.aoa_to_sheet(linhas);
+  ws["!merges"]=merges;
+  ws["!cols"]=[{wch:39},{wch:30},{wch:18},{wch:12}];
+  ws["!rows"]=linhas.map((r,i)=>({h:(r[0]&&r[1]===""&&r[2]===""&&r[3]==="")?22:19}));
+  linhas.forEach((row,r)=>{
+    const isTitulo=row[0] && row[1]==="" && row[2]==="" && row[3]==="" && !String(row[0]).startsWith("Autonomia") && !String(row[0]).startsWith("Data das baterias");
+    const isCab=row[0]==="EQUIPAMENTO";
+    const isTotal=row[0]==="Consumo total";
+    row.forEach((v,c)=>{
+      const addr=XLSX.utils.encode_cell({r,c});
+      if(!ws[addr]) ws[addr]={t:"s",v:v==null?"":v};
+      ws[addr].s=isTitulo?estiloTitulo:isCab?estiloCab:isTotal?estiloTotal:{border:borda,alignment:{vertical:"center"}};
+    });
+  });
+  XLSX.utils.book_append_sheet(wb,ws,"Plan1");
+
+  const wsResumo=XLSX.utils.aoa_to_sheet(resumo);
+  wsResumo["!cols"]=[{wch:32},{wch:20},{wch:16},{wch:20},{wch:22},{wch:22},{wch:25},{wch:20},{wch:20},{wch:16}];
+  resumo.forEach((row,r)=>row.forEach((v,c)=>{
+    const addr=XLSX.utils.encode_cell({r,c});
+    if(!wsResumo[addr]) wsResumo[addr]={t:"s",v:v==null?"":v};
+    wsResumo[addr].s=r===0?estiloCab:{border:borda,alignment:{vertical:"center",horizontal:c===0?"left":"center"}};
+  }));
+  wsResumo["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:resumo.length-1,c:resumo[0].length-1}})};
+  XLSX.utils.book_append_sheet(wb,wsResumo,"Resumo Autonomia");
+
+  const data=new Date();
+  const nomeArquivo=`Autonomia_dos_POPs_${data.getFullYear()}-${String(data.getMonth()+1).padStart(2,"0")}-${String(data.getDate()).padStart(2,"0")}.xlsx`;
+  XLSX.writeFile(wb,nomeArquivo);
+}
 
 </script>
 
