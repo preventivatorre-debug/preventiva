@@ -306,6 +306,21 @@ input:disabled{
   .config-pop-cards > .detalhes-equipamentos{grid-column:auto;}
 }
 
+.badge-pop-solar{
+  display:inline-flex;
+  align-items:center;
+  margin-left:8px;
+  padding:5px 9px;
+  border-radius:6px;
+  background:#fff3cd;
+  color:#805b00;
+  border:1px solid #f0d477;
+  font-size:12px;
+  font-weight:800;
+  vertical-align:middle;
+}
+@media(max-width:700px){.badge-pop-solar{margin:6px 0 0;display:flex;width:max-content;max-width:100%;}}
+
 .pop{
   display:none;
   background:#fff;
@@ -2264,6 +2279,8 @@ function bancoParaPop(row){
     fonte1CorrenteA:row.fonte1_corrente_a==null?null:Number(row.fonte1_corrente_a),
     fonte2Nome:row.fonte2_nome||"Fonte 2",
     fonte2CorrenteA:row.fonte2_corrente_a==null?null:Number(row.fonte2_corrente_a),
+    // Ausência de configuração significa alimentação elétrica convencional.
+    alimentacaoSolar:row.alimentacao_solar===true,
 
     // Foto do POP armazenada no Supabase Storage
     fotoUrl:row.foto_url||"",
@@ -2345,6 +2362,7 @@ function popParaBanco(pop){
     fonte1_corrente_a:pop.fonte1CorrenteA==null || pop.fonte1CorrenteA==="" ? null : Number(pop.fonte1CorrenteA),
     fonte2_nome:String(pop.fonte2Nome||"Fonte 2").trim()||"Fonte 2",
     fonte2_corrente_a:pop.fonte2CorrenteA==null || pop.fonte2CorrenteA==="" ? null : Number(pop.fonte2CorrenteA),
+    alimentacao_solar:pop.alimentacaoSolar===true,
 
     equipamentos:
       Array.isArray(pop.equipamentos)
@@ -5959,6 +5977,15 @@ function render(preservarBusca=true){
         <div class="info configuracao-deslocamento-leitura">
           <strong>📍 Configuração do POP para atendimento</strong>
           <br><br>
+          <div style="max-width:360px;margin:0 0 14px">
+            <label for="tipo-alimentacao-${i}">Tipo de alimentação do POP</label>
+            <select id="tipo-alimentacao-${i}" ${!modoEdicao?"disabled":""}
+              onchange="pops[${i}].alimentacaoSolar=this.value==='solar'; existemAlteracoes=true; renderVisivel(${i},false,false);">
+              <option value="eletrica" ${pop.alimentacaoSolar===true?"":"selected"}>Elétrica (padrão)</option>
+              <option value="solar" ${pop.alimentacaoSolar===true?"selected":""}>Solar</option>
+            </select>
+            <small style="display:block;color:#666;margin-top:4px">Se não configurar, o sistema considera alimentação elétrica.</small>
+          </div>
           <div class="preventiva-grid">
             <div>
               <label>Distância da base (km)</label>
@@ -6284,6 +6311,7 @@ function render(preservarBusca=true){
 
           <h3>
             📊 Monitoramento do Banco
+            ${pop.alimentacaoSolar===true?'<span class="badge-pop-solar" title="POP com alimentação solar e autonomia variável">☀️ POP SOLAR — AUTONOMIA VARIÁVEL</span>':''}
           </h3>
 
           <div class="resumo-monitor-leitura">
@@ -7244,6 +7272,7 @@ async function criarPOP(){
     fonte1CorrenteA:null,
     fonte2Nome:"Fonte 2",
     fonte2CorrenteA:null,
+    alimentacaoSolar:false,
     correnteCarregadorA:20,
     energiaSaldoAh:null,
     energiaSaldoAtualizadoEm:null,
