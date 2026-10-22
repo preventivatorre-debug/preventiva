@@ -261,6 +261,51 @@ input:disabled{
   cursor:not-allowed
 }
 
+
+/* Cards de configuração em linha para economizar espaço vertical. */
+.config-pop-cards{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  align-items:start;
+  margin-top:8px;
+}
+.config-pop-cards > .banco,
+.config-pop-cards > .detalhes-equipamentos{
+  min-width:0;
+  width:auto;
+  box-sizing:border-box;
+  margin:0 !important;
+}
+.config-pop-cards > .banco{padding:12px !important;}
+/* Equipamentos ocupa toda a largura quando expandido; recolhido volta ao card compacto. */
+.config-pop-cards > .detalhes-equipamentos[open]{
+  grid-column:1 / -1;
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+.config-pop-cards > .detalhes-equipamentos:not([open]){
+  grid-column:auto;
+  width:auto;
+}
+.config-pop-cards > .detalhes-equipamentos[open] .equipamentos-conteudo{
+  width:100%;
+  min-width:0;
+  overflow-x:auto;
+}
+.config-pop-cards .banco-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.config-pop-cards input,.config-pop-cards select{max-width:100%;box-sizing:border-box;}
+.config-pop-cards .status{overflow-wrap:anywhere;font-size:12px;}
+@media(max-width:1100px){
+  .config-pop-cards{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .config-pop-cards > .detalhes-equipamentos{grid-column:1 / -1;}
+}
+@media(max-width:700px){
+  .config-pop-cards{grid-template-columns:minmax(0,1fr);}
+  .config-pop-cards > .detalhes-equipamentos{grid-column:auto;}
+}
+
 .pop{
   display:none;
   background:#fff;
@@ -522,9 +567,22 @@ input:disabled{
 .pop.leitura-compacta .banco details,
 .pop.leitura-compacta .banco .info,
 .pop.leitura-compacta .monitor-grid,
-.pop.leitura-compacta .monitor-alerta,
 .pop.leitura-compacta .monitor-bateria .info{
   display:none !important;
+}
+
+/* Em modo compacto, manter visível o alerta individual das baterias.
+   Ele mostra CCA/saúde e identificação quando houver teste fora do padrão. */
+.pop.leitura-compacta .monitor-alerta{
+  display:block !important;
+  margin-top:8px;
+  padding:9px 11px;
+  font-size:12px;
+  line-height:1.45;
+  border-radius:7px;
+}
+.pop.leitura-compacta .monitor-alerta > div + div{
+  margin-top:4px;
 }
 
 .pop.leitura-compacta .contingencia-box{
@@ -775,7 +833,7 @@ input:disabled{
 
 .bateria-item{
   display:grid;
-  grid-template-columns:70px 1fr 1fr auto;
+  grid-template-columns:70px repeat(4, minmax(110px, 1fr)) auto;
   gap:8px;
   align-items:center;
   padding:8px;
@@ -1702,9 +1760,9 @@ details[open]>summary::before{
          disabled>
 
   <input id="novoMargem"
-         type="number" min="0" step="1" value="30"
-         placeholder="Margem de segurança (min)"
-         title="Margem de segurança antes do fim da autonomia"
+         type="number" min="0" step="0.5" value="10"
+         placeholder="Acionar equipe após (horas sem energia)"
+         title="Horas após o início da falta de energia para acionar a equipe"
          disabled>
 
   <br>
@@ -3368,6 +3426,20 @@ function obterBateriasGarantia(){
 
           diasVencida,
 
+          patrimonio: bateria.patrimonio || "",
+          ccaPadraoA: bateria.ccaPadraoA ?? "",
+          ccaMedidoA: bateria.ccaMedidoA ?? "",
+          saudePercentual: bateria.saudePercentual ?? "",
+          cargaPercentual: bateria.cargaPercentual ?? "",
+          testeSubstituir: (
+            bateria.ccaPadraoA !== undefined && bateria.ccaPadraoA !== "" &&
+            bateria.ccaMedidoA !== undefined && bateria.ccaMedidoA !== "" &&
+            Number(bateria.ccaMedidoA) < Number(bateria.ccaPadraoA)
+          ) || (
+            bateria.saudePercentual !== undefined && bateria.saudePercentual !== "" &&
+            Number(bateria.saudePercentual) < 80
+          ),
+
           vencendo:
             diasRestantes >= 0 &&
             diasRestantes <= 90,
@@ -3670,6 +3742,14 @@ function abrirGarantias(tipo){
 
               </div>
 
+
+              <div class="garantia-dados-teste" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;margin:10px 0;padding:10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px">
+                <div><span style="display:block;color:#64748b;font-size:12px">🏷️ Patrimônio</span><strong>${bateria.patrimonio ? escapeHtml(bateria.patrimonio) : "Não informado"}</strong></div>
+                <div><span style="display:block;color:#64748b;font-size:12px">CCA medido / padrão</span><strong>${bateria.ccaMedidoA!==undefined && bateria.ccaMedidoA!=="" ? escapeHtml(bateria.ccaMedidoA)+" A" : "--"} / ${bateria.ccaPadraoA!==undefined && bateria.ccaPadraoA!=="" ? escapeHtml(bateria.ccaPadraoA)+" A" : "--"}</strong></div>
+                <div><span style="display:block;color:#64748b;font-size:12px">Saúde</span><strong>${bateria.saudePercentual!==undefined && bateria.saudePercentual!=="" ? escapeHtml(bateria.saudePercentual)+"%" : "--"}</strong></div>
+                <div><span style="display:block;color:#64748b;font-size:12px">Carga</span><strong>${bateria.cargaPercentual!==undefined && bateria.cargaPercentual!=="" ? escapeHtml(bateria.cargaPercentual)+"%" : "--"}</strong></div>
+              </div>
+              ${bateria.testeSubstituir ? '<div style="background:#fee2e2;color:#991b1b;font-weight:800;padding:10px;border-radius:6px;margin-bottom:8px">🔴 SUBSTITUIR — CCA abaixo do padrão ou saúde abaixo de 80%</div>' : ''}
 
               <div
                 class="garantia-status ${
@@ -4389,7 +4469,7 @@ function montarScriptAcionamento(pop,campos={}){
   const data=dados.data||formatarDataInput(new Date());
   const distancia=Number(pop.distanciaKm||0).toFixed(1);
   const desloc=formatarDuracaoMinutos(calcularDeslocamentoMinutos(pop));
-  const margem=formatarDuracaoMinutos(Number(pop.margemSegurancaMin)||30);
+  const acionarApos=formatarDuracaoMinutos(Number(pop.margemSegurancaMin ?? 30));
   const autonomia=formatarAutonomia(c.autonomiaMin/60);
   return `🚨 ACIONAMENTO DE EQUIPE
 
@@ -4407,7 +4487,7 @@ function montarScriptAcionamento(pop,campos={}){
 
 📍 Distância: ${distancia} km
 🚗 Deslocamento: ${desloc}
-🛡 Margem: ${margem}
+🚨 Acionar equipe após: ${acionarApos} sem energia
 🔋 Autonomia: ${autonomia}
 🕐 Início: ${inicio}
 🚨 Limite para acionar: ${limite}
@@ -4642,13 +4722,13 @@ function formatarMensagemTelegram(pop,c,etapa){
   const nome=pop.nome||"POP não informado";
   const distancia=Number(pop.distanciaKm||0).toFixed(1);
   const desloc=formatarDuracaoMinutos(calcularDeslocamentoMinutos(pop));
-  const margem=formatarDuracaoMinutos(Number(pop.margemSegurancaMin)||30);
+  const acionarApos=formatarDuracaoMinutos(Number(pop.margemSegurancaMin ?? 30));
   const autonomia=formatarAutonomia(c.autonomiaMin/60);
   const limite=c.limite?formatarDataHora(c.limite.toISOString()):"--";
   const restante=c.restanteMin!=null?formatarContagem(c.restanteMin):"--";
   const agora=formatarDataHora(new Date().toISOString());
 
-  const cabecalho=`🏷️ POP: ${nome}\n📍 Distância: ${distancia} km\n🚗 Deslocamento: ${desloc}\n🛡️ Margem: ${margem}\n🔋 Autonomia: ${autonomia}\n`;
+  const cabecalho=`🏷️ POP: ${nome}\n📍 Distância: ${distancia} km\n🚗 Deslocamento: ${desloc}\n🚨 Acionar equipe após: ${acionarApos} sem energia\n🔋 Autonomia: ${autonomia}\n`;
   if(etapa==="FALTA_REGISTRADA")return `⚡ FALTA DE ENERGIA REGISTRADA\n\n${cabecalho}🕐 Início: ${formatarDataHora(pop.quedaEnergiaEm)}\n🚨 Limite para acionar: ${limite}`;
   if(etapa==="META_AUTONOMIA")return `🟡 50% DA AUTONOMIA\n\n${cabecalho}⏱️ Autonomia restante: ${restante}\n⚠️ Atenção para preparar a equipe.`;
   if(etapa==="PREPARAR_EQUIPE")return `🟠 PREPARAR EQUIPE\n\n${cabecalho}⏱️ Tempo restante: ${restante}\n🚨 Limite para acionar: ${limite}`;
@@ -4977,13 +5057,17 @@ function calcularContingencia(pop,agora=new Date()){
   const autonomiaHoras=Number(pop._autonomiaAjustada)||0;
   const autonomiaMin=autonomiaHoras*60;
   const deslocamentoMin=calcularDeslocamentoMinutos(pop);
-  const margemMin=Math.max(0,Number(pop.margemSegurancaMin ?? 30));
-  const reservado=deslocamentoMin+margemMin;
-  if(!pop.quedaEnergiaEm)return {ativa:false,autonomiaMin,deslocamentoMin,margemMin,reservado,limite:null,fimAutonomia:null,restanteMin:null,restanteLimiteMin:null,status:"normal"};
+  // O campo legado margemSegurancaMin agora guarda o prazo configurado em minutos,
+  // exibido na tela como horas sem energia até o acionamento da equipe.
+  const acionarAposMin=Math.max(0,Number(pop.margemSegurancaMin ?? 30));
+  const margemMin=acionarAposMin;
+  const reservado=deslocamentoMin+acionarAposMin;
+  if(!pop.quedaEnergiaEm)return {ativa:false,autonomiaMin,deslocamentoMin,margemMin,acionarAposMin,reservado,limite:null,fimAutonomia:null,restanteMin:null,restanteLimiteMin:null,status:"normal"};
   const inicio=new Date(pop.quedaEnergiaEm);
-  if(isNaN(inicio.getTime()))return {ativa:false,autonomiaMin,deslocamentoMin,margemMin,reservado,status:"normal"};
+  if(isNaN(inicio.getTime()))return {ativa:false,autonomiaMin,deslocamentoMin,margemMin,acionarAposMin,reservado,status:"normal"};
   const fimAutonomia=new Date(inicio.getTime()+autonomiaMin*60000);
-  const limite=new Date(fimAutonomia.getTime()-reservado*60000);
+  // O prazo de acionamento é contado diretamente desde o início da falta de energia.
+  const limite=new Date(inicio.getTime()+acionarAposMin*60000);
 
   // Quando a energia volta, a ocorrência fica encerrada.
   // O operador só precisa informar o restabelecimento; a partir daí
@@ -5012,7 +5096,7 @@ function calcularContingencia(pop,agora=new Date()){
   if(restanteLimiteMin<=0)status="vencido";
   else if(restanteLimiteMin<=30)status="critico";
   else if(restanteLimiteMin<=60)status="atencao";
-  return {ativa:true,encerrada:false,inicio,fimAutonomia,limite,autonomiaMin,deslocamentoMin,margemMin,reservado,restanteMin,restanteLimiteMin,status};
+  return {ativa:true,encerrada:false,inicio,fimAutonomia,limite,autonomiaMin,deslocamentoMin,margemMin,acionarAposMin,reservado,restanteMin,restanteLimiteMin,status};
 }
 function formatarContagem(minutos){
   if(!Number.isFinite(minutos))return "--";
@@ -5149,7 +5233,12 @@ function adicionarBateria(i){
 
     dataInstalacao:"",
 
-    validade:""
+    validade:"",
+    patrimonio:"",
+    ccaPadraoA:"",
+    ccaMedidoA:"",
+    saudePercentual:"",
+    cargaPercentual:""
 
   });
 
@@ -5607,13 +5696,68 @@ function render(preservarBusca=true){
         ?garantiaPrincipal.fimGarantia.toISOString().slice(0,10)
         :"";
 
-    const monitor=
+    const monitorBase=
       statusMonitoramento(
         dadosBateria.idade,
         percentual,
         autonomiaAjustada,
         garantiaPrincipal
       );
+
+    // Prioriza resultados reais dos testes cadastrados em cada bateria.
+    // A idade permanece como estimativa somente quando não há testes informados.
+    const bateriasComTeste = (Array.isArray(pop.baterias) ? pop.baterias : [])
+      .map((bat, idx) => ({ ...bat, numero: idx + 1 }))
+      .filter(bat =>
+        (bat.saudePercentual !== undefined && bat.saudePercentual !== "" && Number.isFinite(Number(bat.saudePercentual))) ||
+        (bat.ccaPadraoA !== undefined && bat.ccaPadraoA !== "" &&
+         bat.ccaMedidoA !== undefined && bat.ccaMedidoA !== "" &&
+         Number.isFinite(Number(bat.ccaPadraoA)) && Number.isFinite(Number(bat.ccaMedidoA)))
+      );
+
+    const saudesReais = bateriasComTeste
+      .filter(bat => bat.saudePercentual !== undefined && bat.saudePercentual !== "")
+      .map(bat => Number(bat.saudePercentual));
+    const saudeRealMedia = saudesReais.length
+      ? Math.round(saudesReais.reduce((s, v) => s + v, 0) / saudesReais.length)
+      : null;
+
+    const bateriasComAlerta = bateriasComTeste.filter(bat => {
+      const ccaBaixo = bat.ccaPadraoA !== undefined && bat.ccaPadraoA !== "" &&
+        bat.ccaMedidoA !== undefined && bat.ccaMedidoA !== "" &&
+        Number(bat.ccaMedidoA) < Number(bat.ccaPadraoA);
+      const saudeBaixa = bat.saudePercentual !== undefined && bat.saudePercentual !== "" &&
+        Number(bat.saudePercentual) < 80;
+      return ccaBaixo || saudeBaixa;
+    });
+
+    let monitor = monitorBase;
+    if (bateriasComAlerta.length) {
+      const detalhes = bateriasComAlerta.map(bat => {
+        const patrimonio = bat.patrimonio ? ` (${escapeHtml(bat.patrimonio)})` : "";
+        const cca = bat.ccaMedidoA !== undefined && bat.ccaMedidoA !== ""
+          ? `CCA ${escapeHtml(bat.ccaMedidoA)}/${bat.ccaPadraoA !== undefined && bat.ccaPadraoA !== "" ? escapeHtml(bat.ccaPadraoA) : "--"}`
+          : "CCA n/d";
+        const saude = bat.saudePercentual !== undefined && bat.saudePercentual !== ""
+          ? `${escapeHtml(bat.saudePercentual)}% saúde`
+          : "saúde n/d";
+        return `B${bat.numero}${patrimonio}: ${saude}, ${cca} A`;
+      });
+      monitor = {
+        classe: "monitor-critico",
+        titulo: `🔴 SUBSTITUIR / VERIFICAR — ${bateriasComAlerta.length} bateria(s)`,
+        mensagem: detalhes.join(" · ")
+      };
+    } else if (bateriasComTeste.length) {
+      monitor = {
+        classe: "monitor-normal",
+        titulo: "🟢 TESTES DAS BATERIAS SEM ALERTA",
+        mensagem: "Os resultados cadastrados não indicam CCA abaixo do padrão nem saúde inferior a 80%. A idade estimada continua disponível separadamente."
+      };
+    }
+
+    const textoSaudeResumo = saudeRealMedia !== null ? "Saúde média (testes)" : "Saúde estimada";
+    const valorSaudeResumo = saudeRealMedia !== null ? `${saudeRealMedia}%` : `${percentual}%`;
 
     const bateria=garantiaPrincipal
       ?garantiaPrincipal
@@ -5641,9 +5785,12 @@ function render(preservarBusca=true){
 
       bateriasGarantiaLeituraHtml+=`
         <div class="garantia-bateria-item">
-          <strong>🔋 Bateria ${j+1}</strong>
+          <strong>🔋 Bateria ${j+1}${bat.patrimonio ? " — Patrimônio: "+escapeHtml(bat.patrimonio) : ""}</strong>
+          <small>Patrimônio: ${bat.patrimonio ? escapeHtml(bat.patrimonio) : "Não informado"}</small>
           <small>Instalação: ${bat.dataInstalacao ? formatarData(bat.dataInstalacao) : "--"}</small>
           <small>Garantia: ${fimBatLeitura}</small>
+          <small>CCA medido: ${bat.ccaMedidoA!==undefined && bat.ccaMedidoA!=="" ? escapeHtml(bat.ccaMedidoA)+" A" : "--"} / padrão: ${bat.ccaPadraoA!==undefined && bat.ccaPadraoA!=="" ? escapeHtml(bat.ccaPadraoA)+" A" : "--"}</small>
+          <small>Saúde: ${bat.saudePercentual!==undefined && bat.saudePercentual!=="" ? escapeHtml(bat.saudePercentual)+"%" : "--"} · Carga: ${bat.cargaPercentual!==undefined && bat.cargaPercentual!=="" ? escapeHtml(bat.cargaPercentual)+"%" : "--"}</small>
         </div>
       `;
 
@@ -5689,6 +5836,36 @@ function render(preservarBusca=true){
 
           </div>
 
+
+          <div>
+            <label>Patrimônio / identificação da bateria</label>
+            <input type="text" placeholder="Ex.: BAT-001 / etiqueta" value="${escapeHtml(bat.patrimonio || "")}" ${!modoEdicao?"disabled":""}
+              onchange="pops[${i}].baterias[${j}].patrimonio=this.value.trim(); existemAlteracoes=true; renderVisivel(${i},false,false);">
+          </div>
+
+          <div>
+            <label>CCA padrão (A)</label>
+            <input type="number" min="0" step="1" placeholder="Ex.: 680" value="${bat.ccaPadraoA ?? ""}" ${!modoEdicao?"disabled":""}
+              onchange="pops[${i}].baterias[${j}].ccaPadraoA=this.value===''?'':Number(this.value); existemAlteracoes=true; renderVisivel(${i},false,false);">
+          </div>
+
+          <div>
+            <label>CCA medido no teste (A)</label>
+            <input type="number" min="0" step="1" placeholder="Ex.: 405" value="${bat.ccaMedidoA ?? ""}" ${!modoEdicao?"disabled":""}
+              onchange="pops[${i}].baterias[${j}].ccaMedidoA=this.value===''?'':Number(this.value); existemAlteracoes=true; renderVisivel(${i},false,false);">
+          </div>
+
+          <div>
+            <label>Saúde da bateria (%)</label>
+            <input type="number" min="0" max="100" step="1" placeholder="Ex.: 59" value="${bat.saudePercentual ?? ""}" ${!modoEdicao?"disabled":""}
+              onchange="pops[${i}].baterias[${j}].saudePercentual=this.value===''?'':Math.min(100,Math.max(0,Number(this.value))); existemAlteracoes=true; renderVisivel(${i},false,false);">
+          </div>
+
+          <div>
+            <label>Carga da bateria (%)</label>
+            <input type="number" min="0" max="100" step="1" placeholder="Ex.: 100" value="${bat.cargaPercentual ?? ""}" ${!modoEdicao?"disabled":""}
+              onchange="pops[${i}].baterias[${j}].cargaPercentual=this.value===''?'':Math.min(100,Math.max(0,Number(this.value))); existemAlteracoes=true; renderVisivel(${i},false,false);">
+          </div>
 
           <div>
 
@@ -5794,9 +5971,10 @@ function render(preservarBusca=true){
                 onchange="pops[${i}].velocidadeKmH=Number(this.value)||80;existemAlteracoes=true;renderVisivel(${i});">
             </div>
             <div>
-              <label>Margem de segurança (min)</label>
-              <input type="number" min="0" step="1" value="${Number(pop.margemSegurancaMin ?? 30)}" ${!modoEdicao?"disabled":""}
-                onchange="pops[${i}].margemSegurancaMin=Math.max(0,Number(this.value)||0);existemAlteracoes=true;renderVisivel(${i});">
+              <label>Acionar equipe após (horas sem energia)</label>
+              <input type="number" min="0" step="0.5" value="${(Number(pop.margemSegurancaMin ?? 30)/60).toFixed(1)}" ${!modoEdicao?"disabled":""}
+                onchange="pops[${i}].margemSegurancaMin=Math.max(0,Number(this.value)||0)*60;existemAlteracoes=true;renderVisivel(${i});">
+              <small>Ex.: 10 horas = acionar quando a falta completar 10 horas.</small>
             
           <label>🔌 Corrente do carregador (A)
             <input type="number" min="0.1" step="0.1"
@@ -6118,8 +6296,8 @@ function render(preservarBusca=true){
               <strong>${formatarAutonomia(autonomiaAjustada)}</strong>
             </div>
             <div class="resumo-item-leitura">
-              <span>📊 Saúde</span>
-              <strong>${percentual}%</strong>
+              <span>📊 ${textoSaudeResumo}</span>
+              <strong>${valorSaudeResumo}</strong>
             </div>
           </div>
 
@@ -6137,7 +6315,7 @@ function render(preservarBusca=true){
             </div>
 
             <div class="monitor-card">
-              <span>📊 Saúde estimada do banco</span>
+              <span>📊 Saúde estimada pela idade</span>
               <strong>${percentual}%</strong>
             </div>
 
@@ -6231,8 +6409,8 @@ function render(preservarBusca=true){
             </div>
 
             <div class="contingencia-card">
-              <span>🛡️ Margem de segurança</span>
-              <strong>${formatarDuracaoMinutos(obterMargemMin(pop))}</strong>
+              <span>🚨 Acionar equipe após</span>
+              <strong>${formatarDuracaoMinutos(obterMargemMin(pop))} sem energia</strong>
             </div>
 
             <div class="contingencia-card">
@@ -6323,8 +6501,9 @@ function render(preservarBusca=true){
         </div>
 
 
-        ${painelFontesHtml}
-        ${bancosEnergiaHtml}
+        <div class="config-pop-cards">
+          ${painelFontesHtml}
+          ${bancosEnergiaHtml}
 
         <!-- =========================
              EQUIPAMENTOS DO POP
@@ -6431,7 +6610,7 @@ function render(preservarBusca=true){
           </div>
 
         </details>
-
+        </div>
 
         <!-- RESUMO -->
 
@@ -7060,7 +7239,7 @@ async function criarPOP(){
 
     distanciaKm:Number(document.getElementById("novoDistancia").value)||0,
     velocidadeKmH:Number(document.getElementById("novoVelocidade").value)||80,
-    margemSegurancaMin:Number(document.getElementById("novoMargem").value)||30,
+    margemSegurancaMin:Math.max(0,Number(document.getElementById("novoMargem").value)||10)*60,
     fonte1Nome:"Fonte 1",
     fonte1CorrenteA:null,
     fonte2Nome:"Fonte 2",
@@ -7104,7 +7283,7 @@ async function criarPOP(){
   ).value="";
   document.getElementById("novoDistancia").value="";
   document.getElementById("novoVelocidade").value="80";
-  document.getElementById("novoMargem").value="30";
+  document.getElementById("novoMargem").value="10";
 
 
   render();
@@ -7421,7 +7600,7 @@ function exportarPlanilhaAutonomia(){
   const merges=[];
   const resumo=[[
     "POP","TENSÃO DO BANCO (V)","BANCO (Ah)","CONSUMO TOTAL (A)",
-    "AUTONOMIA ESTIMADA","DISTÂNCIA DA BASE (km)","MARGEM DE SEGURANÇA (min)",
+    "AUTONOMIA ESTIMADA","DISTÂNCIA DA BASE (km)","ACIONAR EQUIPE APÓS (horas sem energia)",
     "ÚLTIMA PREVENTIVA","PRÓXIMA PREVENTIVA","EQUIPAMENTOS"
   ]];
 
@@ -7468,7 +7647,7 @@ function exportarPlanilhaAutonomia(){
     resumo.push([
       String(pop.nome||""),Number(pop.tensaoBancoV)||48,ah,Number(consumo.toFixed(3)),
       autonomiaTexto(Number(pop._autonomiaAjustada)||autonomia),Number(pop.distanciaKm)||0,
-      Number(pop.margemSegurancaMin??30),fmtData(pop.ultimaPreventiva),fmtData(pop.proximaPreventiva),equipamentos.length
+      Number((pop.margemSegurancaMin??600)/60),fmtData(pop.ultimaPreventiva),fmtData(pop.proximaPreventiva),equipamentos.length
     ]);
   });
 
