@@ -2164,6 +2164,8 @@ function bancoParaPop(row){
 
     ah:Number(row.ah)||0,
 
+    bancosEnergia:Array.isArray(row.bancos_energia)?row.bancos_energia:[],
+
     tensaoBancoV:Number(row.tensao_banco_v)||48,
 
     dataInstalacao:
@@ -2199,6 +2201,12 @@ function bancoParaPop(row){
     equipeEnviadaEm:row.equipe_enviada_em||null,
     energiaRestabelecidaEm:row.energia_restabelecida_em||null,
 
+    // Correntes individuais das duas fontes. NULL significa que ainda não foi configurada.
+    fonte1Nome:row.fonte1_nome||"Fonte 1",
+    fonte1CorrenteA:row.fonte1_corrente_a==null?null:Number(row.fonte1_corrente_a),
+    fonte2Nome:row.fonte2_nome||"Fonte 2",
+    fonte2CorrenteA:row.fonte2_corrente_a==null?null:Number(row.fonte2_corrente_a),
+
     // Foto do POP armazenada no Supabase Storage
     fotoUrl:row.foto_url||"",
 
@@ -2233,6 +2241,8 @@ function popParaBanco(pop){
     nome:pop.nome||"",
 
     ah:Number(pop.ah)||0,
+
+    bancos_energia:Array.isArray(pop.bancosEnergia)?pop.bancosEnergia:[],
 
     tensao_banco_v:[12,24,48].includes(Number(pop.tensaoBancoV)) ? Number(pop.tensaoBancoV) : 48,
 
@@ -2271,6 +2281,12 @@ function popParaBanco(pop){
     energia_restabelecida_em:pop.energiaRestabelecidaEm||null,
 
     foto_url:pop.fotoUrl||null,
+
+    // Requer as quatro colunas adicionadas pelo SQL de migração fornecido junto do arquivo.
+    fonte1_nome:String(pop.fonte1Nome||"Fonte 1").trim()||"Fonte 1",
+    fonte1_corrente_a:pop.fonte1CorrenteA==null || pop.fonte1CorrenteA==="" ? null : Number(pop.fonte1CorrenteA),
+    fonte2_nome:String(pop.fonte2Nome||"Fonte 2").trim()||"Fonte 2",
+    fonte2_corrente_a:pop.fonte2CorrenteA==null || pop.fonte2CorrenteA==="" ? null : Number(pop.fonte2CorrenteA),
 
     equipamentos:
       Array.isArray(pop.equipamentos)
@@ -4651,13 +4667,66 @@ function formatarMensagemTelegram(pop,c,etapa){
 
 
 
-function calcularConsumoPOP(pop){
+function calcularConsumoEquipamentosPOP(pop){
   return (Array.isArray(pop?.equipamentos) ? pop.equipamentos : [])
     .reduce((total,e) => {
       const ampere = Number(e?.ampere) || 0;
       const quantidade = Number(e?.quantidade) || 0;
       return total + ampere * quantidade;
     }, 0);
+}
+
+// Se houver pelo menos uma leitura de corrente preenchida, usa a maior leitura válida
+// das fontes redundantes como referência de consumo real. Não soma as fontes para evitar
+// contar a mesma carga duas vezes. Se nenhuma leitura foi cadastrada, retorna null e o
+// cálculo usa a soma estimada dos equipamentos.
+function consumoMedidoFontesA(pop){
+  const valores=[pop?.fonte1CorrenteA,pop?.fonte2CorrenteA]
+    .filter(v=>v!==null && v!==undefined && String(v).trim()!=="")
+    .map(Number)
+    .filter(v=>Number.isFinite(v) && v>=0);
+  return valores.length ? Math.max(...valores) : null;
+}
+
+function normalizarBancosEnergia(pop){
+  if(!Array.isArray(pop.bancosEnergia) || !pop.bancosEnergia.length){
+    pop.bancosEnergia=[{nome:"Banco 1",ah:Number(pop.ah)||0,tensaoV:Number(pop.tensaoBancoV)||48}];
+  }
+  pop.bancosEnergia=pop.bancosEnergia.map((b,i)=>({
+    nome:String(b?.nome||`Banco ${i+1}`),
+    ah:Math.max(0,Number(b?.ah)||0),
+    tensaoV:Number(b?.tensaoV)||Number(pop.tensaoBancoV)||48
+  }));
+  return pop.bancosEnergia;
+}
+function capacidadeTotalBancosAh(pop){
+  const bancos=normalizarBancosEnergia(pop);
+  // Para bancos no mesmo barramento/tensão, a capacidade em Ah é aditiva.
+  // Bancos de tensões diferentes não devem ser somados como um único banco.
+  const tensao=Number(pop.tensaoBancoV)||48;
+  const compat=bancos.filter(b=>Number(b.tensaoV)===tensao);
+  return compat.reduce((s,b)=>s+Math.max(0,Number(b.ah)||0),0);
+}
+function adicionarBancoEnergia(i){
+  const pop=pops[i]; normalizarBancosEnergia(pop);
+  pop.bancosEnergia.push({nome:`Banco ${pop.bancosEnergia.length+1}`,ah:0,tensaoV:Number(pop.tensaoBancoV)||48});
+  pop.ah=capacidadeTotalBancosAh(pop); existemAlteracoes=true; renderVisivel(i,false,true);
+}
+function removerBancoEnergia(i,j){
+  const pop=pops[i]; normalizarBancosEnergia(pop);
+  if(pop.bancosEnergia.length<=1){alert("O POP precisa ter pelo menos um banco.");return;}
+  pop.bancosEnergia.splice(j,1); pop.ah=capacidadeTotalBancosAh(pop); existemAlteracoes=true; renderVisivel(i,false,true);
+}
+function atualizarBancoEnergia(i,j,campo,valor){
+  const pop=pops[i]; normalizarBancosEnergia(pop);
+  pop.bancosEnergia[j][campo]=campo==="nome"?valor:(Number(valor)||0);
+  if(campo==="tensaoV") pop.tensaoBancoV=Number(valor)||48;
+  pop.ah=capacidadeTotalBancosAh(pop); existemAlteracoes=true; renderVisivel(i,false,true);
+}
+
+function calcularConsumoPOP(pop){
+  const medido=consumoMedidoFontesA(pop);
+  return medido!==null ? medido : calcularConsumoEquipamentosPOP(pop);
 }
 
 function obterCorrenteCarregadorA(pop){
@@ -4671,7 +4740,7 @@ function obterCorrenteCarregadorA(pop){
 const PERCENTUAL_CAPACIDADE_OPERACIONAL = 80;
 
 function capacidadeNominalAh(pop){
-  return Math.max(0, Number(pop?.ah) || 0);
+  return Math.max(0, capacidadeTotalBancosAh(pop) || Number(pop?.ah) || 0);
 }
 
 function capacidadeOperacionalAh(pop){
@@ -5378,13 +5447,63 @@ function render(preservarBusca=true){
 
       });
 
+    // Prioridade: leitura real cadastrada em qualquer fonte; se nenhuma foi cadastrada,
+    // usa automaticamente a soma dos amperes dos equipamentos.
+    const consumoMedidoFontes=consumoMedidoFontesA(pop);
+    const consumoEstimadoEquipamentos=consumo;
+    consumo=consumoMedidoFontes!==null ? consumoMedidoFontes : consumoEstimadoEquipamentos;
+    const origemConsumo=consumoMedidoFontes!==null
+      ? "Consumo real informado — maior leitura válida das fontes redundantes"
+      : "Estimativa pelo cadastro de equipamentos";
+    const painelFontesHtml=`
+      <div class="banco" style="margin:14px 0;padding:14px">
+        <h3>⚡ Fontes de alimentação e consumo</h3>
+        <p style="margin:4px 0 12px;color:#555;font-size:13px">Informe a corrente de carga observada em cada fonte. Se preencher pelo menos uma leitura, o sistema usa a maior leitura válida como consumo real, sem somar fontes redundantes. Se deixar as duas em branco, usa automaticamente o consumo estimado pelo cadastro de equipamentos.</p>
+        <div class="banco-grid">
+          <div><label>Identificação da fonte 1
+            <input value="${escapeHtml(pop.fonte1Nome||"Fonte 1")}" ${!modoEdicao?"disabled":""} onchange="pops[${i}].fonte1Nome=this.value; existemAlteracoes=true; renderVisivel(${i},false,true);">
+          </label></div>
+          <div><label>Consumo da fonte 1 (A)
+            <input type="number" min="0" step="0.01" placeholder="Ex.: 1,20" value="${pop.fonte1CorrenteA==null?"":escapeHtml(pop.fonte1CorrenteA)}" ${!modoEdicao?"disabled":""} onchange="pops[${i}].fonte1CorrenteA=this.value.trim()===''?null:Number(this.value); existemAlteracoes=true; renderVisivel(${i},false,true);">
+          </label></div>
+          <div><label>Identificação da fonte 2
+            <input value="${escapeHtml(pop.fonte2Nome||"Fonte 2")}" ${!modoEdicao?"disabled":""} onchange="pops[${i}].fonte2Nome=this.value; existemAlteracoes=true; renderVisivel(${i},false,true);">
+          </label></div>
+          <div><label>Consumo da fonte 2 (A)
+            <input type="number" min="0" step="0.01" placeholder="Ex.: 0,80" value="${pop.fonte2CorrenteA==null?"":escapeHtml(pop.fonte2CorrenteA)}" ${!modoEdicao?"disabled":""} onchange="pops[${i}].fonte2CorrenteA=this.value.trim()===''?null:Number(this.value); existemAlteracoes=true; renderVisivel(${i},false,true);">
+          </label></div>
+        </div>
+        <div class="status ${consumoMedidoFontes!==null?"status-ok":"status-alerta"}" style="margin-top:10px">
+          ${escapeHtml(origemConsumo)} — consumo usado: <strong>${consumo.toFixed(2)} A</strong>
+          ${consumoMedidoFontes!==null?` (maior leitura válida cadastrada: ${consumoMedidoFontes.toFixed(2)} A)`:""}
+        </div>
+      </div>`;
+
+    normalizarBancosEnergia(pop);
+    pop.ah=capacidadeTotalBancosAh(pop) || Number(pop.ah)||0;
+    const bancosEnergiaHtml=`
+      <div class="banco" style="margin:14px 0;padding:14px">
+        <h3>🔋 Bancos de baterias do POP</h3>
+        <p style="font-size:13px;color:#555">Cadastre cada banco individualmente. A capacidade em Ah é somada quando os bancos têm a mesma tensão do sistema. Bancos de tensões diferentes não são somados.</p>
+        ${pop.bancosEnergia.map((b,j)=>`<div class="banco-grid" style="align-items:end;border-bottom:1px solid #ddd;padding:8px 0;margin-bottom:8px">
+          <div><label>Nome do banco<input value="${escapeHtml(b.nome)}" ${!modoEdicao?"disabled":""} onchange="atualizarBancoEnergia(${i},${j},'nome',this.value)"></label></div>
+          <div><label>Capacidade (Ah)<input type="number" min="0" step="0.1" value="${Number(b.ah)||0}" ${!modoEdicao?"disabled":""} onchange="atualizarBancoEnergia(${i},${j},'ah',this.value)"></label></div>
+          <div><label>Tensão do banco<select ${!modoEdicao?"disabled":""} onchange="atualizarBancoEnergia(${i},${j},'tensaoV',this.value)"><option value="12" ${Number(b.tensaoV)===12?"selected":""}>12 V</option><option value="24" ${Number(b.tensaoV)===24?"selected":""}>24 V</option><option value="48" ${Number(b.tensaoV)===48?"selected":""}>48 V</option></select></label></div>
+          <div><button class="remove btn-edicao" ${!modoEdicao?"disabled":""} onclick="removerBancoEnergia(${i},${j})">Remover</button></div>
+        </div>`).join("")}
+        <button class="btn-edicao" ${!modoEdicao?"disabled":""} onclick="adicionarBancoEnergia(${i})">＋ Adicionar banco</button>
+        <div class="status status-ok" style="margin-top:10px">Capacidade dos bancos compatíveis com ${Number(pop.tensaoBancoV)||48} V: <strong>${capacidadeTotalBancosAh(pop).toFixed(1)} Ah</strong>. Com reserva de 20%: <strong>${(capacidadeTotalBancosAh(pop)*0.8).toFixed(1)} Ah úteis</strong>.</div>
+      </div>`;
 
     /* =========================
        AUTONOMIA
     ========================= */
 
+    // Usa a soma dos bancos cadastrados compatíveis com a tensão do POP.
+    // Mantém compatibilidade com cadastros antigos que ainda não possuem bancosEnergia.
     const ahNominal=
-      Number(pop.ah)||0;
+      (typeof capacidadeTotalBancosAh === "function" ? capacidadeTotalBancosAh(pop) : 0)
+      || Number(pop.ah)||0;
 
 
     const autonomiaTeorica=
@@ -5425,10 +5544,12 @@ function render(preservarBusca=true){
       dadosBateria.percentual;
 
 
-    // Capacidade operacional estimada: envelhecimento da bateria aplicado
-    // e, depois, uso de até 80% do banco, preservando 20% como reserva.
+    // Autonomia operacional: usa 80% da capacidade total dos bancos compatíveis,
+    // reservando 20%. A saúde/idade continua sendo exibida separadamente no painel,
+    // mas não reduz novamente a capacidade usada nesta estimativa para evitar
+    // que o cálculo mostre uma autonomia muito menor que Ah útil / consumo real.
     const capacidadeUtil=
-      ahNominal*(percentual/100)*(PERCENTUAL_CAPACIDADE_OPERACIONAL/100);
+      ahNominal*(PERCENTUAL_CAPACIDADE_OPERACIONAL/100);
 
 
     const autonomiaAjustada=
@@ -5707,9 +5828,22 @@ function render(preservarBusca=true){
           </h3>
 
           <div class="resumo-banco-leitura">
+            ${normalizarBancosEnergia(pop)
+              .filter(b=>Number(b.ah)>0 && Number(b.tensaoV)===(Number(pop.tensaoBancoV)||48))
+              .map((b,j)=>`
+                <div class="resumo-item-leitura">
+                  <span>🔋 ${escapeHtml(b.nome || `Banco ${j+1}`)}</span>
+                  <strong>${Number(b.ah).toLocaleString("pt-BR",{maximumFractionDigits:2})} Ah</strong>
+                </div>
+              `).join("") || `
+                <div class="resumo-item-leitura">
+                  <span>🔋 Banco</span>
+                  <strong>${ahNominal.toFixed(2)} Ah</strong>
+                </div>
+              `}
             <div class="resumo-item-leitura">
-              <span>🔋 Banco</span>
-              <strong>${ahNominal.toFixed(2)} Ah</strong>
+              <span>➕ Capacidade total</span>
+              <strong>${ahNominal.toLocaleString("pt-BR",{maximumFractionDigits:2})} Ah</strong>
             </div>
             <div class="resumo-item-leitura">
               <span>⚡ Tensão</span>
@@ -5735,7 +5869,7 @@ function render(preservarBusca=true){
             <div>
 
               <label>
-                Capacidade do Banco
+                Capacidade total dos bancos (Ah)
               </label>
 
               <input
@@ -5749,9 +5883,9 @@ function render(preservarBusca=true){
                 ${!modoEdicao?"disabled":""}
 
                 onchange="
-                  pops[${i}].ah=
-                    Number(this.value)||0;
-
+                  pops[${i}].ah=Number(this.value)||0;
+                  normalizarBancosEnergia(pops[${i}]);
+                  if(pops[${i}].bancosEnergia.length===1) pops[${i}].bancosEnergia[0].ah=pops[${i}].ah;
                   existemAlteracoes=true;
 
                   renderVisivel(${i});
@@ -6050,8 +6184,7 @@ function render(preservarBusca=true){
             <strong>${ahNominal.toFixed(2)} Ah</strong>.
             O valor de
             <strong>${capacidadeUtil.toFixed(2)} Ah</strong>
-            representa a capacidade operacional estimada após aplicar
-            o fator de envelhecimento e reservar 20% da capacidade nominal, usando até
+            representa a capacidade operacional estimada após reservar 20% da capacidade nominal, usando até
             <strong>${PERCENTUAL_CAPACIDADE_OPERACIONAL}% do banco</strong>,
             preservando 20% do banco como reserva operacional.
 
@@ -6189,6 +6322,9 @@ function render(preservarBusca=true){
 
         </div>
 
+
+        ${painelFontesHtml}
+        ${bancosEnergiaHtml}
 
         <!-- =========================
              EQUIPAMENTOS DO POP
@@ -6730,23 +6866,7 @@ function renderVisivel(
 function atualizarConsumoVisual(i){
 
   const pop=pops[i];
-
-  let consumo=0;
-
-
-  (pop.equipamentos||[])
-    .forEach(e=>{
-
-      const ampere=
-        Number(e.ampere)||0;
-
-      const quantidade=
-        Number(e.quantidade)||0;
-
-      consumo+=ampere*quantidade;
-
-    });
-
+  const consumo=calcularConsumoPOP(pop);
 
   const elemento=
     document.getElementById(
@@ -6914,6 +7034,8 @@ async function criarPOP(){
 
     ah:ah,
 
+    bancosEnergia:[{nome:"Banco 1",ah:ah,tensaoV:Number(document.getElementById("novaTensaoBanco").value)||48}],
+
      tensaoBancoV:Number(document.getElementById("novaTensaoBanco").value)||48,
 
     dataInstalacao:data,
@@ -6939,6 +7061,15 @@ async function criarPOP(){
     distanciaKm:Number(document.getElementById("novoDistancia").value)||0,
     velocidadeKmH:Number(document.getElementById("novoVelocidade").value)||80,
     margemSegurancaMin:Number(document.getElementById("novoMargem").value)||30,
+    fonte1Nome:"Fonte 1",
+    fonte1CorrenteA:null,
+    fonte2Nome:"Fonte 2",
+    fonte2CorrenteA:null,
+    correnteCarregadorA:20,
+    energiaSaldoAh:null,
+    energiaSaldoAtualizadoEm:null,
+    ultimaNormalizacaoEm:null,
+    recargaAcumuladaAh:0,
     quedaEnergiaEm:null,
     equipeEnviadaEm:null,
     energiaRestabelecidaEm:null,
@@ -7316,21 +7447,23 @@ function exportarPlanilhaAutonomia(){
     merges.push({s:{r:start,c:0},e:{r:start,c:3}});
     linhas.push(["EQUIPAMENTO","MODELO","AMPERE","QT"]);
 
-    let consumo=0;
+    let consumoEquipamentos=0;
     const equipamentos=Array.isArray(pop.equipamentos)?pop.equipamentos:[];
     equipamentos.forEach(e=>{
       const ampere=Number(e.ampere)||0;
       const qt=Math.max(0,Number(e.quantidade)||1);
-      consumo+=ampere*qt;
+      consumoEquipamentos+=ampere*qt;
       linhas.push([String(e.nome||e.equipamento||""),String(e.modelo||""),`${ampere.toLocaleString("pt-BR",{maximumFractionDigits:3})} A`,qt]);
     });
     if(equipamentos.length===0) linhas.push(["Nenhum equipamento cadastrado","","",""]);
-    linhas.push(["Consumo total","",`${consumo.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} A`,""]);
-    linhas.push([`Autonomia estimada: ${autonomiaTexto(Number(pop._autonomiaAjustada)||0)}`,"Banco de baterias",`${Number(pop.ah)||0} Ah`,`${Number(pop.tensaoBancoV)||48} V`]);
+    const consumo=calcularConsumoPOP(pop);
+    const modoConsumo=consumoMedidoFontesA(pop)!==null?" (medido pelas duas fontes)":" (estimado pelos equipamentos)";
+    linhas.push(["Consumo usado"+modoConsumo,"",`${consumo.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} A`,""]);
+    linhas.push([`Autonomia estimada: ${autonomiaTexto(Number(pop._autonomiaAjustada)||0)}`,"Banco de baterias",`${capacidadeTotalBancosAh(pop).toFixed(1)} Ah`,`${Number(pop.tensaoBancoV)||48} V`]);
     linhas.push([`Data das baterias: ${fmtData(pop.dataInstalacao)}`,"Próxima preventiva",fmtData(pop.proximaPreventiva),""]);
     linhas.push(["","","",""]);
 
-    const ah=Number(pop.ah)||0;
+    const ah=capacidadeTotalBancosAh(pop)||Number(pop.ah)||0;
     const autonomia=consumo>0?ah/consumo:0;
     resumo.push([
       String(pop.nome||""),Number(pop.tensaoBancoV)||48,ah,Number(consumo.toFixed(3)),
