@@ -545,9 +545,18 @@ input:disabled{
   color:#1f6f43;
 }
 
-/* Apenas o card Garantia é clicável */
+/* Atalho para abrir os detalhes das baterias do POP */
 .pop.leitura-compacta .garantia-clicavel{
   cursor:pointer;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.pop.leitura-compacta .garantia-clicavel:hover{
+  box-shadow:0 0 0 2px rgba(31,111,67,.22);
+  transform:translateY(-1px);
+}
+.pop.leitura-compacta .garantia-clicavel:focus-visible{
+  outline:2px solid #1f6f43;
+  outline-offset:2px;
 }
 .pop.leitura-compacta .garantia-baterias-expansao{
   display:none;
@@ -6400,8 +6409,9 @@ function render(preservarBusca=true){
               onclick="toggleGarantias(${i})"
               title="Clique para ver as baterias"
             >
-              <span>📅 Garantia</span>
-              <strong>${validadePrincipal ? formatarData(validadePrincipal) : "--"}</strong>
+              <span>🔋 Baterias — ver detalhes</span>
+              <strong>📅 Garantia: ${validadePrincipal ? formatarData(validadePrincipal) : "--"}</strong>
+              <small style="display:block;margin-top:4px;color:#176b43;font-weight:600">👆 Clique para consultar cada bateria</small>
             </div>
           </div>
 
