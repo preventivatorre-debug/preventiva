@@ -1766,6 +1766,7 @@ details[open]>summary::before{
       <div><label for="rapidaSaude" class="label-cca-estado">Saúde da bateria (%) <span id="rapidaEstadoSaude" class="badge-estado-cca estado-sem-dados" role="status" aria-live="polite" style="display:none">🟡 Sem dados</span></label><input id="rapidaSaude" type="number" min="0" max="100" step="1" oninput="atualizarEstadoBateriaRapida()"></div>
       <div><label for="rapidaCarga">Carga da bateria (%)</label><input id="rapidaCarga" type="number" min="0" max="100" step="1"></div>
       <div><label for="rapidaDataInstalacao">Data de instalação</label><input id="rapidaDataInstalacao" type="date"></div>
+      <div><label for="rapidaDataTeste">📅 Data do teste</label><input id="rapidaDataTeste" type="date" title="Data em que foi realizada a medição do CCA e da saúde da bateria"></div>
       <div><label for="rapidaPatrimonio">Patrimônio / etiqueta</label><input id="rapidaPatrimonio" type="text"></div>
     </div>
     <div class="bateria-rapida-acoes"><button type="button" class="salvar" onclick="salvarBateriaRapida()">💾 Salvar dados da bateria</button><button type="button" style="background:#555" onclick="limparBateriaRapida()">Cancelar</button></div>
@@ -1953,7 +1954,7 @@ let bateriaRapidaSelecionada = null;
 let bateriaRapidaEdicaoAutorizada = false;
 
 function definirCamposRapidosHabilitados(habilitado){
-  ["rapidaCapacidadeAh","rapidaCcaPadrao","rapidaCcaMedido","rapidaSaude","rapidaCarga","rapidaDataInstalacao","rapidaPatrimonio"].forEach(id=>{
+  ["rapidaCapacidadeAh","rapidaCcaPadrao","rapidaCcaMedido","rapidaSaude","rapidaCarga","rapidaDataInstalacao","rapidaDataTeste","rapidaPatrimonio"].forEach(id=>{
     const campo=document.getElementById(id);
     if(campo) campo.disabled=!habilitado;
   });
@@ -2099,14 +2100,12 @@ function buscarBateriaPorPatrimonio(){
     document.getElementById("rapidaSaude").value=bat.saudePercentual??"";
     document.getElementById("rapidaCarga").value=bat.cargaPercentual??"";
     document.getElementById("rapidaDataInstalacao").value=bat.dataInstalacao||"";
+    document.getElementById("rapidaDataTeste").value=bat.dataTeste||bat.data_teste||"";
     document.getElementById("rapidaPatrimonio").value=bat.patrimonio||"";
     atualizarEstadoBateriaRapida();
-    // Usa os valores do próprio cadastro para evitar referências indefinidas.
-    const ccaMedido = bat.ccaMedidoA === undefined || bat.ccaMedidoA === "" || bat.ccaMedidoA === null ? null : Number(bat.ccaMedidoA);
-    const ccaPadrao = bat.ccaPadraoA === undefined || bat.ccaPadraoA === "" || bat.ccaPadraoA === null ? null : Number(bat.ccaPadraoA);
-    const saude = bat.saudePercentual === undefined || bat.saudePercentual === "" || bat.saudePercentual === null ? null : Number(bat.saudePercentual);
-    infoBateria.textContent=`🔋 TIPO: BATERIA · Patrimônio: ${bat.patrimonio||"Não informado"} · 📍 POP: ${pop.nome||"POP sem nome"} · Bateria ${achado.bateriaIndex+1}\n📊 CCA medido/padrão: ${ccaMedido===null?"--":ccaMedido+" A"} / ${ccaPadrao===null?"--":ccaPadrao+" A"} · Saúde cadastrada: ${saude===null?"--":saude+"%"}`;
-    infoBateria.style.whiteSpace="pre-line";
+    // Exibe somente identificação; CCA e saúde já aparecem nos campos abaixo.
+    infoBateria.textContent=`🔋 TIPO: BATERIA · Patrimônio: ${bat.patrimonio||"Não informado"} · 📍 POP: ${pop.nome||"POP sem nome"} · Bateria ${achado.bateriaIndex+1}`;
+    infoBateria.style.whiteSpace="normal";
     infoBateria.style.display="block";
     document.getElementById("bateriaRapidaCampos").style.display="block";
     definirCamposRapidosHabilitados(false);
@@ -2165,6 +2164,7 @@ async function salvarBateriaRapida(){
   bat.saudePercentual=saude===""?"":saude;
   bat.cargaPercentual=carga===""?"":carga;
   bat.dataInstalacao=document.getElementById("rapidaDataInstalacao").value;
+  bat.dataTeste=document.getElementById("rapidaDataTeste").value;
   bat.patrimonio=document.getElementById("rapidaPatrimonio").value.trim();
   try{
     const {error}=await supabaseClient.from("pops_autonomia").upsert([popParaBanco(pop)],{onConflict:"id"});
@@ -3745,6 +3745,7 @@ function obterBateriasGarantia(){
           diasVencida,
 
           patrimonio: bateria.patrimonio || "",
+          dataTeste: bateria.dataTeste || bateria.data_teste || "",
           ccaPadraoA: bateria.ccaPadraoA ?? "",
           ccaMedidoA: bateria.ccaMedidoA ?? "",
           saudePercentual: bateria.saudePercentual ?? "",
@@ -4063,6 +4064,7 @@ function abrirGarantias(tipo){
 
               <div class="garantia-dados-teste" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;margin:10px 0;padding:10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px">
                 <div><span style="display:block;color:#64748b;font-size:12px">🏷️ Patrimônio</span><strong>${bateria.patrimonio ? escapeHtml(bateria.patrimonio) : "Não informado"}</strong></div>
+                <div><span style="display:block;color:#64748b;font-size:12px">📅 Data do teste</span><strong>${(bateria.dataTeste || bateria.data_teste) ? formatarData(bateria.dataTeste || bateria.data_teste) : "Não registrado"}</strong></div>
                 <div><span style="display:block;color:#64748b;font-size:12px">CCA medido / padrão</span><strong>${bateria.ccaMedidoA!==undefined && bateria.ccaMedidoA!=="" ? escapeHtml(bateria.ccaMedidoA)+" A" : "--"} / ${bateria.ccaPadraoA!==undefined && bateria.ccaPadraoA!=="" ? escapeHtml(bateria.ccaPadraoA)+" A" : "--"}</strong></div>
                 <div><span style="display:block;color:#64748b;font-size:12px">Saúde</span><strong>${bateria.saudePercentual!==undefined && bateria.saudePercentual!=="" ? escapeHtml(bateria.saudePercentual)+"%" : "--"}</strong></div>
                 <div><span style="display:block;color:#64748b;font-size:12px">Carga</span><strong>${bateria.cargaPercentual!==undefined && bateria.cargaPercentual!=="" ? escapeHtml(bateria.cargaPercentual)+"%" : "--"}</strong></div>
@@ -6134,6 +6136,7 @@ function render(preservarBusca=true){
           <strong>🔋 Bateria ${j+1}${bat.patrimonio ? " — Patrimônio: "+escapeHtml(bat.patrimonio) : ""}</strong>
           <small>Patrimônio: ${bat.patrimonio ? escapeHtml(bat.patrimonio) : "Não informado"}</small>
           <small>Instalação: ${bat.dataInstalacao ? formatarData(bat.dataInstalacao) : "--"}</small>
+          <small>📅 Data do teste: ${(bat.dataTeste || bat.data_teste) ? formatarData(bat.dataTeste || bat.data_teste) : "Não registrado"}</small>
           <small>Garantia: ${fimBatLeitura}</small>
           <small>CCA medido: ${bat.ccaMedidoA!==undefined && bat.ccaMedidoA!=="" ? escapeHtml(bat.ccaMedidoA)+" A" : "--"} / padrão: ${bat.ccaPadraoA!==undefined && bat.ccaPadraoA!=="" ? escapeHtml(bat.ccaPadraoA)+" A" : "--"}</small>
           <small>Saúde: ${bat.saudePercentual!==undefined && bat.saudePercentual!=="" ? escapeHtml(bat.saudePercentual)+"%" : "--"} · Carga: ${bat.cargaPercentual!==undefined && bat.cargaPercentual!=="" ? escapeHtml(bat.cargaPercentual)+"%" : "--"}</small>
