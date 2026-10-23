@@ -1542,6 +1542,14 @@ details[open]>summary::before{
 .bateria-rapida-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 @media(max-width:600px){.pesquisa-bateria-linha{grid-template-columns:1fr}.pesquisa-bateria-linha button{width:100%}.campos-bateria-rapida{grid-template-columns:1fr 1fr}}
 
+
+.painel-edicao-recolhivel{background:#fff;border-radius:8px;margin-bottom:15px;box-shadow:0 2px 6px rgba(0,0,0,.1);overflow:hidden}
+.painel-edicao-recolhivel>summary{cursor:pointer;list-style:none;padding:13px 15px;font-weight:700;color:#155e3b;background:#e8f4ed;user-select:none}
+.painel-edicao-recolhivel>summary::-webkit-details-marker{display:none}
+.painel-edicao-recolhivel>summary::before{content:"▶ ";font-size:12px}
+.painel-edicao-recolhivel[open]>summary::before{content:"▼ "}
+.painel-edicao-recolhivel .controle-edicao{margin:0;border-radius:0;box-shadow:none;border-top:1px solid #e5e7eb}
+
 </style>
 </head>
 
@@ -1551,37 +1559,40 @@ details[open]>summary::before{
 
 <h1>🔋 Controle de Autonomia dos POPs</h1>
 
-<div class="controle-edicao">
+<details class="painel-edicao-recolhivel">
+  <summary>🔒 Edição e ferramentas administrativas</summary>
+  <div class="controle-edicao">
 
-  <div id="statusEdicao"
-       class="status-edicao edicao-bloqueada">
-    🔒 Edição bloqueada
+    <div id="statusEdicao"
+         class="status-edicao edicao-bloqueada">
+      🔒 Edição bloqueada
+    </div>
+
+    <button id="btnEditar"
+            onclick="ativarEdicao()">
+      🔓 Ativar Edição
+    </button>
+
+    <button id="btnSalvar"
+            class="salvar"
+            onclick="salvarTudo()"
+            disabled>
+      💾 Salvar Alterações
+    </button>
+
+    <button id="btnBloquear"
+            class="bloquear"
+            onclick="bloquearEdicao()"
+            disabled>
+      🔒 Bloquear Edição
+    </button>
+
+    <button type="button" class="salvar" onclick="exportarPlanilhaAutonomia()" style="background:#217346">
+      📊 Gerar Planilha de Autonomia (Excel)
+    </button>
+
   </div>
-
-  <button id="btnEditar"
-          onclick="ativarEdicao()">
-    🔓 Ativar Edição
-  </button>
-
-  <button id="btnSalvar"
-          class="salvar"
-          onclick="salvarTudo()"
-          disabled>
-    💾 Salvar Alterações
-  </button>
-
-  <button id="btnBloquear"
-          class="bloquear"
-          onclick="bloquearEdicao()"
-          disabled>
-    🔒 Bloquear Edição
-  </button>
-
-  <button type="button" class="salvar" onclick="exportarPlanilhaAutonomia()" style="background:#217346">
-    📊 Gerar Planilha de Autonomia (Excel)
-  </button>
-
-</div>
+</details>
 
 <details class="telegram-config">
   <summary>🤖 Configuração do Bot Telegram (uso interno — atualização a cada 30 minutos)</summary>
