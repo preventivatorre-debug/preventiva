@@ -1414,9 +1414,9 @@ details[open]>summary::before{
 
 @media(max-width:500px){
   .resumo{
-    grid-template-columns:1fr;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
   }
-
   .resumo-card,
   .notificacao-garantia{
     height:76px;
@@ -1516,6 +1516,32 @@ details[open]>summary::before{
 @media(max-width:500px){.modal-problema{padding:8px}.modal-problema-conteudo{margin:8px auto;padding:14px}.problema-acoes{flex-direction:column}.problema-acoes button{width:100%}}
 @media(max-width:900px){.equipe-plantao-grid{grid-template-columns:1fr 1fr}.acionamento-grid{grid-template-columns:1fr}.acionamento-grid .campo-completo{grid-column:auto}}
 @media(max-width:500px){.equipe-plantao-grid{grid-template-columns:1fr}.equipe-plantao-acoes{flex-direction:column}.equipe-plantao-acoes button{width:100%}.modal-acionamento{padding:8px}.modal-acionamento-conteudo{margin:8px auto;padding:14px}}
+
+/* AJUSTES MOBILE: cards lado a lado e consulta rápida de bateria */
+@media(max-width:500px){
+  .resumo{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:7px}
+  .resumo-card,.notificacao-garantia{height:82px;min-height:82px;padding:7px 5px}
+  .resumo-card{font-size:11px;line-height:1.15}
+  .resumo-card strong{font-size:20px}
+  .notificacao-garantia .notificacao-titulo{font-size:11px;line-height:1.1}
+  .notificacao-garantia .notificacao-numero{font-size:23px;margin-top:4px}
+  .notificacao-garantia small{font-size:9px;line-height:1.1}
+}
+.pesquisa-bateria-rapida{background:#fff;border-left:5px solid #2980b9;padding:14px;border-radius:8px;margin:12px 0 16px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.pesquisa-bateria-rapida h3{margin:0 0 8px;color:#1f5f9f}
+.pesquisa-bateria-linha{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.pesquisa-bateria-linha label,.campos-bateria-rapida label{display:block;font-size:12px;font-weight:bold;color:#555;margin-bottom:4px}
+.pesquisa-bateria-linha input,.campos-bateria-rapida input{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;margin:0}
+.campos-bateria-rapida{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
+.bateria-rapida-info{margin-top:10px;padding:9px;border-radius:6px;background:#eef7ff;font-weight:bold}
+.label-cca-estado{display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap}
+.badge-estado-cca{display:inline-flex;align-items:center;white-space:nowrap;border-radius:4px;padding:2px 5px;font-size:10px;font-weight:800;line-height:1.3;border:1px solid transparent}
+.badge-estado-cca.estado-critico{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+.badge-estado-cca.estado-ok{background:#dcfce7;color:#166534;border-color:#86efac}
+.badge-estado-cca.estado-sem-dados{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+.bateria-rapida-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+@media(max-width:600px){.pesquisa-bateria-linha{grid-template-columns:1fr}.pesquisa-bateria-linha button{width:100%}.campos-bateria-rapida{grid-template-columns:1fr 1fr}}
+
 </style>
 </head>
 
@@ -1711,6 +1737,30 @@ details[open]>summary::before{
 
 </div>
 
+<section class="pesquisa-bateria-rapida" aria-labelledby="tituloBuscaBateria">
+  <h3 id="tituloBuscaBateria">🔋 Consulta rápida — CCA e saúde da bateria</h3>
+  <div class="pesquisa-bateria-linha">
+    <div><label for="buscaPatrimonioBateria">Patrimônio da bateria ou equipamento</label><input id="buscaPatrimonioBateria" type="text" placeholder="Digite o patrimônio/etiqueta da bateria ou equipamento" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarBateriaPorPatrimonio()}"></div>
+    <button type="button" onclick="buscarBateriaPorPatrimonio()">🔎 Localizar bateria</button>
+  </div>
+  <div id="bateriaRapidaInfo" class="bateria-rapida-info" style="display:none"></div>
+  <div id="equipamentoRapidoInfo" class="bateria-rapida-info" style="display:none"></div>
+  <div id="bateriaRapidaCampos" style="display:none">
+    <button type="button" id="btnEditarBateriaRapida" onclick="autorizarEdicaoBateriaRapida()">🔐 Editar dados (senha)</button>
+    
+    <div class="campos-bateria-rapida">
+      <div><label for="rapidaCcaPadrao">CCA padrão (A)</label><input id="rapidaCcaPadrao" type="number" min="0" step="1" oninput="atualizarEstadoBateriaRapida()"></div>
+      <div><label for="rapidaCcaMedido" class="label-cca-estado">CCA medido (A) <span id="rapidaEstadoBateria" class="badge-estado-cca estado-sem-dados" role="status" aria-live="polite" style="display:none">ℹ️ Sem dados</span></label><input id="rapidaCcaMedido" type="number" min="0" step="1" oninput="atualizarEstadoBateriaRapida()"></div>
+      <div><label for="rapidaSaude" class="label-cca-estado">Saúde da bateria (%) <span id="rapidaEstadoSaude" class="badge-estado-cca estado-sem-dados" role="status" aria-live="polite" style="display:none">🟡 Sem dados</span></label><input id="rapidaSaude" type="number" min="0" max="100" step="1" oninput="atualizarEstadoBateriaRapida()"></div>
+      <div><label for="rapidaCarga">Carga da bateria (%)</label><input id="rapidaCarga" type="number" min="0" max="100" step="1"></div>
+      <div><label for="rapidaDataInstalacao">Data de instalação</label><input id="rapidaDataInstalacao" type="date"></div>
+      <div><label for="rapidaPatrimonio">Patrimônio / etiqueta</label><input id="rapidaPatrimonio" type="text"></div>
+    </div>
+    <div class="bateria-rapida-acoes"><button type="button" class="salvar" onclick="salvarBateriaRapida()">💾 Salvar dados da bateria</button><button type="button" style="background:#555" onclick="limparBateriaRapida()">Cancelar</button></div>
+  </div>
+  <div id="bateriaRapidaStatus" role="status" style="margin-top:8px;font-size:13px;color:#555">Informe o patrimônio para localizar a bateria e o POP onde ela está instalada.</div>
+</section>
+
 <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
   <button type="button" class="btn-edicao" onclick="mostrarPOPsSemNome()" style="background:#b45309;color:#fff" disabled>
     ⚠️ Ver POPs sem nome
@@ -1887,6 +1937,218 @@ let pops = [];
 let equipamentosCadastro = [];
 let modoEdicao = false;
 let existemAlteracoes = false;
+let bateriaRapidaSelecionada = null;
+let bateriaRapidaEdicaoAutorizada = false;
+
+function definirCamposRapidosHabilitados(habilitado){
+  ["rapidaCcaPadrao","rapidaCcaMedido","rapidaSaude","rapidaCarga","rapidaDataInstalacao","rapidaPatrimonio"].forEach(id=>{
+    const campo=document.getElementById(id);
+    if(campo) campo.disabled=!habilitado;
+  });
+  const btnSalvar=document.querySelector('#bateriaRapidaCampos .bateria-rapida-acoes .salvar');
+  if(btnSalvar) btnSalvar.style.display=habilitado?"":"none";
+  const btnEditar=document.getElementById("btnEditarBateriaRapida");
+  if(btnEditar) btnEditar.style.display=habilitado?"none":"";
+}
+
+function atualizarEstadoBateriaRapida(){
+  const badgeCCA=document.getElementById("rapidaEstadoBateria");
+  const badgeSaude=document.getElementById("rapidaEstadoSaude");
+  const ler=(id)=>{
+    const valor=document.getElementById(id)?.value;
+    return valor===undefined||valor===null||String(valor).trim()===""?null:Number(valor);
+  };
+  const padrao=ler("rapidaCcaPadrao");
+  const medido=ler("rapidaCcaMedido");
+  const saude=ler("rapidaSaude");
+
+  // Indicador do CCA avalia somente CCA medido versus CCA padrão.
+  if(badgeCCA){
+    let texto="🟡 Sem dados", classe="estado-sem-dados", detalhe="Informe CCA medido e CCA padrão";
+    if(padrao!==null&&medido!==null&&Number.isFinite(padrao)&&Number.isFinite(medido)&&padrao>0&&medido>=0){
+      if(medido<padrao){texto="🔴 CCA BAIXO";classe="estado-critico";detalhe="CCA medido abaixo do CCA padrão";}
+      else{texto="🟢 CCA OK";classe="estado-ok";detalhe="CCA medido dentro do padrão";}
+    }
+    badgeCCA.className="badge-estado-cca "+classe;
+    badgeCCA.textContent=texto;
+    badgeCCA.title=detalhe+` · CCA medido: ${medido===null?"não informado":medido+" A"} / padrão: ${padrao===null?"não informado":padrao+" A"}`;
+    badgeCCA.style.display="inline-flex";
+  }
+
+  // Indicador de saúde avalia somente o percentual cadastrado.
+  if(badgeSaude){
+    let texto="🟡 Sem dados", classe="estado-sem-dados", detalhe="Informe a saúde da bateria";
+    if(saude!==null&&Number.isFinite(saude)&&saude>=0&&saude<=100){
+      if(saude<80){texto="🔴 SAÚDE BAIXA";classe="estado-critico";detalhe="Saúde cadastrada abaixo de 80%";}
+      else{texto="🟢 SAÚDE OK";classe="estado-ok";detalhe="Saúde cadastrada em 80% ou mais";}
+    }
+    badgeSaude.className="badge-estado-cca "+classe;
+    badgeSaude.textContent=texto;
+    badgeSaude.title=detalhe+` · Saúde cadastrada: ${saude===null?"não informada":saude+"%"}`;
+    badgeSaude.style.display="inline-flex";
+  }
+}
+
+function autorizarEdicaoBateriaRapida(){
+  if(!bateriaRapidaSelecionada){alert("Localize uma bateria primeiro.");return;}
+  const senha=prompt("🔐 Digite a senha para editar os dados desta bateria:");
+  if(senha===null)return;
+  if(senha!==SENHA_EDICAO){alert("❌ Senha incorreta.");return;}
+  bateriaRapidaEdicaoAutorizada=true;
+  definirCamposRapidosHabilitados(true);
+  document.getElementById("bateriaRapidaStatus").textContent="🔓 Edição autorizada. Faça as alterações e salve.";
+}
+
+function limparBateriaRapida(){
+  bateriaRapidaSelecionada=null;
+  bateriaRapidaEdicaoAutorizada=false;
+  definirCamposRapidosHabilitados(false);
+  const campos=document.getElementById("bateriaRapidaCampos");
+  const info=document.getElementById("bateriaRapidaInfo");
+  const infoEquipamento=document.getElementById("equipamentoRapidoInfo");
+  const estado=document.getElementById("rapidaEstadoBateria");
+  if(estado) estado.style.display="none";
+  if(campos) campos.style.display="none";
+  if(info) info.style.display="none";
+  if(infoEquipamento) infoEquipamento.style.display="none";
+  const status=document.getElementById("bateriaRapidaStatus");
+  if(status) status.textContent="Informe o patrimônio para localizar a bateria e o POP onde ela está instalada.";
+}
+
+function buscarBateriaPorPatrimonio(){
+  const patrimonio=document.getElementById("buscaPatrimonioBateria").value.trim().toLocaleLowerCase("pt-BR");
+  const status=document.getElementById("bateriaRapidaStatus");
+  const infoBateria=document.getElementById("bateriaRapidaInfo");
+  const infoEquipamento=document.getElementById("equipamentoRapidoInfo");
+  if(!patrimonio){
+    limparBateriaRapida();
+    status.textContent="Digite o patrimônio da bateria ou do equipamento.";
+    return;
+  }
+
+  let bateriaAchada=null;
+  let equipamentoAchado=null;
+  for(let i=0;i<pops.length;i++){
+    const pop=pops[i];
+    const baterias=Array.isArray(pop.baterias)?pop.baterias:[];
+    for(let j=0;j<baterias.length;j++){
+      if(String(baterias[j].patrimonio||"").trim().toLocaleLowerCase("pt-BR")===patrimonio){
+        bateriaAchada={popIndex:i,bateriaIndex:j};
+        break;
+      }
+    }
+    if(bateriaAchada)break;
+  }
+
+  // Procura também nos equipamentos vinculados diretamente a cada POP.
+  for(let i=0;i<pops.length&&!equipamentoAchado;i++){
+    const pop=pops[i];
+    const equipamentos=Array.isArray(pop.equipamentos)?pop.equipamentos:[];
+    for(let j=0;j<equipamentos.length;j++){
+      const eq=equipamentos[j];
+      if(String(eq.patrimonio||"").trim().toLocaleLowerCase("pt-BR")===patrimonio){
+        equipamentoAchado={popIndex:i,equipamentoIndex:j};
+        break;
+      }
+    }
+  }
+
+  // Se o patrimônio existir nos dois tipos, prioriza bateria e informa isso.
+  if(bateriaAchada){
+    if(infoEquipamento)infoEquipamento.style.display="none";
+    const achado=bateriaAchada;
+    bateriaRapidaSelecionada=achado;
+    bateriaRapidaEdicaoAutorizada=false;
+    const pop=pops[achado.popIndex], bat=pop.baterias[achado.bateriaIndex];
+    document.getElementById("rapidaCcaPadrao").value=bat.ccaPadraoA??"";
+    document.getElementById("rapidaCcaMedido").value=bat.ccaMedidoA??"";
+    document.getElementById("rapidaSaude").value=bat.saudePercentual??"";
+    document.getElementById("rapidaCarga").value=bat.cargaPercentual??"";
+    document.getElementById("rapidaDataInstalacao").value=bat.dataInstalacao||"";
+    document.getElementById("rapidaPatrimonio").value=bat.patrimonio||"";
+    atualizarEstadoBateriaRapida();
+    // Usa os valores do próprio cadastro para evitar referências indefinidas.
+    const ccaMedido = bat.ccaMedidoA === undefined || bat.ccaMedidoA === "" || bat.ccaMedidoA === null ? null : Number(bat.ccaMedidoA);
+    const ccaPadrao = bat.ccaPadraoA === undefined || bat.ccaPadraoA === "" || bat.ccaPadraoA === null ? null : Number(bat.ccaPadraoA);
+    const saude = bat.saudePercentual === undefined || bat.saudePercentual === "" || bat.saudePercentual === null ? null : Number(bat.saudePercentual);
+    infoBateria.textContent=`🔋 TIPO: BATERIA · Patrimônio: ${bat.patrimonio||"Não informado"} · 📍 POP: ${pop.nome||"POP sem nome"} · Bateria ${achado.bateriaIndex+1}\n📊 CCA medido/padrão: ${ccaMedido===null?"--":ccaMedido+" A"} / ${ccaPadrao===null?"--":ccaPadrao+" A"} · Saúde cadastrada: ${saude===null?"--":saude+"%"}`;
+    infoBateria.style.whiteSpace="pre-line";
+    infoBateria.style.display="block";
+    document.getElementById("bateriaRapidaCampos").style.display="block";
+    definirCamposRapidosHabilitados(false);
+    status.textContent="✅ Bateria localizada. Para alterar os dados, clique em “Editar dados” e informe a senha.";
+    return;
+  }
+
+  if(equipamentoAchado){
+    bateriaRapidaSelecionada=null;
+    bateriaRapidaEdicaoAutorizada=false;
+    document.getElementById("bateriaRapidaCampos").style.display="none";
+    const estado=document.getElementById("rapidaEstadoBateria"); if(estado)estado.style.display="none";
+    if(infoBateria)infoBateria.style.display="none";
+    const {popIndex,equipamentoIndex}=equipamentoAchado;
+    const pop=pops[popIndex], eq=pop.equipamentos[equipamentoIndex];
+    const info=[
+      `<strong>🧰 TIPO: EQUIPAMENTO</strong>`,
+      `<div><b>Patrimônio:</b> ${escaparHtml(eq.patrimonio||"Não informado")}</div>`,
+      `<div><b>Equipamento:</b> ${escaparHtml(eq.nome||"Não informado")}</div>`,
+      `<div><b>Modelo:</b> ${escaparHtml(eq.modelo||"Não informado")}</div>`,
+      `<div><b>Quantidade:</b> ${escaparHtml(String(eq.quantidade??1))}</div>`,
+      `<div><b>Consumo:</b> ${escaparHtml(String(eq.ampere??0))} A</div>`,
+      `<div><b>📍 POP:</b> ${escaparHtml(pop.nome||"POP sem nome")}</div>`
+    ].join("");
+    infoEquipamento.innerHTML=info;
+    infoEquipamento.style.display="block";
+    status.textContent="✅ Equipamento localizado. Os dados são somente para consulta rápida.";
+    return;
+  }
+
+  limparBateriaRapida();
+  if(infoEquipamento)infoEquipamento.style.display="none";
+  status.textContent="❌ Nenhuma bateria ou equipamento encontrado com esse patrimônio. Confira a etiqueta cadastrada.";
+}
+
+function escaparHtml(valor){
+  return String(valor??"").replace(/[&<>"']/g, caractere=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[caractere]));
+}
+
+async function salvarBateriaRapida(){
+  if(!bateriaRapidaSelecionada){alert("Localize uma bateria antes de salvar.");return;}
+  if(!bateriaRapidaEdicaoAutorizada){alert("Para editar, clique em “Editar dados” e informe a senha.");return;}
+  const {popIndex,bateriaIndex}=bateriaRapidaSelecionada;
+  const pop=pops[popIndex], bat=pop?.baterias?.[bateriaIndex];
+  if(!pop||!bat){alert("A bateria não está mais disponível. Pesquise novamente.");return;}
+  const numero=(id)=>{const v=document.getElementById(id).value;return v===""?"":Number(v);};
+  const saude=numero("rapidaSaude"), carga=numero("rapidaCarga");
+  if(saude!==""&&(saude<0||saude>100)||carga!==""&&(carga<0||carga>100)){alert("Saúde e carga devem ficar entre 0 e 100%.");return;}
+  const anterior={...bat};
+  bat.ccaPadraoA=numero("rapidaCcaPadrao");
+  bat.ccaMedidoA=numero("rapidaCcaMedido");
+  bat.saudePercentual=saude===""?"":saude;
+  bat.cargaPercentual=carga===""?"":carga;
+  bat.dataInstalacao=document.getElementById("rapidaDataInstalacao").value;
+  bat.patrimonio=document.getElementById("rapidaPatrimonio").value.trim();
+  try{
+    const {error}=await supabaseClient.from("pops_autonomia").upsert([popParaBanco(pop)],{onConflict:"id"});
+    if(error)throw error;
+    existemAlteracoes=false;
+    document.getElementById("bateriaRapidaStatus").textContent=`✅ Dados salvos para a bateria ${bateriaIndex+1} do POP ${pop.nome||"sem nome"}.`;
+    render();
+    // Reabrir o painel rápido após render e preservar a bateria editada.
+    document.getElementById("buscaPatrimonioBateria").value=bat.patrimonio||anterior.patrimonio||"";
+    document.getElementById("bateriaRapidaInfo").textContent=`📍 POP: ${pop.nome||"POP sem nome"} · 🔋 Bateria ${bateriaIndex+1}`;
+    document.getElementById("bateriaRapidaInfo").style.display="block";
+    document.getElementById("bateriaRapidaCampos").style.display="block";
+    bateriaRapidaEdicaoAutorizada=false;
+    definirCamposRapidosHabilitados(false);
+  }catch(error){
+    Object.assign(bat,anterior);
+    console.error(error);
+    alert("❌ Não foi possível salvar a bateria: "+(error.message||error));
+  }
+}
 
 
 /* =========================================================
@@ -2109,8 +2371,10 @@ function atualizarCampos(){
   document.querySelectorAll("input, select")
     .forEach(campo=>{
 
-      if(campo.id==="busca"){
+      if(campo.id==="busca" || campo.id==="buscaPatrimonioBateria"){
 
+        // A pesquisa rápida de bateria é somente consulta e fica livre,
+        // mesmo quando a edição geral dos POPs está bloqueada.
         campo.disabled=false;
         return;
 
@@ -7832,3 +8096,15 @@ function exportarPlanilhaAutonomia(){
 </div>
 </body>
 </html>
+<style>
+@media(max-width:500px){
+  .resumo{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:6px !important;}
+  .resumo-card,.notificacoes-garantia .notificacao-garantia{min-width:0;padding:7px 5px;font-size:11px;overflow-wrap:anywhere;}
+  .resumo-card strong{font-size:19px;}
+  .notificacoes-garantia{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:6px !important;}
+  .notificacoes-garantia .notificacao-garantia{height:76px;min-height:76px;text-align:center;}
+  .notificacoes-garantia .notificacao-titulo{font-size:11px !important;line-height:1.1;}
+  .notificacoes-garantia .notificacao-numero{font-size:22px !important;margin-top:3px;}
+  .notificacoes-garantia small{font-size:9px;}
+}
+</style>
