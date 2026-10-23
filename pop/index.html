@@ -1760,7 +1760,8 @@ details[open]>summary::before{
     <button type="button" id="btnEditarBateriaRapida" onclick="autorizarEdicaoBateriaRapida()">🔐 Editar dados (senha)</button>
     
     <div class="campos-bateria-rapida">
-      <div><label for="rapidaCcaPadrao">CCA padrão (A)</label><input id="rapidaCcaPadrao" type="number" min="0" step="1" oninput="atualizarEstadoBateriaRapida()"></div>
+      <div id="rapidaCapacidadeWrap" style="display:none"><label for="rapidaCapacidadeAh">Tipo / capacidade da bateria</label><select id="rapidaCapacidadeAh" onchange="atualizarCcaPelaCapacidadeRapida()"><option value="">Selecione (Ah)</option><option value="45">45 Ah — CCA 280–350 A</option><option value="63">63 Ah — CCA 400–500 A</option><option value="105">105 Ah — CCA 680–850 A</option></select></div>
+      <div><label for="rapidaCcaPadrao">CCA padrão automático (A)</label><input id="rapidaCcaPadrao" type="number" min="0" step="1" readonly title="Preenchido automaticamente pela capacidade já cadastrada da bateria"></div>
       <div><label for="rapidaCcaMedido" class="label-cca-estado">CCA medido (A) <span id="rapidaEstadoBateria" class="badge-estado-cca estado-sem-dados" role="status" aria-live="polite" style="display:none">ℹ️ Sem dados</span></label><input id="rapidaCcaMedido" type="number" min="0" step="1" oninput="atualizarEstadoBateriaRapida()"></div>
       <div><label for="rapidaSaude" class="label-cca-estado">Saúde da bateria (%) <span id="rapidaEstadoSaude" class="badge-estado-cca estado-sem-dados" role="status" aria-live="polite" style="display:none">🟡 Sem dados</span></label><input id="rapidaSaude" type="number" min="0" max="100" step="1" oninput="atualizarEstadoBateriaRapida()"></div>
       <div><label for="rapidaCarga">Carga da bateria (%)</label><input id="rapidaCarga" type="number" min="0" max="100" step="1"></div>
@@ -1952,7 +1953,7 @@ let bateriaRapidaSelecionada = null;
 let bateriaRapidaEdicaoAutorizada = false;
 
 function definirCamposRapidosHabilitados(habilitado){
-  ["rapidaCcaPadrao","rapidaCcaMedido","rapidaSaude","rapidaCarga","rapidaDataInstalacao","rapidaPatrimonio"].forEach(id=>{
+  ["rapidaCapacidadeAh","rapidaCcaPadrao","rapidaCcaMedido","rapidaSaude","rapidaCarga","rapidaDataInstalacao","rapidaPatrimonio"].forEach(id=>{
     const campo=document.getElementById(id);
     if(campo) campo.disabled=!habilitado;
   });
@@ -1960,6 +1961,16 @@ function definirCamposRapidosHabilitados(habilitado){
   if(btnSalvar) btnSalvar.style.display=habilitado?"":"none";
   const btnEditar=document.getElementById("btnEditarBateriaRapida");
   if(btnEditar) btnEditar.style.display=habilitado?"none":"";
+}
+
+function atualizarCcaPelaCapacidadeRapida(){
+  const capacidade=document.getElementById("rapidaCapacidadeAh").value;
+  const campo=document.getElementById("rapidaCcaPadrao");
+  const sugerido=ccaPadraoPorCapacidadeAh(capacidade);
+  if(sugerido!==""){
+    campo.value=sugerido;
+    atualizarEstadoBateriaRapida();
+  }
 }
 
 function atualizarEstadoBateriaRapida(){
@@ -1973,16 +1984,23 @@ function atualizarEstadoBateriaRapida(){
   const medido=ler("rapidaCcaMedido");
   const saude=ler("rapidaSaude");
 
-  // Indicador do CCA avalia somente CCA medido versus CCA padrão.
+  // Para 45/63/105 Ah, considera a faixa de CCA informada, não apenas o ponto médio.
   if(badgeCCA){
-    let texto="🟡 Sem dados", classe="estado-sem-dados", detalhe="Informe CCA medido e CCA padrão";
-    if(padrao!==null&&medido!==null&&Number.isFinite(padrao)&&Number.isFinite(medido)&&padrao>0&&medido>=0){
-      if(medido<padrao){texto="🔴 CCA BAIXO";classe="estado-critico";detalhe="CCA medido abaixo do CCA padrão";}
-      else{texto="🟢 CCA OK";classe="estado-ok";detalhe="CCA medido dentro do padrão";}
+    const capacidade=Number(document.getElementById("rapidaCapacidadeAh")?.value);
+    const faixas={45:{min:280,max:350},63:{min:400,max:500},105:{min:680,max:850}};
+    const faixa=faixas[capacidade];
+    let texto="🟡 Sem dados", classe="estado-sem-dados", detalhe="Informe o CCA medido e a capacidade da bateria";
+    if(medido!==null&&Number.isFinite(medido)&&medido>=0&&faixa){
+      if(medido<faixa.min){texto="🔴 CCA ABAIXO";classe="estado-critico";detalhe=`CCA abaixo da faixa ${faixa.min}–${faixa.max} A`;}
+      else if(medido>faixa.max){texto="🟠 CCA ACIMA";classe="estado-critico";detalhe=`CCA acima da faixa ${faixa.min}–${faixa.max} A`;}
+      else{texto="🟢 CCA NA FAIXA";classe="estado-ok";detalhe=`CCA dentro da faixa ${faixa.min}–${faixa.max} A`;}
+    }else if(medido!==null&&Number.isFinite(medido)&&padrao!==null&&Number.isFinite(padrao)&&padrao>0){
+      if(medido<padrao){texto="🔴 CCA BAIXO";classe="estado-critico";detalhe="CCA medido abaixo do padrão personalizado";}
+      else{texto="🟢 CCA OK";classe="estado-ok";detalhe="CCA medido atingiu o padrão personalizado";}
     }
     badgeCCA.className="badge-estado-cca "+classe;
     badgeCCA.textContent=texto;
-    badgeCCA.title=detalhe+` · CCA medido: ${medido===null?"não informado":medido+" A"} / padrão: ${padrao===null?"não informado":padrao+" A"}`;
+    badgeCCA.title=detalhe+` · CCA medido: ${medido===null?"não informado":medido+" A"} · faixa: ${faixa?faixa.min+"–"+faixa.max+" A":(padrao===null?"não informada":padrao+" A de padrão")}`;
     badgeCCA.style.display="inline-flex";
   }
 
@@ -2071,7 +2089,12 @@ function buscarBateriaPorPatrimonio(){
     bateriaRapidaSelecionada=achado;
     bateriaRapidaEdicaoAutorizada=false;
     const pop=pops[achado.popIndex], bat=pop.baterias[achado.bateriaIndex];
-    document.getElementById("rapidaCcaPadrao").value=bat.ccaPadraoA??"";
+    // A capacidade vem do cadastro existente da bateria: não pedir ao usuário novamente.
+    const capacidadeCadastrada=bat.capacidadeAh ?? bat.capacidade_ah ?? bat.ah ?? "";
+    document.getElementById("rapidaCapacidadeAh").value=String(capacidadeCadastrada);
+    const ccaAutomatico=ccaPadraoPorCapacidadeAh(capacidadeCadastrada);
+    const ccaJaCadastrado=bat.ccaPadraoA;
+    document.getElementById("rapidaCcaPadrao").value=(ccaJaCadastrado!==undefined && ccaJaCadastrado!==null && String(ccaJaCadastrado).trim()!=="") ? ccaJaCadastrado : ccaAutomatico;
     document.getElementById("rapidaCcaMedido").value=bat.ccaMedidoA??"";
     document.getElementById("rapidaSaude").value=bat.saudePercentual??"";
     document.getElementById("rapidaCarga").value=bat.cargaPercentual??"";
@@ -2135,7 +2158,9 @@ async function salvarBateriaRapida(){
   const saude=numero("rapidaSaude"), carga=numero("rapidaCarga");
   if(saude!==""&&(saude<0||saude>100)||carga!==""&&(carga<0||carga>100)){alert("Saúde e carga devem ficar entre 0 e 100%.");return;}
   const anterior={...bat};
-  bat.ccaPadraoA=numero("rapidaCcaPadrao");
+  bat.capacidadeAh=document.getElementById("rapidaCapacidadeAh").value===""?"":Number(document.getElementById("rapidaCapacidadeAh").value);
+  const ccaInformado=numero("rapidaCcaPadrao");
+  bat.ccaPadraoA=ccaInformado!==""?ccaInformado:ccaPadraoPorCapacidadeAh(bat.capacidadeAh);
   bat.ccaMedidoA=numero("rapidaCcaMedido");
   bat.saudePercentual=saude===""?"":saude;
   bat.cargaPercentual=carga===""?"":carga;
@@ -5510,6 +5535,33 @@ function atualizarRelogiosContingencia(){
    BATERIA
 ========================================================= */
 
+function ccaPadraoPorCapacidadeAh(capacidadeAh){
+  const ah=Number(capacidadeAh);
+  // Valores nominais centrais das faixas informadas:
+  // 45 Ah: 280–350 A => 315 A; 63 Ah: 400–500 A => 450 A;
+  // 105 Ah: 680–850 A => 765 A.
+  if(ah===45) return 315;
+  if(ah===63) return 450;
+  if(ah===105) return 765;
+  return "";
+}
+
+function definirCapacidadeBateria(i,j,valor){
+  if(!modoEdicao) return;
+  const bat=pops[i]?.baterias?.[j];
+  if(!bat) return;
+  const anterior=bat.ccaPadraoA;
+  bat.capacidadeAh=valor===""?"":Number(valor);
+  const sugerido=ccaPadraoPorCapacidadeAh(bat.capacidadeAh);
+  // Atualiza automaticamente se o CCA padrão estiver vazio ou ainda for
+  // um dos valores automáticos anteriores; preserva valores personalizados.
+  if(sugerido!=="" && (anterior==="" || anterior===undefined || anterior===null || [315,450,765].includes(Number(anterior)))){
+    bat.ccaPadraoA=sugerido;
+  }
+  existemAlteracoes=true;
+  renderVisivel(i,false,false);
+}
+
 function adicionarBateria(i){
 
   if(!modoEdicao) return;
@@ -5528,6 +5580,7 @@ function adicionarBateria(i){
 
     validade:"",
     patrimonio:"",
+    capacidadeAh:"",
     ccaPadraoA:"",
     ccaMedidoA:"",
     saudePercentual:"",
@@ -6134,6 +6187,16 @@ function render(preservarBusca=true){
             <label>Patrimônio / identificação da bateria</label>
             <input type="text" placeholder="Ex.: BAT-001 / etiqueta" value="${escapeHtml(bat.patrimonio || "")}" ${!modoEdicao?"disabled":""}
               onchange="pops[${i}].baterias[${j}].patrimonio=this.value.trim(); existemAlteracoes=true; renderVisivel(${i},false,false);">
+          </div>
+
+          <div>
+            <label>Tipo / capacidade da bateria</label>
+            <select ${!modoEdicao?"disabled":""} onchange="definirCapacidadeBateria(${i},${j},this.value)">
+              <option value="" ${!bat.capacidadeAh?"selected":""}>Selecione (Ah)</option>
+              <option value="45" ${Number(bat.capacidadeAh)===45?"selected":""}>45 Ah — CCA 280–350 A</option>
+              <option value="63" ${Number(bat.capacidadeAh)===63?"selected":""}>63 Ah — CCA 400–500 A</option>
+              <option value="105" ${Number(bat.capacidadeAh)===105?"selected":""}>105 Ah — CCA 680–850 A</option>
+            </select>
           </div>
 
           <div>
@@ -7781,6 +7844,19 @@ async function carregarDados(){
     (data||[])
       .map(bancoParaPop);
 
+  // Preenche o CCA padrão automaticamente nas baterias já cadastradas
+  // de 45, 63 e 105 Ah quando o campo estiver vazio. Valores personalizados
+  // já existentes são preservados. Não exige digitação manual.
+  pops.forEach(pop=>{
+    (Array.isArray(pop.baterias)?pop.baterias:[]).forEach(bat=>{
+      if(!bat) return;
+      const sugerido=ccaPadraoPorCapacidadeAh(bat.capacidadeAh);
+      const ccaVazio=bat.ccaPadraoA===undefined || bat.ccaPadraoA===null || String(bat.ccaPadraoA).trim()==="";
+      if(sugerido!=="" && ccaVazio){
+        bat.ccaPadraoA=sugerido;
+      }
+    });
+  });
 
   render();
 
