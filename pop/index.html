@@ -2675,6 +2675,9 @@ function bancoParaPop(row){
 
     nome:row.nome||"",
 
+    // Código único da unidade informado pela concessionária.
+    codigoUnico:String(row.codigo_unico||""),
+
     ah:Number(row.ah)||0,
 
     bancosEnergia:Array.isArray(row.bancos_energia)?row.bancos_energia:[],
@@ -2754,6 +2757,9 @@ function popParaBanco(pop){
     id:pop.id,
 
     nome:pop.nome||"",
+
+    // Persiste o código único na coluna codigo_unico do Supabase.
+    codigo_unico:String(pop.codigoUnico||"").trim()||null,
 
     ah:Number(pop.ah)||0,
 
@@ -6505,7 +6511,7 @@ function render(preservarBusca=true){
           <div class="codigo-unico-pop">Código único da unidade:<span class="codigo-valor">${escapeHtml(pop.codigoUnico||"Não cadastrado")}</span></div>
           <div class="codigo-unico-edicao">
             <label for="codigoUnicoPop${i}">Código único informado pela concessionária</label>
-            <input id="codigoUnicoPop${i}" type="text" maxlength="80" placeholder="Ex.: código da unidade consumidora" value="${escapeHtml(pop.codigoUnico||"")}" onchange="pops[${i}].codigoUnico=this.value.trim(); existemAlteracoes=true; render();">
+            <input id="codigoUnicoPop${i}" type="text" maxlength="80" placeholder="Ex.: código da unidade consumidora" value="${escapeHtml(pop.codigoUnico||"")}" ${!modoEdicao?"disabled":""} oninput="pops[${i}].codigoUnico=this.value; existemAlteracoes=true; const card=this.closest('.nome-pop-edicao'); const valor=card?.querySelector('.codigo-valor'); if(valor) valor.textContent=this.value.trim()||'Não cadastrado';">
           </div>
         </div>
 
