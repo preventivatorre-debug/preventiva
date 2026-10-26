@@ -599,14 +599,18 @@ input:disabled{
    Ele mostra CCA/saúde e identificação quando houver teste fora do padrão. */
 .pop.leitura-compacta .monitor-alerta{
   display:block !important;
-  margin-top:8px;
-  padding:9px 11px;
-  font-size:12px;
-  line-height:1.45;
-  border-radius:7px;
+  margin-top:6px;
+  padding:6px 9px;
+  font-size:11px;
+  line-height:1.3;
+  border-radius:6px;
+}
+.pop.leitura-compacta .monitor-alerta > div:first-child{
+  font-size:11px;
+  line-height:1.2;
 }
 .pop.leitura-compacta .monitor-alerta > div + div{
-  margin-top:4px;
+  margin-top:2px;
 }
 
 .pop.leitura-compacta .contingencia-box{
@@ -6102,8 +6106,8 @@ function render(preservarBusca=true){
       });
       monitor = {
         classe: "monitor-critico",
-        titulo: `🔴 SUBSTITUIR / VERIFICAR — ${bateriasComAlerta.length} bateria(s)`,
-        mensagem: detalhes.join(" · ")
+        titulo: `🔴 Atenção: ${bateriasComAlerta.length} bateria(s) com CCA/saúde comprometidos`,
+        mensagem: `${detalhes.join(" · ")}. Autonomia é estimada; acompanhe os sensores do PRTG.`
       };
     } else if (bateriasComTeste.length) {
       monitor = {
