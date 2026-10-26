@@ -599,18 +599,14 @@ input:disabled{
    Ele mostra CCA/saúde e identificação quando houver teste fora do padrão. */
 .pop.leitura-compacta .monitor-alerta{
   display:block !important;
-  margin-top:6px;
-  padding:6px 9px;
-  font-size:11px;
-  line-height:1.3;
-  border-radius:6px;
-}
-.pop.leitura-compacta .monitor-alerta > div:first-child{
-  font-size:11px;
-  line-height:1.2;
+  margin-top:8px;
+  padding:9px 11px;
+  font-size:12px;
+  line-height:1.45;
+  border-radius:7px;
 }
 .pop.leitura-compacta .monitor-alerta > div + div{
-  margin-top:2px;
+  margin-top:4px;
 }
 
 .pop.leitura-compacta .contingencia-box{
@@ -1563,6 +1559,41 @@ details[open]>summary::before{
 .painel-edicao-recolhivel[open]>summary::before{content:"▼ "}
 .painel-edicao-recolhivel .controle-edicao{margin:0;border-radius:0;box-shadow:none;border-top:1px solid #e5e7eb}
 
+
+/* Painel administrativo: completude e validade dos dados das baterias */
+.btn-completude-baterias{background:#34495e;font-weight:bold}
+.modal-completude-baterias{display:none;position:fixed;inset:0;z-index:10020;background:rgba(15,23,42,.62);padding:16px;overflow:auto}
+.modal-completude-baterias.aberto{display:block}
+.modal-completude-conteudo{max-width:1150px;margin:22px auto;background:#fff;border-radius:12px;padding:18px;box-shadow:0 10px 35px rgba(0,0,0,.28)}
+.modal-completude-cabecalho{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.modal-completude-cabecalho h2{margin:0;color:#1f6f43;font-size:20px}
+.completude-legenda{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;font-size:12px}
+.completude-legenda span{padding:5px 8px;border-radius:6px;background:#f3f4f6}
+.completude-resumo{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.completude-resumo span{padding:7px 10px;border-radius:7px;background:#f3f4f6;font-weight:bold;font-size:12px}
+.completude-resumo .completude-filtro{padding:7px 10px;border:1px solid #e5e7eb;border-radius:7px;background:#f3f4f6;color:#222;font-weight:bold;font-size:12px;margin:0;cursor:pointer}.completude-resumo .completude-filtro.ativo{outline:2px solid #1f6f43;background:#e8f4ed}
+
+.linha-pop-completude{cursor:pointer}
+.linha-pop-completude:hover{background:#f0fdf4}
+.nome-pop-completude{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:0;margin:0;background:transparent;color:#14532d;font-weight:800;text-align:left}
+.nome-pop-completude span{font-size:10px;color:#2563eb;font-weight:700}
+.detalhes-pop-baterias td{background:#f8fafc;padding:10px!important}
+.lista-detalhes-baterias{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
+.detalhe-bateria-pop{display:flex;flex-direction:column;gap:4px;padding:9px;border:1px solid #dbe3ea;border-radius:7px;background:white}
+.detalhe-bateria-pop span{font-size:12px;line-height:1.4}
+.detalhe-bateria-pop small{font-size:11px;color:#555}
+.completude-tabela-wrap{overflow:auto;max-height:65vh;border:1px solid #e5e7eb;border-radius:8px}
+.completude-tabela{width:100%;border-collapse:collapse;font-size:12px;margin:0}
+.completude-tabela th{position:sticky;top:0;background:#e8f4ed;z-index:1}
+.completude-tabela th,.completude-tabela td{padding:8px 7px;border:1px solid #e5e7eb;text-align:left;vertical-align:top}
+.completude-status{display:inline-block;padding:4px 7px;border-radius:6px;font-weight:800;white-space:nowrap}
+.completude-ok{background:#dcfce7;color:#166534}
+.completude-falta{background:#fee2e2;color:#991b1b}
+.completude-antigo{background:#fef3c7;color:#92400e}
+.completude-detalhe{color:#555;line-height:1.4;min-width:180px}
+.completude-fechar{background:#555;margin:0}
+@media(max-width:600px){.modal-completude-baterias{padding:7px}.modal-completude-conteudo{margin:7px auto;padding:11px}.modal-completude-cabecalho h2{font-size:17px}.completude-tabela{font-size:11px}.completude-tabela th,.completude-tabela td{padding:6px 5px}}
+
 </style>
 </head>
 
@@ -1602,6 +1633,10 @@ details[open]>summary::before{
 
     <button type="button" class="salvar" onclick="exportarPlanilhaAutonomia()" style="background:#217346">
       📊 Gerar Planilha de Autonomia (Excel)
+    </button>
+
+    <button type="button" class="btn-completude-baterias" onclick="abrirPainelCompletudeBaterias()">
+      🔋 Conferir cadastro das baterias
     </button>
 
   </div>
@@ -1926,6 +1961,28 @@ details[open]>summary::before{
 <datalist id="listaEquipamentos"></datalist>
 
 <div id="pops"></div>
+
+<div id="modalCompletudeBaterias" class="modal-completude-baterias" role="dialog" aria-modal="true" aria-labelledby="tituloCompletudeBaterias" onclick="fecharPainelCompletudeBaterias(event)">
+  <div class="modal-completude-conteudo" onclick="event.stopPropagation()">
+    <div class="modal-completude-cabecalho">
+      <h2 id="tituloCompletudeBaterias">🔋 Conferência dos dados das baterias</h2>
+      <button type="button" class="completude-fechar" onclick="fecharPainelCompletudeBaterias()">✕ Fechar</button>
+    </div>
+    <p style="margin:8px 0;color:#555;font-size:13px">Verifica patrimônio, capacidade, CCA padrão e medido, saúde, carga e data do teste. Testes com mais de 90 dias ficam em amarelo.</p>
+    <div id="resumoCompletudeBaterias" class="completude-resumo"></div>
+    <div class="completude-legenda">
+      <span><strong style="color:#166534">✓ OK</strong> Cadastro completo e teste recente</span>
+      <span><strong style="color:#991b1b">✕ Falta</strong> Existem campos obrigatórios vazios</span>
+      <span><strong style="color:#92400e">🟡 Antigo</strong> Teste com mais de 90 dias</span>
+    </div>
+    <div class="completude-tabela-wrap">
+      <table class="completude-tabela">
+        <thead><tr><th>Status do POP</th><th>POP</th><th>Baterias</th><th>Resumo</th><th>Conferência</th></tr></thead>
+        <tbody id="listaCompletudeBaterias"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 </div>
 
@@ -6106,8 +6163,8 @@ function render(preservarBusca=true){
       });
       monitor = {
         classe: "monitor-critico",
-        titulo: `🔴 Atenção: ${bateriasComAlerta.length} bateria(s) com CCA/saúde comprometidos`,
-        mensagem: `${detalhes.join(" · ")}. Autonomia é estimada; acompanhe os sensores do PRTG.`
+        titulo: `🔴 SUBSTITUIR / VERIFICAR — ${bateriasComAlerta.length} bateria(s)`,
+        mensagem: detalhes.join(" · ")
       };
     } else if (bateriasComTeste.length) {
       monitor = {
@@ -8078,6 +8135,140 @@ function exportarPlanilhaAutonomia(){
   const nomeArquivo=`Autonomia_dos_POPs_${data.getFullYear()}-${String(data.getMonth()+1).padStart(2,"0")}-${String(data.getDate()).padStart(2,"0")}.xlsx`;
   XLSX.writeFile(wb,nomeArquivo);
 }
+
+
+/* =========================================================
+   CONFERÊNCIA ADMINISTRATIVA DOS CADASTROS DE BATERIAS
+========================================================= */
+function abrirPainelCompletudeBaterias(){
+  atualizarPainelCompletudeBaterias();
+  const modal=document.getElementById("modalCompletudeBaterias");
+  if(modal) modal.classList.add("aberto");
+}
+function fecharPainelCompletudeBaterias(event){
+  if(event && event.target && event.currentTarget!==event.target) return;
+  const modal=document.getElementById("modalCompletudeBaterias");
+  if(modal) modal.classList.remove("aberto");
+}
+function valorPreenchidoBateria(valor){
+  return valor!==undefined && valor!==null && String(valor).trim()!=="";
+}
+function idadeTesteBateria(data){
+  if(!data) return null;
+  const m=String(data).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return null;
+  const teste=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+  const hoje=new Date();
+  hoje.setHours(0,0,0,0);
+  if(Number.isNaN(teste.getTime())) return null;
+  return Math.floor((hoje-teste)/86400000);
+}
+function atualizarPainelCompletudeBaterias(){
+  const tbody=document.getElementById("listaCompletudeBaterias");
+  const resumo=document.getElementById("resumoCompletudeBaterias");
+  if(!tbody || !resumo) return;
+
+  const linhas=[];
+  let totalPops=0, okPops=0, faltaPops=0, antigoPops=0;
+  const listaPops=(Array.isArray(pops)?pops:[]).filter(pop=>Array.isArray(pop.baterias)&&pop.baterias.length>0);
+
+  listaPops.forEach((pop,popIndex)=>{
+    totalPops++;
+    const baterias=pop.baterias;
+    const analises=baterias.map((bat,index)=>{
+      const dataTeste=bat.dataTeste || bat.data_teste || "";
+      const campos=[
+        ["patrimônio",bat.patrimonio],
+        ["capacidade (Ah)",bat.capacidadeAh ?? bat.capacidade_ah ?? bat.ah],
+        ["CCA padrão",bat.ccaPadraoA],
+        ["CCA medido",bat.ccaMedidoA],
+        ["saúde (%)",bat.saudePercentual],
+        ["carga (%)",bat.cargaPercentual],
+        ["data do teste",dataTeste]
+      ];
+      const ausentes=campos.filter(([_,v])=>!valorPreenchidoBateria(v)).map(([nome])=>nome);
+      const idade=idadeTesteBateria(dataTeste);
+      let status="ok", detalhe="Cadastro completo";
+      if(ausentes.length){
+        status="falta";
+        detalhe="Faltam: "+ausentes.join(", ");
+      }else if(idade===null){
+        status="falta";
+        detalhe="Data do teste inválida";
+      }else if(idade>90){
+        status="antigo";
+        detalhe=`Teste há ${idade} dias`;
+      }else{
+        detalhe=`Teste há ${Math.max(0,idade)} dia(s)`;
+      }
+      return {bat,index,dataTeste,idade,status,detalhe,ausentes};
+    });
+
+    // A prioridade do status do POP é: dados faltando, teste antigo, tudo OK.
+    let statusPop="ok";
+    if(analises.some(a=>a.status==="falta")) statusPop="falta";
+    else if(analises.some(a=>a.status==="antigo")) statusPop="antigo";
+    if(statusPop==="ok") okPops++;
+    else if(statusPop==="falta") faltaPops++;
+    else antigoPops++;
+
+    const nomePop=pop.nome || pop.nomePop || `POP ${popIndex+1}`;
+    const rotulo=statusPop==="ok"?"✓ OK":statusPop==="falta"?"✕ Falta":"🟡 Antigo";
+    const classe=statusPop==="ok"?"completude-ok":statusPop==="falta"?"completude-falta":"completude-antigo";
+    const contagemStatus=`${analises.filter(a=>a.status==="ok").length} OK · ${analises.filter(a=>a.status==="falta").length} faltando · ${analises.filter(a=>a.status==="antigo").length} antigos`;
+    const detalhesPop=analises.map(a=>{
+      const b=a.bat;
+      const patrimonio=valorPreenchidoBateria(b.patrimonio)?` (${b.patrimonio})`:"";
+      const capacidade=b.capacidadeAh ?? b.capacidade_ah ?? b.ah;
+      const cca=valorPreenchidoBateria(b.ccaMedidoA)?`${b.ccaMedidoA} / ${valorPreenchidoBateria(b.ccaPadraoA)?b.ccaPadraoA:"—"} A`:"CCA —";
+      const saude=valorPreenchidoBateria(b.saudePercentual)?`${b.saudePercentual}%`:"saúde —";
+      const carga=valorPreenchidoBateria(b.cargaPercentual)?`${b.cargaPercentual}%`:"carga —";
+      const data=a.dataTeste?escapeHtml(a.dataTeste):"sem data";
+      const statusB=a.status==="ok"?"✓":a.status==="falta"?"✕":"🟡";
+      return `<div class="detalhe-bateria-pop"><strong>${statusB} Bateria ${a.index+1}${escapeHtml(patrimonio)}</strong><span>${valorPreenchidoBateria(capacidade)?escapeHtml(String(capacidade))+" Ah":"capacidade —"} · CCA ${escapeHtml(cca)} · ${escapeHtml(saude)} · ${escapeHtml(carga)} · teste: ${data}</span><small>${escapeHtml(a.detalhe)}</small></div>`;
+    }).join("");
+
+    linhas.push(`<tr data-status="${statusPop}" class="linha-pop-completude" onclick="alternarDetalhesPopBaterias('${popIndex}')">
+      <td><span class="completude-status ${classe}">${rotulo}</span></td>
+      <td><button type="button" class="nome-pop-completude" onclick="event.stopPropagation();alternarDetalhesPopBaterias('${popIndex}')">${escapeHtml(nomePop)} <span>▾ Ver baterias</span></button></td>
+      <td>${baterias.length} bateria(s)</td>
+      <td>${escapeHtml(contagemStatus)}</td>
+      <td class="completude-detalhe">${statusPop==="ok"?"Cadastro completo e testes recentes":statusPop==="falta"?"Há dados obrigatórios faltando":"Há testes com mais de 90 dias"}</td>
+    </tr><tr class="detalhes-pop-baterias" id="detalhesPopBaterias_${popIndex}" style="display:none"><td colspan="5"><div class="lista-detalhes-baterias">${detalhesPop}</div></td></tr>`);
+  });
+
+  tbody.innerHTML=linhas.length?linhas.join(""):`<tr><td colspan="5" style="text-align:center;padding:20px">Nenhum POP com baterias cadastradas.</td></tr>`;
+  resumo.innerHTML=`<button type="button" class="completude-filtro ${filtroCompletudeBaterias==="todos"?"ativo":""}" onclick="filtrarCompletudeBaterias('todos')">📍 POPs: ${totalPops}</button><button type="button" class="completude-filtro ${filtroCompletudeBaterias==="ok"?"ativo":""}" onclick="filtrarCompletudeBaterias('ok')">✓ OK: ${okPops}</button><button type="button" class="completude-filtro ${filtroCompletudeBaterias==="falta"?"ativo":""}" onclick="filtrarCompletudeBaterias('falta')">✕ Com pendências: ${faltaPops}</button><button type="button" class="completude-filtro ${filtroCompletudeBaterias==="antigo"?"ativo":""}" onclick="filtrarCompletudeBaterias('antigo')">🟡 Testes antigos: ${antigoPops}</button>`;
+  aplicarFiltroCompletudeBaterias();
+}
+function alternarDetalhesPopBaterias(popIndex){
+  const linha=document.getElementById(`detalhesPopBaterias_${popIndex}`);
+  if(!linha) return;
+  const abrir=linha.style.display==="none";
+  linha.style.display=abrir?"table-row":"none";
+  linha.dataset.aberto=abrir?"sim":"nao";
+}
+let filtroCompletudeBaterias="todos";
+function filtrarCompletudeBaterias(filtro){
+  filtroCompletudeBaterias=filtro;
+  atualizarPainelCompletudeBaterias();
+}
+function aplicarFiltroCompletudeBaterias(){
+  const tbody=document.getElementById("listaCompletudeBaterias");
+  if(!tbody) return;
+  tbody.querySelectorAll("tr[data-status]").forEach(tr=>{
+    const visivel=filtroCompletudeBaterias==="todos" || tr.dataset.status===filtroCompletudeBaterias;
+    tr.style.display=visivel?"":"none";
+    const detalhes=tr.nextElementSibling;
+    if(detalhes && detalhes.classList.contains("detalhes-pop-baterias")){
+      detalhes.style.display=visivel && detalhes.dataset.aberto==="sim"?"table-row":"none";
+    }
+  });
+}
+
+document.addEventListener("keydown",function(event){
+  if(event.key==="Escape") fecharPainelCompletudeBaterias();
+});
 
 </script>
 
