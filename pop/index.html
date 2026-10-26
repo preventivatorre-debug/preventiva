@@ -987,6 +987,57 @@ input:disabled{
   border-left:5px solid #dc3545
 }
 
+/* Lista organizada das baterias com alerta */
+.monitor-alerta-lista{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:8px;
+  margin-top:9px;
+  font-weight:normal;
+}
+.monitor-alerta-bateria{
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(114,28,36,.16);
+  border-radius:7px;
+  padding:9px 10px;
+  line-height:1.4;
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.monitor-alerta-bateria-topo{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:6px;
+  font-weight:700;
+}
+.monitor-alerta-status{
+  display:inline-block;
+  border-radius:20px;
+  padding:2px 7px;
+  font-size:10px;
+  line-height:1.4;
+  white-space:nowrap;
+  background:#f8d7da;
+  color:#842029;
+}
+.monitor-alerta-indicadores{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px 12px;
+  margin-bottom:5px;
+  font-size:12px;
+}
+.monitor-alerta-detalhe{
+  font-size:11px;
+  font-weight:normal;
+  opacity:.9;
+}
+@media(max-width:600px){
+  .monitor-alerta-lista{grid-template-columns:1fr}
+}
+
 .autonomia-grande{
   font-size:22px;
   font-weight:bold;
@@ -3823,7 +3874,8 @@ function obterBateriasGarantia(){
           testeSubstituir: (
             bateria.ccaPadraoA !== undefined && bateria.ccaPadraoA !== "" &&
             bateria.ccaMedidoA !== undefined && bateria.ccaMedidoA !== "" &&
-            Number(bateria.ccaMedidoA) < Number(bateria.ccaPadraoA)
+            Number(bateria.ccaPadraoA) > 0 &&
+            ((Number(bateria.ccaPadraoA) - Number(bateria.ccaMedidoA)) / Number(bateria.ccaPadraoA)) > 0.10
           ) || (
             bateria.saudePercentual !== undefined && bateria.saudePercentual !== "" &&
             Number(bateria.saudePercentual) < 80
@@ -5607,6 +5659,15 @@ function atualizarRelogiosContingencia(){
    BATERIA
 ========================================================= */
 
+function ccaMinimoRecomendadoPorCapacidadeAh(capacidadeAh){
+  const ah=Number(capacidadeAh);
+  // Limite mínimo recomendado por capacidade: 45Ah=280A, 63Ah=400A, 105Ah=680A.
+  if(ah===45) return 280;
+  if(ah===63) return 400;
+  if(ah===105) return 680;
+  return "";
+}
+
 function ccaPadraoPorCapacidadeAh(capacidadeAh){
   const ah=Number(capacidadeAh);
   // Valores nominais centrais das faixas informadas:
@@ -6141,36 +6202,77 @@ function render(preservarBusca=true){
       : null;
 
     const bateriasComAlerta = bateriasComTeste.filter(bat => {
-      const ccaBaixo = bat.ccaPadraoA !== undefined && bat.ccaPadraoA !== "" &&
-        bat.ccaMedidoA !== undefined && bat.ccaMedidoA !== "" &&
-        Number(bat.ccaMedidoA) < Number(bat.ccaPadraoA);
-      const saudeBaixa = bat.saudePercentual !== undefined && bat.saudePercentual !== "" &&
-        Number(bat.saudePercentual) < 80;
-      return ccaBaixo || saudeBaixa;
+      const ccaMinimo = Number(ccaMinimoRecomendadoPorCapacidadeAh(bat.capacidadeAh));
+      const ccaMedido = Number(bat.ccaMedidoA);
+      const temCca = bat.capacidadeAh !== undefined && bat.capacidadeAh !== "" &&
+        bat.ccaMedidoA !== undefined && bat.ccaMedidoA !== "" && ccaMinimo > 0;
+      const quedaCca = temCca ? Math.max(0, (ccaMinimo - ccaMedido) / ccaMinimo) : 0;
+      // CCA é avaliado contra o MÍNIMO recomendado da capacidade:
+      // abaixo de 20% do mínimo = sem alerta de CCA; de 20% até 40% = amarelo; acima de 40% = vermelho.
+      // CCA igual ou acima do mínimo nunca gera alerta, mesmo que esteja abaixo do valor central da faixa.
+      const ccaAmarelo = temCca && quedaCca >= 0.20 && quedaCca <= 0.40;
+      const ccaVermelho = temCca && quedaCca > 0.40;
+      const saude = Number(bat.saudePercentual);
+      const temSaude = bat.saudePercentual !== undefined && bat.saudePercentual !== "";
+      // Saúde baixa é avaliada separadamente: abaixo de 80% amarelo; abaixo de 60% vermelho.
+      const saudeAmarela = temSaude && saude < 80 && saude >= 60;
+      const saudeVermelha = temSaude && saude < 60;
+      return ccaAmarelo || ccaVermelho || saudeAmarela || saudeVermelha;
     });
 
     let monitor = monitorBase;
     if (bateriasComAlerta.length) {
       const detalhes = bateriasComAlerta.map(bat => {
         const patrimonio = bat.patrimonio ? ` (${escapeHtml(bat.patrimonio)})` : "";
-        const cca = bat.ccaMedidoA !== undefined && bat.ccaMedidoA !== ""
-          ? `CCA ${escapeHtml(bat.ccaMedidoA)}/${bat.ccaPadraoA !== undefined && bat.ccaPadraoA !== "" ? escapeHtml(bat.ccaPadraoA) : "--"}`
-          : "CCA n/d";
-        const saude = bat.saudePercentual !== undefined && bat.saudePercentual !== ""
-          ? `${escapeHtml(bat.saudePercentual)}% saúde`
-          : "saúde n/d";
-        return `B${bat.numero}${patrimonio}: ${saude}, ${cca} A`;
+        const ccaMedidoNum = Number(bat.ccaMedidoA);
+        const ccaMinimo = Number(ccaMinimoRecomendadoPorCapacidadeAh(bat.capacidadeAh));
+        const temCca = bat.ccaMedidoA !== undefined && bat.ccaMedidoA !== "" && ccaMinimo > 0;
+        const perdaPct = temCca ? Math.max(0, (ccaMinimo - ccaMedidoNum) / ccaMinimo * 100) : 0;
+        const ccaAlerta = temCca && perdaPct >= 20;
+        const cca = temCca
+          ? `CCA: ${escapeHtml(bat.ccaMedidoA)} A (mínimo ${ccaMinimo} A) — ${perdaPct > 0 ? `${perdaPct.toFixed(1).replace(".", ",")}% abaixo do mínimo${ccaAlerta ? (perdaPct > 40 ? " — CRÍTICO" : " — ALERTA CCA") : " — dentro da tolerância"}` : "dentro/acima do mínimo"}`
+          : "CCA: sem dados suficientes";
+        const saudeNum = Number(bat.saudePercentual);
+        const temSaude = bat.saudePercentual !== undefined && bat.saudePercentual !== "";
+        const saude = temSaude
+          ? `Saúde: ${escapeHtml(bat.saudePercentual)}%${saudeNum < 60 ? " — CRÍTICA" : saudeNum < 80 ? " — ATENÇÃO" : " — OK"}`
+          : "Saúde: sem dados";
+        const statusCard = (temSaude && saudeNum < 60) || (temCca && perdaPct > 40)
+          ? "CRÍTICO"
+          : ((temSaude && saudeNum < 80) || (temCca && perdaPct >= 20))
+            ? "ATENÇÃO"
+            : "VERIFICAR";
+        return `<div class="monitor-alerta-bateria">
+          <div class="monitor-alerta-bateria-topo">
+            <span>🔋 B${escapeHtml(bat.numero)}${patrimonio}</span>
+            <span class="monitor-alerta-status">${statusCard}</span>
+          </div>
+          <div class="monitor-alerta-indicadores">
+            <span><strong>Saúde:</strong> ${temSaude ? `${escapeHtml(bat.saudePercentual)}%${saudeNum < 60 ? " — crítica" : saudeNum < 80 ? " — atenção" : ""}` : "sem dados"}</span>
+            <span><strong>CCA:</strong> ${temCca ? `${escapeHtml(bat.ccaMedidoA)} A` : "sem dados"}</span>
+          </div>
+          <div class="monitor-alerta-detalhe">${temCca ? `Mínimo: ${ccaMinimo} A · ${perdaPct > 0 ? `${perdaPct.toFixed(1).replace(".", ",")}% abaixo do mínimo${perdaPct >= 20 ? (perdaPct > 40 ? " — crítico" : " — alerta CCA") : " — dentro da tolerância"}` : "dentro/acima do mínimo"}` : "CCA sem dados suficientes para comparar"}</div>
+        </div>`;
+      });
+      const temAlertaVermelho = bateriasComAlerta.some(bat => {
+        const minimo=Number(ccaMinimoRecomendadoPorCapacidadeAh(bat.capacidadeAh));
+        const medido=Number(bat.ccaMedidoA);
+        const temCca=bat.capacidadeAh!==undefined && bat.capacidadeAh!=="" && bat.ccaMedidoA!==undefined && bat.ccaMedidoA!=="" && minimo>0;
+        const queda=temCca?Math.max(0,(minimo-medido)/minimo):0;
+        const saude=Number(bat.saudePercentual);
+        return (temCca && queda>0.40) ||
+          (bat.saudePercentual!==undefined && bat.saudePercentual!=="" && saude<60);
       });
       monitor = {
-        classe: "monitor-critico",
-        titulo: `🔴 SUBSTITUIR / VERIFICAR — ${bateriasComAlerta.length} bateria(s)`,
-        mensagem: detalhes.join(" · ")
+        classe: temAlertaVermelho ? "monitor-critico" : "monitor-atencao",
+        titulo: `${temAlertaVermelho ? "🔴 ALERTA VERMELHO" : "🟡 ATENÇÃO"} — ${bateriasComAlerta.length} bateria(s)`,
+        mensagem: `<div class="monitor-alerta-lista">${detalhes.join("")}</div>`
       };
     } else if (bateriasComTeste.length) {
       monitor = {
         classe: "monitor-normal",
         titulo: "🟢 TESTES DAS BATERIAS SEM ALERTA",
-        mensagem: "Os resultados cadastrados não indicam CCA abaixo do padrão nem saúde inferior a 80%. A idade estimada continua disponível separadamente."
+        mensagem: "Nenhuma bateria atingiu os limites de alerta de CCA ou saúde. A idade estimada continua disponível separadamente."
       };
     }
 
@@ -8214,7 +8316,10 @@ function atualizarPainelCompletudeBaterias(){
       const ccaPadrao=Number(b.ccaPadraoA);
       const ccaMedido=Number(b.ccaMedidoA);
       const saude=Number(b.saudePercentual);
-      return (valorPreenchidoBateria(b.ccaPadraoA) && valorPreenchidoBateria(b.ccaMedidoA) && ccaPadrao>0 && ccaMedido<ccaPadrao*0.8)
+      const ccaMinimo=Number(ccaMinimoRecomendadoPorCapacidadeAh(b.capacidadeAh));
+      const perdaCca=ccaMinimo>0 && valorPreenchidoBateria(b.ccaMedidoA)
+        ? Math.max(0,(ccaMinimo-ccaMedido)/ccaMinimo) : 0;
+      return (ccaMinimo>0 && valorPreenchidoBateria(b.ccaMedidoA) && perdaCca>=0.20)
         || (valorPreenchidoBateria(b.saudePercentual) && saude<80);
     });
     let statusPop="ok";
