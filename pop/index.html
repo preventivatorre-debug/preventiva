@@ -1610,6 +1610,10 @@ details[open]>summary::before{
 .painel-edicao-recolhivel[open]>summary::before{content:"▼ "}
 .painel-edicao-recolhivel .controle-edicao{margin:0;border-radius:0;box-shadow:none;border-top:1px solid #e5e7eb}
 
+/* Configuração do prazo de teste: aparece somente com o modo de edição liberado. */
+body:not(.modo-edicao) .config-prazo-teste{display:none !important}
+body.modo-edicao .config-prazo-teste{display:flex !important}
+
 
 /* Painel administrativo: completude e validade dos dados das baterias */
 .btn-completude-baterias{background:#34495e;font-weight:bold}
@@ -1689,6 +1693,15 @@ details[open]>summary::before{
     <button type="button" class="btn-completude-baterias" onclick="abrirPainelCompletudeBaterias()">
       🔋 Conferir cadastro das baterias
     </button>
+
+    <div class="config-prazo-teste" style="display:flex;align-items:end;gap:8px;flex-wrap:wrap;width:100%;padding:10px;background:#f0f7f2;border-radius:7px">
+      <div style="min-width:180px;flex:1">
+        <label for="prazoTesteBaterias" style="display:block;font-weight:bold;font-size:13px;margin-bottom:5px;color:#155e3b">📅 Período para refazer os testes (dias)</label>
+        <input id="prazoTesteBaterias" type="number" min="1" max="3650" step="1" value="90" style="width:100%;padding:9px;border:1px solid #bbb;border-radius:5px">
+      </div>
+      <button type="button" class="salvar" onclick="salvarPrazoTesteBaterias()">💾 Salvar período</button>
+      <small id="statusPrazoTesteBaterias" style="width:100%;color:#555">Padrão atual: 90 dias</small>
+    </div>
 
   </div>
 </details>
@@ -2019,12 +2032,12 @@ details[open]>summary::before{
       <h2 id="tituloCompletudeBaterias">🔋 Conferência dos dados das baterias</h2>
       <button type="button" class="completude-fechar" onclick="fecharPainelCompletudeBaterias()">✕ Fechar</button>
     </div>
-    <p style="margin:8px 0;color:#555;font-size:13px">O resumo informa se o teste está OK e, separadamente, alerta quando baterias têm CCA baixo ou saúde abaixo de 80%. Testes com mais de 90 dias ficam em amarelo.</p>
+    <p style="margin:8px 0;color:#555;font-size:13px">O resumo informa se o teste está OK e, separadamente, alerta quando baterias têm CCA baixo ou saúde abaixo de 80%. Testes acima do período configurado ficam em amarelo.</p>
     <div id="resumoCompletudeBaterias" class="completude-resumo"></div>
     <div class="completude-legenda">
       <span><strong style="color:#166534">✓ OK</strong> Teste registrado e atualizado</span>
       <span><strong style="color:#991b1b">✕ Falta</strong> Dados do teste/cadastro pendentes</span>
-      <span><strong style="color:#92400e">🟡 Antigo</strong> Teste com mais de 90 dias</span>
+      <span><strong style="color:#92400e">🟡 Antigo</strong> Testes Vencidos</span>
     </div>
     <div class="completude-tabela-wrap">
       <table class="completude-tabela">
@@ -8242,6 +8255,34 @@ function exportarPlanilhaAutonomia(){
 /* =========================================================
    CONFERÊNCIA ADMINISTRATIVA DOS CADASTROS DE BATERIAS
 ========================================================= */
+const CHAVE_PRAZO_TESTE_BATERIAS = "controlePopsPrazoTesteBaterias";
+function obterPrazoTesteBaterias(){
+  const salvo=Number(localStorage.getItem(CHAVE_PRAZO_TESTE_BATERIAS));
+  return Number.isInteger(salvo)&&salvo>=1&&salvo<=3650?salvo:90;
+}
+function carregarPrazoTesteBaterias(){
+  const campo=document.getElementById("prazoTesteBaterias");
+  const status=document.getElementById("statusPrazoTesteBaterias");
+  const prazo=obterPrazoTesteBaterias();
+  if(campo) campo.value=prazo;
+  if(status) status.textContent=`Período configurado: ${prazo} dias. Testes acima desse prazo serão sinalizados como antigos.`;
+}
+function salvarPrazoTesteBaterias(){
+  if(!modoEdicao){
+    alert("Ative o modo de edição para alterar o período de testes.");
+    return;
+  }
+  const campo=document.getElementById("prazoTesteBaterias");
+  const prazo=Number(campo&&campo.value);
+  if(!Number.isInteger(prazo)||prazo<1||prazo>3650){
+    alert("Informe uma quantidade de dias entre 1 e 3650.");
+    return;
+  }
+  localStorage.setItem(CHAVE_PRAZO_TESTE_BATERIAS,String(prazo));
+  carregarPrazoTesteBaterias();
+  atualizarPainelCompletudeBaterias();
+  alert(`✅ Período de teste atualizado para ${prazo} dias neste navegador.`);
+}
 function abrirPainelCompletudeBaterias(){
   atualizarPainelCompletudeBaterias();
   const modal=document.getElementById("modalCompletudeBaterias");
@@ -8271,6 +8312,7 @@ function atualizarPainelCompletudeBaterias(){
   if(!tbody || !resumo) return;
 
   const linhas=[];
+  const prazoTeste=obterPrazoTesteBaterias();
   let totalPops=0, okPops=0, faltaPops=0, antigoPops=0;
   const listaPops=(Array.isArray(pops)?pops:[]).filter(pop=>Array.isArray(pop.baterias)&&pop.baterias.length>0);
 
@@ -8297,7 +8339,7 @@ function atualizarPainelCompletudeBaterias(){
       }else if(idade===null){
         status="falta";
         detalhe="Data do teste inválida";
-      }else if(idade>90){
+      }else if(idade>prazoTeste){
         status="antigo";
         detalhe=`Teste há ${idade} dias`;
       }else{
@@ -8354,7 +8396,7 @@ function atualizarPainelCompletudeBaterias(){
       <td><button type="button" class="nome-pop-completude" onclick="event.stopPropagation();alternarDetalhesPopBaterias('${popIndex}')">${escapeHtml(nomePop)} <span>▾ Ver baterias</span></button></td>
       <td>${baterias.length} bateria(s)</td>
       <td>${escapeHtml(contagemStatus)}</td>
-      <td class="completude-detalhe"><strong>${statusPop==="ok"?"✓ Teste OK":statusPop==="falta"?"✕ Dados pendentes":"🟡 Teste antigo"}</strong><br>${escapeHtml(resumoCondicao)}${statusPop==="antigo"?"<br>Há teste(s) com mais de 90 dias.":""}${statusPop==="falta"?"<br>Confira os campos obrigatórios do cadastro.":""}</td>
+      <td class="completude-detalhe"><strong>${statusPop==="ok"?"✓ Teste OK":statusPop==="falta"?"✕ Dados pendentes":"🟡 Teste antigo"}</strong><br>${escapeHtml(resumoCondicao)}${statusPop==="antigo"?`<br>Há teste(s) acima de ${prazoTeste} dias.`:""}${statusPop==="falta"?"<br>Confira os campos obrigatórios do cadastro.":""}</td>
     </tr><tr class="detalhes-pop-baterias" id="detalhesPopBaterias_${popIndex}" style="display:none"><td colspan="5"><div class="lista-detalhes-baterias">${detalhesPop}</div></td></tr>`);
   });
 
@@ -8370,6 +8412,7 @@ function alternarDetalhesPopBaterias(popIndex){
   linha.dataset.aberto=abrir?"sim":"nao";
 }
 let filtroCompletudeBaterias="todos";
+document.addEventListener("DOMContentLoaded",carregarPrazoTesteBaterias);
 function filtrarCompletudeBaterias(filtro){
   filtroCompletudeBaterias=filtro;
   atualizarPainelCompletudeBaterias();
