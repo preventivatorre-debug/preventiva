@@ -820,6 +820,12 @@ input:disabled{
   font-size:18px;
   font-weight:bold
 }
+.codigo-unico-pop{margin-top:5px;font-size:13px;font-weight:800;color:#14532d}
+.codigo-unico-pop .codigo-valor{display:inline-block;margin-left:4px;padding:3px 7px;border-radius:5px;background:#dbeafe;color:#1d4ed8}
+.codigo-unico-edicao{display:none;margin-top:8px;gap:6px;align-items:center;flex-wrap:wrap}
+body.modo-edicao .codigo-unico-edicao{display:flex}
+.codigo-unico-edicao label{font-size:12px;font-weight:700}
+.codigo-unico-edicao input{max-width:260px;font-size:14px!important;font-weight:600!important}
 
 .banco{
   margin-top:15px;
@@ -2037,7 +2043,7 @@ body.modo-edicao .config-prazo-teste{display:flex !important}
     <div class="completude-legenda">
       <span><strong style="color:#166534">✓ OK</strong> Teste registrado e atualizado</span>
       <span><strong style="color:#991b1b">✕ Falta</strong> Dados do teste/cadastro pendentes</span>
-      <span><strong style="color:#92400e">🟡 Antigo</strong> Testes Vencidos</span>
+      <span><strong style="color:#92400e">🟡 Antigo</strong> Teste acima do prazo configurado</span>
     </div>
     <div class="completude-tabela-wrap">
       <table class="completude-tabela">
@@ -6496,6 +6502,11 @@ function render(preservarBusca=true){
 
           >
 
+          <div class="codigo-unico-pop">Código único da unidade:<span class="codigo-valor">${escapeHtml(pop.codigoUnico||"Não cadastrado")}</span></div>
+          <div class="codigo-unico-edicao">
+            <label for="codigoUnicoPop${i}">Código único informado pela concessionária</label>
+            <input id="codigoUnicoPop${i}" type="text" maxlength="80" placeholder="Ex.: código da unidade consumidora" value="${escapeHtml(pop.codigoUnico||"")}" onchange="pops[${i}].codigoUnico=this.value.trim(); existemAlteracoes=true; render();">
+          </div>
         </div>
 
 
