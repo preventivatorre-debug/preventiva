@@ -1968,11 +1968,11 @@ details[open]>summary::before{
       <h2 id="tituloCompletudeBaterias">🔋 Conferência dos dados das baterias</h2>
       <button type="button" class="completude-fechar" onclick="fecharPainelCompletudeBaterias()">✕ Fechar</button>
     </div>
-    <p style="margin:8px 0;color:#555;font-size:13px">Verifica patrimônio, capacidade, CCA padrão e medido, saúde, carga e data do teste. Testes com mais de 90 dias ficam em amarelo.</p>
+    <p style="margin:8px 0;color:#555;font-size:13px">O resumo informa se o teste está OK e, separadamente, alerta quando baterias têm CCA baixo ou saúde abaixo de 80%. Testes com mais de 90 dias ficam em amarelo.</p>
     <div id="resumoCompletudeBaterias" class="completude-resumo"></div>
     <div class="completude-legenda">
-      <span><strong style="color:#166534">✓ OK</strong> Cadastro completo e teste recente</span>
-      <span><strong style="color:#991b1b">✕ Falta</strong> Existem campos obrigatórios vazios</span>
+      <span><strong style="color:#166534">✓ OK</strong> Teste registrado e atualizado</span>
+      <span><strong style="color:#991b1b">✕ Falta</strong> Dados do teste/cadastro pendentes</span>
       <span><strong style="color:#92400e">🟡 Antigo</strong> Teste com mais de 90 dias</span>
     </div>
     <div class="completude-tabela-wrap">
@@ -8205,17 +8205,32 @@ function atualizarPainelCompletudeBaterias(){
     });
 
     // A prioridade do status do POP é: dados faltando, teste antigo, tudo OK.
+    // O resumo mostra duas coisas separadas: se o teste está atualizado
+    // e se os resultados de CCA/saúde indicam atenção.
+    const comDadosFaltando=analises.filter(a=>a.status==="falta");
+    const antigos=analises.filter(a=>a.status==="antigo");
+    const criticas=analises.filter(a=>{
+      const b=a.bat;
+      const ccaPadrao=Number(b.ccaPadraoA);
+      const ccaMedido=Number(b.ccaMedidoA);
+      const saude=Number(b.saudePercentual);
+      return (valorPreenchidoBateria(b.ccaPadraoA) && valorPreenchidoBateria(b.ccaMedidoA) && ccaPadrao>0 && ccaMedido<ccaPadrao*0.8)
+        || (valorPreenchidoBateria(b.saudePercentual) && saude<80);
+    });
     let statusPop="ok";
-    if(analises.some(a=>a.status==="falta")) statusPop="falta";
-    else if(analises.some(a=>a.status==="antigo")) statusPop="antigo";
+    if(comDadosFaltando.length) statusPop="falta";
+    else if(antigos.length) statusPop="antigo";
     if(statusPop==="ok") okPops++;
     else if(statusPop==="falta") faltaPops++;
     else antigoPops++;
 
     const nomePop=pop.nome || pop.nomePop || `POP ${popIndex+1}`;
-    const rotulo=statusPop==="ok"?"✓ OK":statusPop==="falta"?"✕ Falta":"🟡 Antigo";
+    const rotulo=statusPop==="ok"?"✓ TESTE OK":statusPop==="falta"?"✕ DADOS PENDENTES":"🟡 TESTE ANTIGO";
     const classe=statusPop==="ok"?"completude-ok":statusPop==="falta"?"completude-falta":"completude-antigo";
-    const contagemStatus=`${analises.filter(a=>a.status==="ok").length} OK · ${analises.filter(a=>a.status==="falta").length} faltando · ${analises.filter(a=>a.status==="antigo").length} antigos`;
+    const resumoCondicao=criticas.length
+      ? `⚠ ${criticas.length} bateria(s) com CCA/saúde baixa`
+      : `✓ Sem alerta de CCA/saúde nos dados registrados`;
+    const contagemStatus=`${baterias.length} bateria(s) · ${resumoCondicao}`;
     const detalhesPop=analises.map(a=>{
       const b=a.bat;
       const patrimonio=valorPreenchidoBateria(b.patrimonio)?` (${b.patrimonio})`:"";
@@ -8225,7 +8240,8 @@ function atualizarPainelCompletudeBaterias(){
       const carga=valorPreenchidoBateria(b.cargaPercentual)?`${b.cargaPercentual}%`:"carga —";
       const data=a.dataTeste?escapeHtml(a.dataTeste):"sem data";
       const statusB=a.status==="ok"?"✓":a.status==="falta"?"✕":"🟡";
-      return `<div class="detalhe-bateria-pop"><strong>${statusB} Bateria ${a.index+1}${escapeHtml(patrimonio)}</strong><span>${valorPreenchidoBateria(capacidade)?escapeHtml(String(capacidade))+" Ah":"capacidade —"} · CCA ${escapeHtml(cca)} · ${escapeHtml(saude)} · ${escapeHtml(carga)} · teste: ${data}</span><small>${escapeHtml(a.detalhe)}</small></div>`;
+      const statusTexto=a.status==="falta"?"Preencher/validar os dados do teste":a.status==="antigo"?"Registrar um teste atualizado":"Teste registrado e dentro do prazo";
+      return `<div class="detalhe-bateria-pop"><strong>${statusB} Bateria ${a.index+1}${escapeHtml(patrimonio)}</strong><span>${valorPreenchidoBateria(capacidade)?escapeHtml(String(capacidade))+" Ah":"capacidade —"} · CCA ${escapeHtml(cca)} · ${escapeHtml(saude)} · ${escapeHtml(carga)} · teste: ${data}</span><small>${escapeHtml(statusTexto)} · ${escapeHtml(a.detalhe)}</small></div>`;
     }).join("");
 
     linhas.push(`<tr data-status="${statusPop}" class="linha-pop-completude" onclick="alternarDetalhesPopBaterias('${popIndex}')">
@@ -8233,7 +8249,7 @@ function atualizarPainelCompletudeBaterias(){
       <td><button type="button" class="nome-pop-completude" onclick="event.stopPropagation();alternarDetalhesPopBaterias('${popIndex}')">${escapeHtml(nomePop)} <span>▾ Ver baterias</span></button></td>
       <td>${baterias.length} bateria(s)</td>
       <td>${escapeHtml(contagemStatus)}</td>
-      <td class="completude-detalhe">${statusPop==="ok"?"Cadastro completo e testes recentes":statusPop==="falta"?"Há dados obrigatórios faltando":"Há testes com mais de 90 dias"}</td>
+      <td class="completude-detalhe"><strong>${statusPop==="ok"?"✓ Teste OK":statusPop==="falta"?"✕ Dados pendentes":"🟡 Teste antigo"}</strong><br>${escapeHtml(resumoCondicao)}${statusPop==="antigo"?"<br>Há teste(s) com mais de 90 dias.":""}${statusPop==="falta"?"<br>Confira os campos obrigatórios do cadastro.":""}</td>
     </tr><tr class="detalhes-pop-baterias" id="detalhesPopBaterias_${popIndex}" style="display:none"><td colspan="5"><div class="lista-detalhes-baterias">${detalhesPop}</div></td></tr>`);
   });
 
