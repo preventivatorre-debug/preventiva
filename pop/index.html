@@ -826,6 +826,16 @@ input:disabled{
 body.modo-edicao .codigo-unico-edicao{display:flex}
 .codigo-unico-edicao label{font-size:12px;font-weight:700}
 .codigo-unico-edicao input{max-width:260px;font-size:14px!important;font-weight:600!important}
+.codigo-unico-linha{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px}
+.btn-aciona-concessionaria{display:inline-flex;align-items:center;gap:5px;margin:0;padding:6px 10px;background:#16803c;color:#fff;border-radius:5px;text-decoration:none;font-size:12px;font-weight:800;white-space:nowrap}
+.btn-aciona-concessionaria:hover{opacity:.9}
+.concessionaria-sem-whatsapp{font-size:12px;color:#777;font-weight:normal}
+.whatsapp-concessionaria-edicao{display:none;margin-top:8px;gap:6px;align-items:center;flex-wrap:wrap}
+body.modo-edicao .whatsapp-concessionaria-edicao{display:flex}
+.whatsapp-concessionaria-edicao label{font-size:12px;font-weight:700}
+.whatsapp-concessionaria-edicao input{max-width:360px;font-size:14px!important;font-weight:600!important}
+.concessionaria-detectada{font-size:12px;font-weight:800;color:#166534;background:#dcfce7;padding:4px 7px;border-radius:5px}
+
 
 .banco{
   margin-top:15px;
@@ -2677,6 +2687,7 @@ function bancoParaPop(row){
 
     // Código único da unidade informado pela concessionária.
     codigoUnico:String(row.codigo_unico||""),
+    whatsappConcessionaria:String(row.whatsapp_concessionaria||""),
 
     ah:Number(row.ah)||0,
 
@@ -2760,6 +2771,8 @@ function popParaBanco(pop){
 
     // Persiste o código único na coluna codigo_unico do Supabase.
     codigo_unico:String(pop.codigoUnico||"").trim()||null,
+    // Número/link do WhatsApp da concessionária para acionamento rápido.
+    whatsapp_concessionaria:String(pop.whatsappConcessionaria||"").trim()||null,
 
     ah:Number(pop.ah)||0,
 
@@ -5811,6 +5824,30 @@ function ocultarContingenciaNormalizada(){
   });
 }
 
+function normalizarTelefoneConcessionaria(valor){
+  const texto=String(valor||"").trim();
+  const phoneParam=texto.match(/[?&]phone=(\d+)/i);
+  if(phoneParam) return phoneParam[1];
+  const soDigitos=texto.replace(/\D/g,"");
+  return soDigitos.startsWith("00")?soDigitos.slice(2):soDigitos;
+}
+function identificarConcessionaria(valor){
+  const numero=normalizarTelefoneConcessionaria(valor);
+  if(!numero) return "";
+  // Contatos fornecidos pelo usuário e DDDs regionais comuns como apoio à identificação.
+  if(numero.includes("558632288200") || /^(55)?(86|89)/.test(numero)) return "Equatorial";
+  if(numero.includes("557113370635") || /^(55)?7[1-9]/.test(numero)) return "Coelba";
+  return "";
+}
+function gerarBotaoWhatsAppConcessionaria(pop){
+  const telefone=normalizarTelefoneConcessionaria(pop?.whatsappConcessionaria||"");
+  const concessionaria=identificarConcessionaria(pop?.whatsappConcessionaria||"");
+  if(!telefone || !concessionaria) return `<span class="concessionaria-sem-whatsapp">${telefone?"Concessionária não identificada":"WhatsApp não cadastrado"}</span>`;
+  const mensagem=`Olá, estou comunicando falta de energia no POP ${pop.nome||""}. Código único da unidade: ${pop.codigoUnico||"Não cadastrado"}. Solicito registro da ocorrência e previsão de restabelecimento.`;
+  const url=`https://web.whatsapp.com/send/?phone=${telefone}&text=${encodeURIComponent(mensagem)}&type=phone_number&app_absent=0`;
+  return `<a class="btn-aciona-concessionaria" href="${url}" target="_blank" rel="noopener noreferrer">📲 Acionar ${concessionaria}</a>`;
+}
+
 function render(preservarBusca=true){
 
   const buscaElemento=
@@ -6508,10 +6545,19 @@ function render(preservarBusca=true){
 
           >
 
-          <div class="codigo-unico-pop">Código único da unidade:<span class="codigo-valor">${escapeHtml(pop.codigoUnico||"Não cadastrado")}</span></div>
+          <div class="codigo-unico-linha">
+            <div class="codigo-unico-pop">Código único da unidade:<span class="codigo-valor">${escapeHtml(pop.codigoUnico||"Não cadastrado")}</span></div>
+            ${gerarBotaoWhatsAppConcessionaria(pop)}
+          </div>
           <div class="codigo-unico-edicao">
-            <label for="codigoUnicoPop${i}">Código único informado pela concessionária</label>
+            <label for="codigoUnicoPop${i}">Código único da unidade</label>
             <input id="codigoUnicoPop${i}" type="text" maxlength="80" placeholder="Ex.: código da unidade consumidora" value="${escapeHtml(pop.codigoUnico||"")}" ${!modoEdicao?"disabled":""} oninput="pops[${i}].codigoUnico=this.value; existemAlteracoes=true; const card=this.closest('.nome-pop-edicao'); const valor=card?.querySelector('.codigo-valor'); if(valor) valor.textContent=this.value.trim()||'Não cadastrado';">
+          </div>
+          <div class="whatsapp-concessionaria-edicao">
+            <label for="whatsappConcessionariaPop${i}">WhatsApp da concessionária</label>
+            <input id="whatsappConcessionariaPop${i}" type="text" maxlength="300" placeholder="Cole o link do WhatsApp ou digite o número" value="${escapeHtml(pop.whatsappConcessionaria||"")}" ${!modoEdicao?"disabled":""} oninput="pops[${i}].whatsappConcessionaria=this.value.trim(); existemAlteracoes=true; const area=this.closest('.nome-pop-edicao'); const badge=area?.querySelector('.concessionaria-detectada'); if(badge) badge.textContent=identificarConcessionaria(this.value)||'Concessionária não identificada'; const linha=area?.querySelector('.codigo-unico-linha'); const antigo=linha?.querySelector('.btn-aciona-concessionaria, .concessionaria-sem-whatsapp'); if(antigo) antigo.outerHTML=gerarBotaoWhatsAppConcessionaria(pops[${i}]);">
+            <span class="concessionaria-detectada">${escapeHtml(identificarConcessionaria(pop.whatsappConcessionaria)||"Concessionária não identificada")}</span>
+            <small style="color:#666">A identificação usa o número cadastrado. Confirme o contato antes de usar.</small>
           </div>
         </div>
 
