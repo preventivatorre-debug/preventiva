@@ -1665,6 +1665,14 @@ body.modo-edicao .config-prazo-teste{display:flex !important}
 .completude-fechar{background:#555;margin:0}
 @media(max-width:600px){.modal-completude-baterias{padding:7px}.modal-completude-conteudo{margin:7px auto;padding:11px}.modal-completude-cabecalho h2{font-size:17px}.completude-tabela{font-size:11px}.completude-tabela th,.completude-tabela td{padding:6px 5px}}
 
+
+/* Administração discreta do estoque de baterias: liberar com 10 cliques em "Ação". */
+.acao-bateria-secreta{cursor:pointer;user-select:none}
+.acoes-bateria-protegidas{display:none;gap:5px;flex-wrap:wrap;justify-content:center}
+body.baterias-admin-desbloqueado .acoes-bateria-protegidas{display:flex}
+body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
+.selo-baterias-admin{display:none;color:#166534;font-size:11px;font-weight:700}
+
 </style>
 
 <style>
@@ -6013,7 +6021,7 @@ function mostrarAbaEstoqueBaterias(aba){
   if(aba==="estoque"){
     const botaoAdicionar=`<div style="margin:0 0 12px"><button type="button" onclick="adicionarBateriaManualEstoque()">➕ Cadastrar bateria reserva no estoque</button></div><div id="formBateriaManualEstoque" style="display:none;border:1px solid #ccd8e2;border-radius:8px;padding:12px;margin-bottom:14px;background:#f8fbfd"><h3 style="margin-top:0">Cadastro de bateria reserva</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"><label>Patrimônio / etiqueta<input id="estoquePatrimonio" type="text"></label><label>Capacidade (Ah)<input id="estoqueCapacidade" type="number" min="1" step="1" oninput="atualizarPadraoCcaEstoque()"></label><label>CCA padrão (A)<input id="estoqueCcaPadrao" type="number" min="1"></label><label>CCA medido (A)<input id="estoqueCcaMedido" type="number" min="0"></label><label>Saúde (%)<input id="estoqueSaude" type="number" min="0" max="100"></label><label>Carga (%)<input id="estoqueCarga" type="number" min="0" max="100" value="100"></label><label>Data de instalação<input id="estoqueDataInstalacao" type="date"></label><label>Data do teste<input id="estoqueDataTeste" type="date"></label><label>Responsável pelo cadastro<input id="estoqueResponsavel" type="text"></label></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" onclick="salvarBateriaManualEstoque()">💾 Salvar cadastro</button><button type="button" onclick="document.getElementById('formBateriaManualEstoque').style.display='none'">Cancelar</button></div></div>`;
     const opcoes=pops.map((p,i)=>`<option value="${i}">${escapeHtml(p.nome||("POP "+(i+1)))}</option>`).join("");
-    box.innerHTML=itens.length?`<div style="overflow-x:auto"><table><thead><tr><th>Bateria / patrimônio</th><th>Origem</th><th>Saúde</th><th>CCA medido / padrão</th><th>Removida em</th><th>Remanejar para</th><th>Ação</th></tr></thead><tbody>${itens.map(b=>`<tr><td>${escapeHtml(b.patrimonio||"Sem patrimônio")}<br>${escapeHtml(String(b.capacidadeAh||b.capacidade_ah||b.ah||"—"))} Ah</td><td>${escapeHtml(b.origemPopNome||"Não informado")}</td><td>${b.saudePercentual===""||b.saudePercentual==null?"Sem teste":escapeHtml(String(b.saudePercentual))+"%"}</td><td>${b.ccaMedidoA===""||b.ccaMedidoA==null?"—":escapeHtml(String(b.ccaMedidoA))} / ${escapeHtml(String(b.ccaPadraoA||"—"))} A</td><td>${b.dataRemocao?new Date(b.dataRemocao).toLocaleDateString("pt-BR"):"—"}</td><td><select id="destinoBat_${escapeHtml(b.idEstoque)}"><option value="">Selecionar POP</option>${opcoes}</select></td><td><button type="button" onclick="remanejarBateriaEstoque('${escapeHtml(b.idEstoque)}')">Remanejar</button></td></tr>`).join("")}</tbody></table></div>`:`<div style="padding:18px;background:#f7f7f7;border-radius:8px">Nenhuma bateria disponível no estoque.</div>`;
+    box.innerHTML=itens.length?`<div style="overflow-x:auto"><table><thead><tr><th>Bateria / patrimônio</th><th>Origem</th><th>Saúde</th><th>CCA medido / padrão</th><th>Removida em</th><th>Remanejar para</th><th class="acao-bateria-secreta" title="Clique 10 vezes para liberar administração" onclick="cliqueSecretoAdminBaterias()">Ação <span class="selo-baterias-admin">🔓 ADMIN</span></th></tr></thead><tbody>${itens.map(b=>`<tr><td>${escapeHtml(b.patrimonio||"Sem patrimônio")}<br>${escapeHtml(String(b.capacidadeAh||b.capacidade_ah||b.ah||"—"))} Ah</td><td>${escapeHtml(b.origemPopNome||"Não informado")}</td><td>${b.saudePercentual===""||b.saudePercentual==null?"Sem teste":escapeHtml(String(b.saudePercentual))+"%"}</td><td>${b.ccaMedidoA===""||b.ccaMedidoA==null?"—":escapeHtml(String(b.ccaMedidoA))} / ${escapeHtml(String(b.ccaPadraoA||"—"))} A</td><td>${b.dataRemocao?new Date(b.dataRemocao).toLocaleDateString("pt-BR"):"—"}</td><td><select id="destinoBat_${escapeHtml(b.idEstoque)}"><option value="">Selecionar POP</option>${opcoes}</select></td><td><div style="display:flex;flex-direction:column;gap:5px;align-items:center"><button type="button" onclick="remanejarBateriaEstoque('${escapeHtml(b.idEstoque)}')">Remanejar</button><div class="acoes-bateria-protegidas"><button type="button" class="editar" onclick="editarBateriaEstoqueProtegida('${escapeHtml(b.idEstoque)}')">✏️ Editar</button><button type="button" class="remove" onclick="excluirBateriaEstoqueProtegida('${escapeHtml(b.idEstoque)}')">🗑️ Excluir</button></div></div></td></tr>`).join("")}</tbody></table></div>`:`<div style="padding:18px;background:#f7f7f7;border-radius:8px">Nenhuma bateria disponível no estoque.</div>`;
     box.innerHTML=botaoAdicionar+box.innerHTML;
   }else{
     box.innerHTML=itens.length?`<div style="overflow-x:auto"><table><thead><tr><th>Bateria / patrimônio</th><th>POP de origem</th><th>Saúde</th><th>CCA medido / padrão</th><th>Motivo</th><th>Data</th></tr></thead><tbody>${itens.map(b=>`<tr><td>${escapeHtml(b.patrimonio||"Sem patrimônio")}</td><td>${escapeHtml(b.origemPopNome||"Não informado")}</td><td>${b.saudePercentual===""||b.saudePercentual==null?"Sem teste":escapeHtml(String(b.saudePercentual))+"%"}</td><td>${b.ccaMedidoA===""||b.ccaMedidoA==null?"—":escapeHtml(String(b.ccaMedidoA))} / ${escapeHtml(String(b.ccaPadraoA||"—"))} A</td><td>${escapeHtml(b.motivoDestino||"Critério de descarte")}</td><td>${b.dataRemocao?new Date(b.dataRemocao).toLocaleDateString("pt-BR"):"—"}</td></tr>`).join("")}</tbody></table></div>`:`<div style="padding:18px;background:#f7f7f7;border-radius:8px">Nenhuma bateria classificada para descarte.</div>`;
@@ -6022,6 +6030,76 @@ function mostrarAbaEstoqueBaterias(aba){
   document.getElementById("qtdDescarteBaterias").textContent=(configGlobalDB.bateriasEstoque||[]).filter(b=>b.situacaoEstoque==="descarte").length;
   document.getElementById("statusEstoqueBaterias").textContent=aba==="estoque"?"Estoque: baterias removidas e ainda disponíveis para avaliação/remanejamento.":"Descarte: baterias com saúde abaixo de 50% ou CCA abaixo de 50% do padrão cadastrado.";
 }
+let cliquesSecretosAdminBaterias=0;
+let ultimoCliqueSecretoAdminBaterias=0;
+function cliqueSecretoAdminBaterias(){
+  const agora=Date.now();
+  if(agora-ultimoCliqueSecretoAdminBaterias>4000)cliquesSecretosAdminBaterias=0;
+  ultimoCliqueSecretoAdminBaterias=agora;
+  cliquesSecretosAdminBaterias++;
+  if(cliquesSecretosAdminBaterias>=10){
+    cliquesSecretosAdminBaterias=0;
+    const senha=prompt("🔐 Área administrativa de baterias. Digite a senha:");
+    if(senha===null)return;
+    if(senha!==SENHA_EDICAO){alert("Senha incorreta. A administração das baterias continua bloqueada.");return;}
+    document.body.classList.add("baterias-admin-desbloqueado");
+    alert("Administração de baterias liberada nesta sessão. Os botões Editar e Excluir estão disponíveis.");
+    mostrarAbaEstoqueBaterias(window.abaEstoqueBateriasAtual||"estoque");
+  }
+}
+function validarAdminBaterias(){
+  if(!document.body.classList.contains("baterias-admin-desbloqueado")){
+    alert('Área bloqueada. Clique 10 vezes no título "Ação" e informe a senha.');
+    return false;
+  }
+  const senha=prompt("🔐 Confirme a senha para alterar ou excluir esta bateria:");
+  if(senha===null)return false;
+  if(senha!==SENHA_EDICAO){alert("Senha incorreta. Operação cancelada.");return false;}
+  return true;
+}
+async function editarBateriaEstoqueProtegida(id){
+  if(!validarAdminBaterias())return;
+  const b=(configGlobalDB.bateriasEstoque||[]).find(x=>String(x.idEstoque)===String(id));
+  if(!b){alert("Bateria não encontrada.");return;}
+  const pedir=(rotulo,valor)=>prompt(rotulo,valor==null?"":String(valor));
+  const patrimonio=pedir("Patrimônio / etiqueta:",b.patrimonio||"");
+  if(patrimonio===null)return;
+  const capacidade=pedir("Capacidade (Ah):",b.capacidadeAh??b.capacidade_ah??b.ah??"");
+  if(capacidade===null)return;
+  const ccaPadrao=pedir("CCA padrão (A):",b.ccaPadraoA??"");
+  if(ccaPadrao===null)return;
+  const ccaMedido=pedir("CCA medido (A):",b.ccaMedidoA??"");
+  if(ccaMedido===null)return;
+  const saude=pedir("Saúde (%):",b.saudePercentual??"");
+  if(saude===null)return;
+  const carga=pedir("Carga (%):",b.cargaPercentual??"");
+  if(carga===null)return;
+  const teste=pedir("Data do teste (AAAA-MM-DD):",b.dataTeste||"");
+  if(teste===null)return;
+  const vals=[Number(capacidade),Number(ccaPadrao),Number(ccaMedido),Number(saude),Number(carga)];
+  if(!patrimonio.trim()||!Number.isFinite(vals[0])||vals[0]<=0||!Number.isFinite(vals[1])||vals[1]<=0||!Number.isFinite(vals[2])||vals[2]<0||!Number.isFinite(vals[3])||vals[3]<0||vals[3]>100||!Number.isFinite(vals[4])||vals[4]<0||vals[4]>100){
+    alert("Dados inválidos. Nada foi alterado.");return;
+  }
+  const anterior=JSON.parse(JSON.stringify(b));
+  Object.assign(b,{patrimonio:patrimonio.trim(),capacidadeAh:vals[0],ccaPadraoA:vals[1],ccaMedidoA:vals[2],saudePercentual:vals[3],cargaPercentual:vals[4],dataTeste:teste});
+  b.historicoMovimentacoes=Array.isArray(b.historicoMovimentacoes)?b.historicoMovimentacoes:[];
+  b.historicoMovimentacoes.push({tipo:"edição administrativa de dados",data:new Date().toISOString(),responsavel:"Administração"});
+  try{await salvarConfigGlobalDB();mostrarAbaEstoqueBaterias(window.abaEstoqueBateriasAtual||"estoque");alert("Dados da bateria atualizados.");}
+  catch(e){Object.assign(b,anterior);alert("Falha ao salvar no Supabase; os dados anteriores foram restaurados.");}
+}
+async function excluirBateriaEstoqueProtegida(id){
+  if(!validarAdminBaterias())return;
+  const lista=configGlobalDB.bateriasEstoque||[];
+  const idx=lista.findIndex(x=>String(x.idEstoque)===String(id));
+  if(idx<0){alert("Bateria não encontrada.");return;}
+  const b=lista[idx];
+  if(!confirm(`ATENÇÃO: excluir o registro da bateria ${b.patrimonio||"sem patrimônio"}? Esta ação remove o registro do estoque e do relatório de auditoria. Só prossiga se tiver certeza.`))return;
+  const anterior=JSON.parse(JSON.stringify(lista));
+  configGlobalDB.bateriasEstoque.splice(idx,1);
+  try{await salvarConfigGlobalDB();mostrarAbaEstoqueBaterias(window.abaEstoqueBateriasAtual||"estoque");alert("Registro excluído.");}
+  catch(e){configGlobalDB.bateriasEstoque=anterior;alert("Falha ao salvar a exclusão no Supabase; o registro foi restaurado.");}
+}
+
 function adicionarBateriaManualEstoque(){
   if(!confirmarSenhaOperacaoBaterias("cadastrar uma bateria no estoque"))return;
   const area=document.getElementById("formBateriaManualEstoque");
