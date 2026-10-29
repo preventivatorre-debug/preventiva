@@ -1666,6 +1666,22 @@ body.modo-edicao .config-prazo-teste{display:flex !important}
 @media(max-width:600px){.modal-completude-baterias{padding:7px}.modal-completude-conteudo{margin:7px auto;padding:11px}.modal-completude-cabecalho h2{font-size:17px}.completude-tabela{font-size:11px}.completude-tabela th,.completude-tabela td{padding:6px 5px}}
 
 </style>
+
+<style>
+/* Painéis recolhíveis para consulta rápida e gestão do estoque */
+.painel-baterias-duplo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;margin:14px 0}
+.painel-bateria-recolhivel{display:block;min-width:0;background:#fff;border:1px solid #d7e1ea;border-left:5px solid #2980b9;border-radius:10px;padding:12px;margin:0;box-shadow:0 2px 6px #0001}
+.painel-bateria-recolhivel>summary{cursor:pointer;list-style:none;font-weight:700;color:#1f5f9f;font-size:16px;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0}
+.painel-bateria-recolhivel>summary::-webkit-details-marker{display:none}
+.painel-bateria-recolhivel[open]>summary{padding-bottom:12px;border-bottom:1px solid #e5e7eb;margin-bottom:12px}
+.painel-bateria-recolhivel[open]>summary .seta-painel{transform:rotate(45deg)}
+.seta-painel{font-size:20px;transition:transform .15s}
+.painel-estoque-baterias .conteudo-painel-estoque{min-width:0}
+.pesquisa-bateria-rapida .pesquisa-bateria-linha{display:flex;gap:8px;align-items:end}
+.pesquisa-bateria-rapida .pesquisa-bateria-linha>div{flex:1;min-width:0}
+.pesquisa-bateria-rapida input{max-width:100%;box-sizing:border-box}
+@media(max-width:850px){.painel-baterias-duplo{grid-template-columns:1fr}.painel-bateria-recolhivel{width:auto}}
+</style>
 </head>
 
 <body>
@@ -1876,8 +1892,9 @@ body.modo-edicao .config-prazo-teste{display:flex !important}
 
 </div>
 
-<section class="pesquisa-bateria-rapida" aria-labelledby="tituloBuscaBateria">
-  <h3 id="tituloBuscaBateria">🔋 Consulta rápida — CCA e saúde da bateria</h3>
+<div class="painel-baterias-duplo">
+<details class="pesquisa-bateria-rapida painel-bateria-recolhivel" aria-labelledby="tituloBuscaBateria">
+  <summary id="tituloBuscaBateria">🔋 Consulta rápida — CCA e saúde da bateria <span class="seta-painel">＋</span></summary>
   <div class="pesquisa-bateria-linha">
     <div><label for="buscaPatrimonioBateria">Patrimônio da bateria ou equipamento</label><input id="buscaPatrimonioBateria" type="text" placeholder="Digite o patrimônio/etiqueta da bateria ou equipamento" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarBateriaPorPatrimonio()}"></div>
     <button type="button" onclick="buscarBateriaPorPatrimonio()">🔎 Localizar bateria</button>
@@ -1885,7 +1902,10 @@ body.modo-edicao .config-prazo-teste{display:flex !important}
   <div id="bateriaRapidaInfo" class="bateria-rapida-info" style="display:none"></div>
   <div id="equipamentoRapidoInfo" class="bateria-rapida-info" style="display:none"></div>
   <div id="bateriaRapidaCampos" style="display:none">
-    <button type="button" id="btnEditarBateriaRapida" onclick="autorizarEdicaoBateriaRapida()">🔐 Editar dados (senha)</button>
+    <div class="bateria-rapida-acoes" style="margin-bottom:12px">
+      <button type="button" id="btnTrocarBateriaRapida" style="background:#176b3a;color:#fff;font-weight:700" onclick="trocarBateriaRapida()">🔋 TROCAR BATERIA (estoque ou nova)</button>
+      <button type="button" id="btnEditarBateriaRapida" onclick="autorizarEdicaoBateriaRapida()">🔐 Editar dados / teste (senha)</button>
+    </div>
     
     <div class="campos-bateria-rapida">
       <div id="rapidaCapacidadeWrap" style="display:none"><label for="rapidaCapacidadeAh">Tipo / capacidade da bateria</label><select id="rapidaCapacidadeAh" onchange="atualizarCcaPelaCapacidadeRapida()"><option value="">Selecione (Ah)</option><option value="45">45 Ah — CCA 280–350 A</option><option value="63">63 Ah — CCA 400–500 A</option><option value="105">105 Ah — CCA 680–850 A</option></select></div>
@@ -1897,10 +1917,28 @@ body.modo-edicao .config-prazo-teste{display:flex !important}
       <div><label for="rapidaDataTeste">📅 Data do teste</label><input id="rapidaDataTeste" type="date" title="Data em que foi realizada a medição do CCA e da saúde da bateria"></div>
       <div><label for="rapidaPatrimonio">Patrimônio / etiqueta</label><input id="rapidaPatrimonio" type="text"></div>
     </div>
-    <div class="bateria-rapida-acoes"><button type="button" class="salvar" onclick="salvarBateriaRapida()">💾 Salvar dados da bateria</button><button type="button" style="background:#555" onclick="limparBateriaRapida()">Cancelar</button></div>
+    <div class="bateria-rapida-acoes"><button type="button" id="btnSalvarDadosBateriaRapida" class="salvar" onclick="salvarBateriaRapida()">💾 Salvar dados da bateria</button><button type="button" style="background:#555" onclick="limparBateriaRapida()">Cancelar</button></div>
   </div>
   <div id="bateriaRapidaStatus" role="status" style="margin-top:8px;font-size:13px;color:#555">Informe o patrimônio para localizar a bateria e o POP onde ela está instalada.</div>
-</section>
+</details>
+<details id="painelEstoqueBaterias" class="painel-bateria-recolhivel painel-estoque-baterias">
+ <summary>🔋 Estoque, remanejamento e descarte de baterias <span class="seta-painel">＋</span></summary>
+ <div class="conteudo-painel-estoque">
+ <p style="margin:0 0 12px;color:#555;font-size:13px">Após registrar a troca física, a bateria antiga vai automaticamente para descarte se a saúde OU o CCA medido estiver abaixo de 50% do padrão. Se ambos estiverem em 50% ou mais, fica no estoque para avaliação/remanejamento.</p>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+  <button type="button" onclick="mostrarAbaEstoqueBaterias('estoque')">📦 Estoque (<span id="qtdEstoqueBaterias">0</span>)</button>
+  <button type="button" style="background:#a93226" onclick="mostrarAbaEstoqueBaterias('descarte')">♻️ Descartes (<span id="qtdDescarteBaterias">0</span>)</button>
+  <button type="button" onclick="gerarRelatorioAuditoriaBaterias('tela')">📋 Relatório de auditoria</button>
+  <button type="button" onclick="gerarRelatorioAuditoriaBaterias('csv')">⬇️ Exportar CSV</button>
+  <button type="button" onclick="gerarRelatorioAuditoriaBaterias('pdf')">🖨️ Imprimir / salvar PDF</button>
+ </div>
+ <div id="conteudoEstoqueBaterias"></div>
+ <div id="conteudoAuditoriaBaterias" style="display:none;margin-top:16px"></div>
+ <div id="statusEstoqueBaterias" role="status" style="margin-top:8px;font-size:13px"></div>
+ </div>
+</details>
+</div>
+
 
 <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
   <button type="button" class="btn-edicao" onclick="mostrarPOPsSemNome()" style="background:#b45309;color:#fff" disabled>
@@ -2040,6 +2078,8 @@ body.modo-edicao .config-prazo-teste{display:flex !important}
 
 <datalist id="listaEquipamentos"></datalist>
 
+
+
 <div id="pops"></div>
 
 <div id="modalCompletudeBaterias" class="modal-completude-baterias" role="dialog" aria-modal="true" aria-labelledby="tituloCompletudeBaterias" onclick="fecharPainelCompletudeBaterias(event)">
@@ -2108,7 +2148,7 @@ function definirCamposRapidosHabilitados(habilitado){
     const campo=document.getElementById(id);
     if(campo) campo.disabled=!habilitado;
   });
-  const btnSalvar=document.querySelector('#bateriaRapidaCampos .bateria-rapida-acoes .salvar');
+  const btnSalvar=document.getElementById("btnSalvarDadosBateriaRapida");
   if(btnSalvar) btnSalvar.style.display=habilitado?"":"none";
   const btnEditar=document.getElementById("btnEditarBateriaRapida");
   if(btnEditar) btnEditar.style.display=habilitado?"none":"";
@@ -2295,6 +2335,143 @@ function escaparHtml(valor){
   return String(valor??"").replace(/[&<>"']/g, caractere=>({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   }[caractere]));
+}
+
+function confirmarSenhaOperacaoBaterias(acao){
+  const senha=prompt(`🔐 Digite a senha para ${acao}:`);
+  if(senha===null)return false;
+  if(senha!==SENHA_EDICAO){alert("❌ Senha incorreta. Operação cancelada.");return false;}
+  return true;
+}
+
+let contextoTrocaBateriaRapida=null;
+
+async function trocarBateriaRapida(){
+  if(!confirmarSenhaOperacaoBaterias("registrar a troca da bateria"))return;
+  if(!bateriaRapidaSelecionada){alert("Localize uma bateria instalada primeiro.");return;}
+  const {popIndex,bateriaIndex}=bateriaRapidaSelecionada;
+  const pop=pops[popIndex], bat=pop?.baterias?.[bateriaIndex];
+  if(!pop||!bat){alert("A bateria não está mais instalada nesse POP. Pesquise novamente.");return;}
+  contextoTrocaBateriaRapida={popIndex,bateriaIndex};
+  const estoque=Array.isArray(configGlobalDB.bateriasEstoque)?configGlobalDB.bateriasEstoque:[];
+  const disponiveis=estoque.filter(b=>(b.situacaoEstoque||"estoque")==="estoque");
+  const opcoes=disponiveis.map(b=>`<option value="${escapeHtml(String(b.idEstoque||""))}">${escapeHtml(b.patrimonio||"Sem patrimônio")} — Saúde ${escapeHtml(String(b.saudePercentual??"s/ teste"))}% — CCA ${escapeHtml(String(b.ccaMedidoA??"—"))}/${escapeHtml(String(b.ccaPadraoA??"—"))} A</option>`).join("");
+  let modal=document.getElementById("modalTrocaBateriaRapida");
+  if(!modal){
+    modal=document.createElement("div");modal.id="modalTrocaBateriaRapida";
+    modal.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto";
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML=`<div style="background:#fff;color:#222;width:min(760px,100%);max-height:92vh;overflow:auto;border-radius:12px;padding:20px;box-shadow:0 10px 40px #0005">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0;color:#176b3a">🔋 Registrar troca de bateria</h2><button type="button" onclick="fecharModalTrocaBateriaRapida()" aria-label="Fechar">✕</button></div>
+    <p><b>POP:</b> ${escapeHtml(pop.nome||"POP sem nome")} &nbsp; <b>Bateria antiga:</b> ${escapeHtml(bat.patrimonio||"Sem patrimônio")}</p>
+    <p style="background:#fff3cd;padding:10px;border-radius:6px">A bateria antiga será enviada para descarte se a saúde ou o CCA estiver abaixo de 50%. Caso ambos estejam em 50% ou mais, irá para o estoque.</p>
+    <form id="formTrocaBateriaRapida" onsubmit="concluirTrocaBateriaRapida(event)">
+      <label style="display:block;margin:10px 0 5px;font-weight:600">Bateria nova que será instalada</label>
+      <select id="trocaOrigemBateria" onchange="alternarCadastroBateriaTroca()" style="width:100%;padding:10px;border:1px solid #bbb;border-radius:6px">
+        ${disponiveis.length?`<option value="manual">Cadastrar bateria nova (preencher dados)</option><option value="estoque">Escolher do estoque</option>`:`<option value="manual">Cadastrar bateria nova (preencher dados)</option>`}
+      </select>
+      <div id="trocaEscolhaEstoque" style="display:none;margin-top:10px"><label style="display:block;margin-bottom:5px">Bateria disponível no estoque</label><select id="trocaBateriaEstoque" style="width:100%;padding:10px;border:1px solid #bbb;border-radius:6px">${opcoes}</select></div>
+      <div id="trocaCamposManuais" style="margin-top:12px">
+        <h3 style="margin:0 0 10px">Cadastro da bateria nova</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px">
+          <label>Patrimônio / etiqueta<input id="trocaPatrimonio" required style="width:100%;box-sizing:border-box;padding:9px"></label>
+          <label>Capacidade (Ah)<input id="trocaCapacidade" type="number" min="1" required oninput="atualizarPadraoCcaTroca()" style="width:100%;box-sizing:border-box;padding:9px"></label>
+          <label>CCA padrão (A)<input id="trocaCcaPadrao" type="number" min="1" required style="width:100%;box-sizing:border-box;padding:9px"></label>
+          <label>CCA medido (A)<input id="trocaCcaMedido" type="number" min="0" required style="width:100%;box-sizing:border-box;padding:9px"></label>
+          <label>Saúde (%)<input id="trocaSaude" type="number" min="0" max="100" required style="width:100%;box-sizing:border-box;padding:9px"></label>
+          <label>Carga (%)<input id="trocaCarga" type="number" min="0" max="100" value="100" required style="width:100%;box-sizing:border-box;padding:9px"></label>
+          <label>Data de instalação<input id="trocaDataInstalacao" type="date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;box-sizing:border-box;padding:9px"></label>
+          <label>Data do teste<input id="trocaDataTeste" type="date" value="${new Date().toISOString().slice(0,10)}" required style="width:100%;box-sizing:border-box;padding:9px"></label>
+        </div>
+      </div>
+      <label style="display:block;margin-top:12px">Técnico/equipe responsável pela troca<input id="trocaResponsavel" required style="width:100%;box-sizing:border-box;padding:9px"></label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px"><button type="button" onclick="fecharModalTrocaBateriaRapida()">Cancelar</button><button type="submit" style="background:#176b3a;color:white;font-weight:700">Confirmar troca física</button></div>
+    </form>
+  </div>`;
+  modal.style.display="flex";
+  alternarCadastroBateriaTroca();
+}
+function fecharModalTrocaBateriaRapida(){
+  const modal=document.getElementById("modalTrocaBateriaRapida");
+  if(modal)modal.style.display="none";
+  contextoTrocaBateriaRapida=null;
+}
+function alternarCadastroBateriaTroca(){
+  const origem=document.getElementById("trocaOrigemBateria")?.value||"manual";
+  const estoque=document.getElementById("trocaEscolhaEstoque"), campos=document.getElementById("trocaCamposManuais");
+  if(estoque)estoque.style.display=origem==="estoque"?"block":"none";
+  if(campos){
+    campos.style.display=origem==="estoque"?"none":"block";
+    campos.querySelectorAll("input").forEach(c=>c.required=origem!=="estoque");
+  }
+}
+function atualizarPadraoCcaTroca(){
+  const cap=Number(document.getElementById("trocaCapacidade")?.value);
+  const campo=document.getElementById("trocaCcaPadrao");
+  const sugerido=Number(ccaPadraoPorCapacidadeAh(cap))||0;
+  if(campo&&sugerido)campo.value=sugerido;
+}
+async function concluirTrocaBateriaRapida(event){
+  event.preventDefault();
+  if(!contextoTrocaBateriaRapida)return;
+  const {popIndex,bateriaIndex}=contextoTrocaBateriaRapida;
+  const pop=pops[popIndex], bat=pop?.baterias?.[bateriaIndex];
+  if(!pop||!bat){alert("A bateria instalada não foi encontrada. Pesquise novamente.");fecharModalTrocaBateriaRapida();return;}
+  const estoque=Array.isArray(configGlobalDB.bateriasEstoque)?configGlobalDB.bateriasEstoque:[];
+  const origem=document.getElementById("trocaOrigemBateria").value;
+  let bateriaNova, estoqueSelecionado=null;
+  if(origem==="estoque"){
+    const id=document.getElementById("trocaBateriaEstoque").value;
+    estoqueSelecionado=estoque.find(b=>String(b.idEstoque||"")===id&&(b.situacaoEstoque||"estoque")==="estoque");
+    if(!estoqueSelecionado){alert("Escolha uma bateria disponível no estoque.");return;}
+    bateriaNova={...estoqueSelecionado};
+  }else{
+    const v=id=>document.getElementById(id)?.value?.trim()||"";
+    bateriaNova={patrimonio:v("trocaPatrimonio"),capacidadeAh:Number(v("trocaCapacidade")),ccaPadraoA:Number(v("trocaCcaPadrao")),ccaMedidoA:Number(v("trocaCcaMedido")),saudePercentual:Number(v("trocaSaude")),cargaPercentual:Number(v("trocaCarga")),dataInstalacao:v("trocaDataInstalacao"),dataTeste:v("trocaDataTeste"),numero:bateriaIndex+1};
+    if(!bateriaNova.patrimonio||!Number.isFinite(bateriaNova.capacidadeAh)||bateriaNova.capacidadeAh<=0||!Number.isFinite(bateriaNova.ccaPadraoA)||bateriaNova.ccaPadraoA<=0||!Number.isFinite(bateriaNova.ccaMedidoA)||bateriaNova.ccaMedidoA<0||!Number.isFinite(bateriaNova.saudePercentual)||bateriaNova.saudePercentual<0||bateriaNova.saudePercentual>100||!Number.isFinite(bateriaNova.cargaPercentual)||bateriaNova.cargaPercentual<0||bateriaNova.cargaPercentual>100){alert("Revise os dados da bateria nova antes de confirmar.");return;}
+    const duplicada=estoque.some(b=>String(b.patrimonio||"").trim().toLowerCase()===bateriaNova.patrimonio.toLowerCase()&&(b.situacaoEstoque||"estoque")==="estoque")||pops.some((p,pi)=>(p.baterias||[]).some((b,bi)=>!(pi===popIndex&&bi===bateriaIndex)&&String(b.patrimonio||"").trim().toLowerCase()===bateriaNova.patrimonio.toLowerCase()));
+    if(duplicada){alert("Esse patrimônio já está cadastrado no estoque ou instalado em um POP.");return;}
+  }
+  const responsavel=document.getElementById("trocaResponsavel").value.trim();
+  if(!responsavel){alert("Informe o técnico/equipe responsável.");return;}
+  const saude=bat.saudePercentual!==undefined&&bat.saudePercentual!==""?Number(bat.saudePercentual):null;
+  const ccaPadraoAntigo=Number(bat.ccaPadraoA)||0;
+  const ccaMedidoAntigo=bat.ccaMedidoA!==undefined&&bat.ccaMedidoA!==""?Number(bat.ccaMedidoA):null;
+  const saudeAbaixo50=saude!==null&&saude<50;
+  const ccaAbaixo50=ccaPadraoAntigo>0&&ccaMedidoAntigo!==null&&ccaMedidoAntigo<ccaPadraoAntigo*0.5;
+  const destino=(saudeAbaixo50||ccaAbaixo50)?"descarte":"estoque";
+  const motivo=saudeAbaixo50?"Saúde abaixo de 50%":ccaAbaixo50?"CCA abaixo de 50% do padrão":"Saúde e CCA em 50% ou mais; disponível para avaliação";
+  const agora=new Date().toISOString();
+  const itemAntigo={...bat,idEstoque:"bat-"+Date.now()+"-"+Math.random().toString(36).slice(2,8),origemPopId:pop.id,origemPopNome:pop.nome||"POP sem nome",dataRemocao:agora,situacaoEstoque:destino,motivoDestino:motivo,responsavelRetirada:responsavel,bateriaSubstitutaPatrimonio:bateriaNova.patrimonio||"Não informado",historicoMovimentacoes:[...(Array.isArray(bat.historicoMovimentacoes)?bat.historicoMovimentacoes:[]),{tipo:"retirada por troca",data:agora,popOrigem:pop.nome||"POP sem nome",destino,responsavel,bateriaSubstitutaPatrimonio:bateriaNova.patrimonio||"Não informado",motivo}]};
+  const popAnterior=JSON.parse(JSON.stringify(pop)), estoqueAnterior=JSON.parse(JSON.stringify(estoque));
+  if(!Array.isArray(configGlobalDB.bateriasEstoque))configGlobalDB.bateriasEstoque=[];
+  configGlobalDB.bateriasEstoque.push(itemAntigo);
+  if(estoqueSelecionado){
+    const registro=configGlobalDB.bateriasEstoque.find(b=>b.idEstoque===estoqueSelecionado.idEstoque);
+    if(registro){
+      registro.situacaoEstoque="remanejada";registro.destinoPopId=pop.id;registro.destinoPopNome=pop.nome||"POP sem nome";registro.dataRemanejamento=agora;registro.responsavelRemanejamento=responsavel;registro.motivoDestino="Instalada no POP a partir do estoque";
+      registro.historicoMovimentacoes=Array.isArray(registro.historicoMovimentacoes)?registro.historicoMovimentacoes:[];
+      registro.historicoMovimentacoes.push({tipo:"instalada a partir do estoque",data:agora,popDestino:pop.nome||"POP sem nome",responsavel});
+    }
+    ["idEstoque","origemPopId","origemPopNome","dataRemocao","situacaoEstoque","motivoDestino","responsavelRetirada","historicoMovimentacoes","destinoPopId","destinoPopNome","dataRemanejamento","responsavelRemanejamento"].forEach(k=>delete bateriaNova[k]);
+  }
+  bateriaNova.numero=bateriaIndex+1;
+  pop.baterias[bateriaIndex]=bateriaNova;pop.baterias.forEach((b,i)=>b.numero=i+1);
+  try{
+    const {error}=await supabaseClient.from("pops_autonomia").upsert([popParaBanco(pop)],{onConflict:"id"});
+    if(error)throw error;
+    await salvarConfigGlobalDB();
+    existemAlteracoes=false;
+    fecharModalTrocaBateriaRapida();
+    alert(`Troca registrada! A bateria nova ${bateriaNova.patrimonio||""} foi instalada. A bateria antiga foi enviada para ${destino==="descarte"?"Descartes":"Estoque"}.`);
+    limparBateriaRapida();document.getElementById("buscaPatrimonioBateria").value="";
+    document.getElementById("bateriaRapidaStatus").textContent=`Troca concluída no POP ${pop.nome||"sem nome"}.`;
+    render();
+  }catch(e){
+    pops[popIndex]=popAnterior;configGlobalDB.bateriasEstoque=estoqueAnterior;
+    alert("Falha ao salvar a troca no Supabase. Os dados locais foram restaurados; confira a conexão e tente novamente.");
+  }
 }
 
 async function salvarBateriaRapida(){
@@ -2564,6 +2741,14 @@ function atualizarCampos(){
         campo.disabled=false;
         return;
 
+      }
+
+      if(campo.id && campo.id.startsWith("estoque")){
+        // Os campos do formulário de estoque são liberados após a senha
+        // solicitada ao clicar em "Cadastrar bateria reserva".
+        const formularioEstoque=document.getElementById("formBateriaManualEstoque");
+        campo.disabled=!(formularioEstoque && formularioEstoque.style.display!=="none");
+        return;
       }
 
       if(campo.classList.contains(
@@ -4482,7 +4667,8 @@ let configGlobalDB={
   telegramChatId:"",
   telegramAtivo:true,
   equipesPlantao:[],
-  escalaPlantao:{}
+  escalaPlantao:{},
+  bateriasEstoque:[]
 };
 let configGlobalCarregada=false;
 
@@ -4504,7 +4690,8 @@ async function carregarConfigGlobalDB(){
         equipesPlantao:Array.isArray(data.equipe_plantao)?data.equipe_plantao:[],
         escalaPlantao:data.escala_plantao && typeof data.escala_plantao==="object"
           ? data.escala_plantao
-          : {}
+          : {},
+        bateriasEstoque:Array.isArray(data.baterias_estoque)?data.baterias_estoque:[]
       };
     }
     configGlobalCarregada=true;
@@ -4526,6 +4713,7 @@ async function salvarConfigGlobalDB(){
     escala_plantao:configGlobalDB.escalaPlantao && typeof configGlobalDB.escalaPlantao==="object"
       ? configGlobalDB.escalaPlantao
       : {},
+    baterias_estoque:Array.isArray(configGlobalDB.bateriasEstoque)?configGlobalDB.bateriasEstoque:[],
     updated_at:new Date().toISOString()
   };
 
@@ -5772,10 +5960,31 @@ function adicionarBateria(i){
 }
 
 
-function removerBateria(i,j){
+async function removerBateria(i,j){
 
   if(!modoEdicao) return;
-
+  const pop=pops[i];
+  const bat=pop?.baterias?.[j];
+  if(!pop||!bat) return;
+  const saude=bat.saudePercentual!==undefined&&bat.saudePercentual!==""?Number(bat.saudePercentual):null;
+  const padrao=Number(bat.ccaPadraoA)||0;
+  const medido=bat.ccaMedidoA!==undefined&&bat.ccaMedidoA!==""?Number(bat.ccaMedidoA):null;
+  const ccaAbaixo50=padrao>0&&medido!==null&&medido<padrao*0.5;
+  const saudeAbaixo50=saude!==null&&saude<50;
+  const destino=(saudeAbaixo50||ccaAbaixo50)?"descarte":"estoque";
+  if(!confirm(`Confirmar a retirada física da bateria ${bat.patrimonio||("nº "+(j+1))} do POP ${pop.nome||""}?\\n\\nDestino calculado: ${destino==="descarte"?"DESCARTE":"ESTOQUE"}\\nSaúde: ${saude===null?"não informada":saude+"%"}\\nCCA: ${medido===null?"não informado":medido+" A"} / padrão ${padrao||"não informado"} A\\n\\nA bateria só sairá do POP depois desta confirmação. O histórico será mantido para auditoria.`)) return;
+  const responsavelRetirada=prompt("Nome do técnico/equipe que realizou a retirada (para auditoria):","")||"Não informado";
+  const bateriaSubstitutaPatrimonio=prompt("Patrimônio da bateria nova instalada (opcional):","")||"Não informado";
+  const item={...bat, idEstoque:(bat.idEstoque||("bat-"+Date.now()+"-"+Math.random().toString(36).slice(2,8))), origemPopId:pop.id, origemPopNome:pop.nome||"POP sem nome", dataRemocao:new Date().toISOString(), situacaoEstoque:destino, motivoDestino:saudeAbaixo50?"Saúde abaixo de 50%":ccaAbaixo50?"CCA abaixo de 50% do padrão":"Disponível para avaliação/remanejamento", responsavelRetirada, bateriaSubstitutaPatrimonio, historicoMovimentacoes:[{tipo:"retirada",data:new Date().toISOString(),popOrigem:pop.nome||"POP sem nome",destino,responsavel:responsavelRetirada,bateriaSubstitutaPatrimonio}]};
+  if(!Array.isArray(configGlobalDB.bateriasEstoque)) configGlobalDB.bateriasEstoque=[];
+  configGlobalDB.bateriasEstoque.push(item);
+  try{
+    await salvarConfigGlobalDB();
+  }catch(e){
+    configGlobalDB.bateriasEstoque=configGlobalDB.bateriasEstoque.filter(x=>x.idEstoque!==item.idEstoque);
+    alert("Não foi possível registrar a bateria no estoque. Confira a coluna baterias_estoque no Supabase. A bateria não foi removida.");
+    return;
+  }
 
   pops[i].baterias.splice(j,1);
 
@@ -5794,6 +6003,134 @@ function removerBateria(i,j){
 
 }
 
+
+
+function mostrarAbaEstoqueBaterias(aba){
+  window.abaEstoqueBateriasAtual=aba;
+  const box=document.getElementById("conteudoEstoqueBaterias");
+  if(!box)return;
+  const itens=(Array.isArray(configGlobalDB.bateriasEstoque)?configGlobalDB.bateriasEstoque:[]).filter(b=>(b.situacaoEstoque||"estoque")===aba);
+  if(aba==="estoque"){
+    const botaoAdicionar=`<div style="margin:0 0 12px"><button type="button" onclick="adicionarBateriaManualEstoque()">➕ Cadastrar bateria reserva no estoque</button></div><div id="formBateriaManualEstoque" style="display:none;border:1px solid #ccd8e2;border-radius:8px;padding:12px;margin-bottom:14px;background:#f8fbfd"><h3 style="margin-top:0">Cadastro de bateria reserva</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"><label>Patrimônio / etiqueta<input id="estoquePatrimonio" type="text"></label><label>Capacidade (Ah)<input id="estoqueCapacidade" type="number" min="1" step="1" oninput="atualizarPadraoCcaEstoque()"></label><label>CCA padrão (A)<input id="estoqueCcaPadrao" type="number" min="1"></label><label>CCA medido (A)<input id="estoqueCcaMedido" type="number" min="0"></label><label>Saúde (%)<input id="estoqueSaude" type="number" min="0" max="100"></label><label>Carga (%)<input id="estoqueCarga" type="number" min="0" max="100" value="100"></label><label>Data de instalação<input id="estoqueDataInstalacao" type="date"></label><label>Data do teste<input id="estoqueDataTeste" type="date"></label><label>Responsável pelo cadastro<input id="estoqueResponsavel" type="text"></label></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" onclick="salvarBateriaManualEstoque()">💾 Salvar cadastro</button><button type="button" onclick="document.getElementById('formBateriaManualEstoque').style.display='none'">Cancelar</button></div></div>`;
+    const opcoes=pops.map((p,i)=>`<option value="${i}">${escapeHtml(p.nome||("POP "+(i+1)))}</option>`).join("");
+    box.innerHTML=itens.length?`<div style="overflow-x:auto"><table><thead><tr><th>Bateria / patrimônio</th><th>Origem</th><th>Saúde</th><th>CCA medido / padrão</th><th>Removida em</th><th>Remanejar para</th><th>Ação</th></tr></thead><tbody>${itens.map(b=>`<tr><td>${escapeHtml(b.patrimonio||"Sem patrimônio")}<br>${escapeHtml(String(b.capacidadeAh||b.capacidade_ah||b.ah||"—"))} Ah</td><td>${escapeHtml(b.origemPopNome||"Não informado")}</td><td>${b.saudePercentual===""||b.saudePercentual==null?"Sem teste":escapeHtml(String(b.saudePercentual))+"%"}</td><td>${b.ccaMedidoA===""||b.ccaMedidoA==null?"—":escapeHtml(String(b.ccaMedidoA))} / ${escapeHtml(String(b.ccaPadraoA||"—"))} A</td><td>${b.dataRemocao?new Date(b.dataRemocao).toLocaleDateString("pt-BR"):"—"}</td><td><select id="destinoBat_${escapeHtml(b.idEstoque)}"><option value="">Selecionar POP</option>${opcoes}</select></td><td><button type="button" onclick="remanejarBateriaEstoque('${escapeHtml(b.idEstoque)}')">Remanejar</button></td></tr>`).join("")}</tbody></table></div>`:`<div style="padding:18px;background:#f7f7f7;border-radius:8px">Nenhuma bateria disponível no estoque.</div>`;
+    box.innerHTML=botaoAdicionar+box.innerHTML;
+  }else{
+    box.innerHTML=itens.length?`<div style="overflow-x:auto"><table><thead><tr><th>Bateria / patrimônio</th><th>POP de origem</th><th>Saúde</th><th>CCA medido / padrão</th><th>Motivo</th><th>Data</th></tr></thead><tbody>${itens.map(b=>`<tr><td>${escapeHtml(b.patrimonio||"Sem patrimônio")}</td><td>${escapeHtml(b.origemPopNome||"Não informado")}</td><td>${b.saudePercentual===""||b.saudePercentual==null?"Sem teste":escapeHtml(String(b.saudePercentual))+"%"}</td><td>${b.ccaMedidoA===""||b.ccaMedidoA==null?"—":escapeHtml(String(b.ccaMedidoA))} / ${escapeHtml(String(b.ccaPadraoA||"—"))} A</td><td>${escapeHtml(b.motivoDestino||"Critério de descarte")}</td><td>${b.dataRemocao?new Date(b.dataRemocao).toLocaleDateString("pt-BR"):"—"}</td></tr>`).join("")}</tbody></table></div>`:`<div style="padding:18px;background:#f7f7f7;border-radius:8px">Nenhuma bateria classificada para descarte.</div>`;
+  }
+  document.getElementById("qtdEstoqueBaterias").textContent=(configGlobalDB.bateriasEstoque||[]).filter(b=>(b.situacaoEstoque||"estoque")==="estoque").length;
+  document.getElementById("qtdDescarteBaterias").textContent=(configGlobalDB.bateriasEstoque||[]).filter(b=>b.situacaoEstoque==="descarte").length;
+  document.getElementById("statusEstoqueBaterias").textContent=aba==="estoque"?"Estoque: baterias removidas e ainda disponíveis para avaliação/remanejamento.":"Descarte: baterias com saúde abaixo de 50% ou CCA abaixo de 50% do padrão cadastrado.";
+}
+function adicionarBateriaManualEstoque(){
+  if(!confirmarSenhaOperacaoBaterias("cadastrar uma bateria no estoque"))return;
+  const area=document.getElementById("formBateriaManualEstoque");
+  if(!area)return;
+  area.style.display=area.style.display==="none"?"block":"none";
+  if(area.style.display==="block"){
+    area.querySelectorAll("input, select, textarea").forEach(campo=>campo.disabled=false);
+    const teste=document.getElementById("estoqueDataTeste");
+    if(teste&&!teste.value)teste.value=new Date().toISOString().slice(0,10);
+    const carga=document.getElementById("estoqueCarga");
+    if(carga&&!carga.value)carga.value="100";
+    area.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+}
+function atualizarPadraoCcaEstoque(){
+  const capacidade=document.getElementById("estoqueCapacidade"), padrao=document.getElementById("estoqueCcaPadrao");
+  if(!capacidade||!padrao)return;
+  const sugerido=Number(ccaPadraoPorCapacidadeAh(Number(capacidade.value)))||0;
+  if(sugerido)padrao.value=sugerido;
+}
+async function salvarBateriaManualEstoque(){
+  const val=id=>document.getElementById(id)?.value?.trim()||"";
+  const patrimonio=val("estoquePatrimonio"), capacidade=Number(val("estoqueCapacidade"));
+  const padrao=Number(val("estoqueCcaPadrao")), cca=Number(val("estoqueCcaMedido"));
+  const saude=Number(val("estoqueSaude")), carga=Number(val("estoqueCarga"));
+  const instalacao=val("estoqueDataInstalacao"), teste=val("estoqueDataTeste");
+  const responsavel=val("estoqueResponsavel")||"Não informado";
+  if(!patrimonio){alert("Informe o patrimônio/etiqueta da bateria.");return;}
+  const existe=(configGlobalDB.bateriasEstoque||[]).some(b=>String(b.patrimonio||"").trim().toLowerCase()===patrimonio.toLowerCase()&&(b.situacaoEstoque||"estoque")==="estoque")||pops.some(p=>(p.baterias||[]).some(b=>String(b.patrimonio||"").trim().toLowerCase()===patrimonio.toLowerCase()));
+  if(existe){alert("Já existe uma bateria com esse patrimônio no estoque ou instalada em um POP.");return;}
+  if(!Number.isFinite(capacidade)||capacidade<=0||!Number.isFinite(padrao)||padrao<=0||!Number.isFinite(cca)||cca<0||!Number.isFinite(saude)||saude<0||saude>100||!Number.isFinite(carga)||carga<0||carga>100){alert("Revise capacidade, CCA padrão, CCA medido, saúde e carga.");return;}
+  const anterior=JSON.parse(JSON.stringify(configGlobalDB.bateriasEstoque||[]));
+  if(!Array.isArray(configGlobalDB.bateriasEstoque))configGlobalDB.bateriasEstoque=[];
+  const agora=new Date().toISOString();
+  configGlobalDB.bateriasEstoque.push({idEstoque:"bat-"+Date.now()+"-"+Math.random().toString(36).slice(2,8),patrimonio,capacidadeAh:capacidade,ccaPadraoA:padrao,ccaMedidoA:cca,saudePercentual:saude,cargaPercentual:carga,dataInstalacao:instalacao,dataTeste:teste,origemPopNome:"Estoque de reserva (cadastro manual)",dataRemocao:"",dataEntradaEstoque:agora,situacaoEstoque:"estoque",motivoDestino:"Bateria reserva cadastrada manualmente",responsavelRetirada:responsavel,historicoMovimentacoes:[{tipo:"entrada manual no estoque",data:agora,responsavel}]});
+  try{await salvarConfigGlobalDB();const area=document.getElementById("formBateriaManualEstoque");if(area){area.style.display="none";area.innerHTML="";}mostrarAbaEstoqueBaterias("estoque");alert("Bateria reserva cadastrada com sucesso.");}
+  catch(e){configGlobalDB.bateriasEstoque=anterior;alert("Não foi possível salvar no Supabase. Confira a coluna baterias_estoque e tente novamente.");}
+}
+
+async function remanejarBateriaEstoque(id){
+  if(!confirmarSenhaOperacaoBaterias("remanejar a bateria para outro POP"))return;
+  if(!modoEdicao){alert("Ative o modo edição para remanejar baterias.");return;}
+  const item=(configGlobalDB.bateriasEstoque||[]).find(b=>b.idEstoque===id);
+  const select=document.getElementById("destinoBat_"+id);
+  const idx=select?Number(select.value):NaN;
+  if(!item||!Number.isInteger(idx)||!pops[idx]){alert("Selecione o POP de destino.");return;}
+  if((pops[idx].baterias||[]).some(b=>item.patrimonio&&b.patrimonio===item.patrimonio)){alert("Já existe uma bateria com esse patrimônio no POP selecionado.");return;}
+  if(!confirm(`Remanejar ${item.patrimonio||"bateria sem patrimônio"} para ${pops[idx].nome||"POP selecionado"}?`))return;
+  const anterior=JSON.parse(JSON.stringify(item));
+  if(!Array.isArray(pops[idx].baterias))pops[idx].baterias=[];
+  const responsavelRemanejamento=prompt("Nome do técnico/equipe responsável pelo remanejamento:","")||"Não informado";
+  const destinoNome=pops[idx].nome||"POP";
+  const {idEstoque,origemPopId,origemPopNome,dataRemocao,situacaoEstoque,motivoDestino,responsavelRetirada,bateriaSubstitutaPatrimonio,historicoMovimentacoes,...bat}=item;
+  pops[idx].baterias.push(bat);
+  item.situacaoEstoque="remanejada";
+  item.destinoPopId=pops[idx].id;
+  item.destinoPopNome=destinoNome;
+  item.dataRemanejamento=new Date().toISOString();
+  item.responsavelRemanejamento=responsavelRemanejamento;
+  item.motivoDestino="Remanejada para outro POP";
+  item.historicoMovimentacoes=Array.isArray(item.historicoMovimentacoes)?item.historicoMovimentacoes:[];
+  item.historicoMovimentacoes.push({tipo:"remanejamento",data:item.dataRemanejamento,popOrigem:origemPopNome||"Não informado",popDestino:destinoNome,responsavel:responsavelRemanejamento});
+  try{
+    const {error}=await supabaseClient.from("pops_autonomia").upsert([popParaBanco(pops[idx])],{onConflict:"id"});
+    if(error)throw error;
+    await salvarConfigGlobalDB();
+    existemAlteracoes=false;render();mostrarAbaEstoqueBaterias("estoque");
+    document.getElementById("statusEstoqueBaterias").textContent=`Bateria remanejada para ${destinoNome}. O histórico foi mantido para auditoria.`;
+  }catch(e){
+    pops[idx].baterias.pop();
+    configGlobalDB.bateriasEstoque=configGlobalDB.bateriasEstoque.map(b=>b.idEstoque===id?anterior:b);
+    alert("Erro ao salvar o remanejamento. Confira a conexão e tente novamente.");
+  }
+}
+
+function obterRegistrosAuditoriaBaterias(){
+  const registros=[];
+  (Array.isArray(pops)?pops:[]).forEach(pop=>{
+    (Array.isArray(pop.baterias)?pop.baterias:[]).forEach(b=>{
+      registros.push({status:"Instalada",patrimonio:b.patrimonio||"Sem patrimônio",capacidadeAh:b.capacidadeAh||b.capacidade_ah||b.ah||"",popOrigem:pop.nome||"POP sem nome",popDestino:pop.nome||"POP sem nome",saude:b.saudePercentual??"",ccaMedido:b.ccaMedidoA??"",ccaPadrao:b.ccaPadraoA??"",dataRemocao:"",dataRemanejamento:"",motivo:"Em operação no POP",responsavel:"",bateriaSubstituta:""});
+    });
+  });
+  (Array.isArray(configGlobalDB.bateriasEstoque)?configGlobalDB.bateriasEstoque:[]).forEach(b=>{
+    registros.push({status:b.situacaoEstoque==="descarte"?"Descarte":b.situacaoEstoque==="remanejada"?"Remanejada":"Estoque",patrimonio:b.patrimonio||"Sem patrimônio",capacidadeAh:b.capacidadeAh||b.capacidade_ah||b.ah||"",popOrigem:b.origemPopNome||"Não informado",popDestino:b.destinoPopNome||"",saude:b.saudePercentual??"",ccaMedido:b.ccaMedidoA??"",ccaPadrao:b.ccaPadraoA??"",dataRemocao:b.dataRemocao||"",dataRemanejamento:b.dataRemanejamento||"",motivo:b.motivoDestino||"",responsavel:b.responsavelRemanejamento||b.responsavelRetirada||"",bateriaSubstituta:b.bateriaSubstitutaPatrimonio||""});
+  });
+  return registros;
+}
+function dataAuditoriaBR(v){
+  if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("pt-BR");
+}
+function gerarRelatorioAuditoriaBaterias(modo){
+  const registros=obterRegistrosAuditoriaBaterias(),geradoEm=new Date().toLocaleString("pt-BR");
+  const resumo={instaladas:registros.filter(r=>r.status==="Instalada").length,estoque:registros.filter(r=>r.status==="Estoque").length,descarte:registros.filter(r=>r.status==="Descarte").length,remanejadas:registros.filter(r=>r.status==="Remanejada").length};
+  const colunas=[["Situação","status"],["Patrimônio","patrimonio"],["Capacidade (Ah)","capacidadeAh"],["POP de origem","popOrigem"],["POP de destino/atual","popDestino"],["Saúde (%)","saude"],["CCA medido (A)","ccaMedido"],["CCA padrão (A)","ccaPadrao"],["Data da retirada","dataRemocao"],["Data do remanejamento","dataRemanejamento"],["Motivo/situação","motivo"],["Responsável","responsavel"],["Patrimônio da bateria substituta","bateriaSubstituta"]];
+  if(modo==="csv"){
+    const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+    const csv="\uFEFF"+[colunas.map(c=>esc(c[0])).join(";"),...registros.map(r=>colunas.map(c=>esc(c[1].startsWith("data")?dataAuditoriaBR(r[c[1]]):r[c[1]])).join(";"))].join("\r\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="relatorio_auditoria_baterias_"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);return;
+  }
+  const escHtml=v=>typeof escapeHtml==="function"?escapeHtml(String(v??"")):String(v??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const tabela=registros.map(r=>"<tr>"+colunas.map(c=>"<td>"+escHtml(c[1].startsWith("data")?dataAuditoriaBR(r[c[1]]):r[c[1]])+"</td>").join("")+"</tr>").join("");
+  const rel=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Auditoria de baterias</title><style>body{font:12px Arial;color:#222;margin:24px}h1{font-size:20px}.meta{color:#555}.resumo{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}.resumo span{border:1px solid #bbb;padding:8px;border-radius:5px}table{border-collapse:collapse;width:100%;font-size:9px}th,td{border:1px solid #aaa;padding:5px;text-align:left;overflow-wrap:anywhere}th{background:#eee}.assinaturas{display:flex;gap:50px;margin-top:55px}.assinaturas div{border-top:1px solid #333;padding-top:7px;flex:1;text-align:center}@media print{body{margin:10mm}tr{break-inside:avoid}}</style></head><body><h1>Relatório de Auditoria — Baterias dos POPs</h1><div class="meta">Gerado em: ${escHtml(geradoEm)} | Base: dados registrados no sistema</div><div class="resumo"><span>Instaladas: <b>${resumo.instaladas}</b></span><span>Estoque: <b>${resumo.estoque}</b></span><span>Descartes: <b>${resumo.descarte}</b></span><span>Remanejadas (histórico): <b>${resumo.remanejadas}</b></span></div><p>Critério de descarte: saúde abaixo de 50% ou CCA medido abaixo de 50% do CCA padrão cadastrado, após retirada física registrada. Baterias instaladas continuam no POP até a equipe registrar a retirada.</p><table><thead><tr>${colunas.map(c=>"<th>"+escHtml(c[0])+"</th>").join("")}</tr></thead><tbody>${tabela||"<tr><td colspan='"+colunas.length+"'>Nenhum registro de bateria.</td></tr>"}</tbody></table><div class="assinaturas"><div>Responsável técnico</div><div>Conferência / Auditoria</div></div><p class="meta">Este relatório reflete os dados disponíveis no sistema no momento da emissão.</p></body></html>`;
+  const janela=window.open("","_blank");
+  if(!janela){alert("O navegador bloqueou a janela do relatório. Permita pop-ups para este sistema e tente novamente.");return;}
+  janela.document.open();janela.document.write(rel);janela.document.close();
+  if(modo==="pdf")setTimeout(()=>{janela.focus();janela.print()},500);
+  else{const painel=document.getElementById("conteudoAuditoriaBaterias");painel.style.display="block";painel.innerHTML=`<div style="padding:12px;background:#eef6ff;border-radius:8px;margin-bottom:10px"><b>Relatório preparado.</b> Confira a janela aberta. Para PDF, escolha “Salvar como PDF” na impressora do navegador.</div>`;}
+}
 
 /* =========================================================
    RENDER
@@ -7303,6 +7640,7 @@ atualizarNotificacoesGarantia();
   atualizarListaPOPs();
   criarListaEquipamentos();
   atualizarCampos();
+  mostrarAbaEstoqueBaterias(window.abaEstoqueBateriasAtual||"estoque");
 
 
   if(busca)
