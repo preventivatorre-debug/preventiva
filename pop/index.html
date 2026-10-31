@@ -1940,6 +1940,7 @@ body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
   <button type="button" onclick="gerarRelatorioAuditoriaBaterias('csv')">⬇️ Exportar CSV</button>
   <button type="button" onclick="gerarRelatorioAuditoriaBaterias('pdf')">🖨️ Imprimir / salvar PDF</button>
  </div>
+ <div id="painelResumoCapacidadeBaterias" style="margin:12px 0 14px"></div>
  <div id="conteudoEstoqueBaterias"></div>
  <div id="conteudoAuditoriaBaterias" style="display:none;margin-top:16px"></div>
  <div id="statusEstoqueBaterias" role="status" style="margin-top:8px;font-size:13px"></div>
@@ -6029,6 +6030,75 @@ function mostrarAbaEstoqueBaterias(aba){
   document.getElementById("qtdEstoqueBaterias").textContent=(configGlobalDB.bateriasEstoque||[]).filter(b=>(b.situacaoEstoque||"estoque")==="estoque").length;
   document.getElementById("qtdDescarteBaterias").textContent=(configGlobalDB.bateriasEstoque||[]).filter(b=>b.situacaoEstoque==="descarte").length;
   document.getElementById("statusEstoqueBaterias").textContent=aba==="estoque"?"Estoque: baterias removidas e ainda disponíveis para avaliação/remanejamento.":"Descarte: baterias com saúde abaixo de 50% ou CCA abaixo de 50% do padrão cadastrado.";
+  renderPainelCapacidadeBaterias();
+}
+
+function capacidadeBateriaAh(b){
+  const valor=b?.capacidadeAh??b?.capacidade_ah??b?.ah??"";
+  const numero=Number(String(valor).replace(",","."));
+  return Number.isFinite(numero)&&numero>0?numero:null;
+}
+
+function renderPainelCapacidadeBaterias(){
+  const painel=document.getElementById("painelResumoCapacidadeBaterias");
+  if(!painel)return;
+  const estoque=(Array.isArray(configGlobalDB?.bateriasEstoque)?configGlobalDB.bateriasEstoque:[])
+    .filter(b=>(b.situacaoEstoque||"estoque")==="estoque");
+  const instaladas=[];
+  (Array.isArray(pops)?pops:[]).forEach(pop=>{
+    (Array.isArray(pop.baterias)?pop.baterias:[]).forEach(b=>{
+      instaladas.push({pop,b,ah:capacidadeBateriaAh(b)});
+    });
+  });
+
+  const capacidades=new Set([45,63,105]);
+  estoque.forEach(b=>{const ah=capacidadeBateriaAh(b);if(ah)capacidades.add(ah);});
+  instaladas.forEach(x=>{if(x.ah)capacidades.add(x.ah);});
+  const listaCapacidades=[...capacidades].sort((a,b)=>a-b);
+  const fmt=ah=>Number.isInteger(ah)?String(ah):String(ah).replace(".",",");
+
+  const cards=listaCapacidades.map(ah=>{
+    const qtdEstoque=estoque.filter(b=>capacidadeBateriaAh(b)===ah).length;
+    const qtdInstaladas=instaladas.filter(x=>x.ah===ah).length;
+    return `<div style="background:#fff;border:1px solid #d8e2dc;border-left:4px solid #1f6f43;border-radius:7px;padding:10px;text-align:center;min-width:0">
+      <strong style="font-size:17px;color:#155e3b">${fmt(ah)} Ah</strong>
+      <div style="font-size:12px;margin-top:5px">📦 Estoque: <b>${qtdEstoque}</b></div>
+      <div style="font-size:12px;margin-top:3px">🔋 Instaladas: <b>${qtdInstaladas}</b></div>
+    </div>`;
+  }).join("");
+
+  const grupos=listaCapacidades.map(ah=>{
+    const popsExclusivos=[];
+    instaladas.forEach(x=>{
+      const lista=Array.isArray(x.pop.baterias)?x.pop.baterias:[];
+      const capacidadesPop=lista.map(capacidadeBateriaAh).filter(v=>v!==null);
+      if(capacidadesPop.length && capacidadesPop.every(v=>v===ah) && capacidadesPop.length===lista.length){
+        if(!popsExclusivos.some(p=>p.pop===x.pop))popsExclusivos.push({pop:x.pop,qtd:lista.length});
+      }
+    });
+    const conteudo=popsExclusivos.length
+      ?popsExclusivos.map(x=>`<div style="padding:7px 9px;background:#f5faf7;border:1px solid #e1ece5;border-radius:5px;margin-top:5px;display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(x.pop.nome||"POP sem nome")}</span><b>${x.qtd} bateria(s)</b></div>`).join("")
+      :`<div style="font-size:12px;color:#777;padding:7px 0">Nenhum POP utiliza exclusivamente baterias de ${fmt(ah)} Ah.</div>`;
+    return `<details style="margin-top:7px;border:1px solid #dce5df;border-radius:7px;padding:8px;background:#fff"><summary style="cursor:pointer;font-weight:bold;color:#155e3b">${fmt(ah)} Ah — ${popsExclusivos.length} POP(s) exclusivo(s)</summary><div style="margin-top:7px">${conteudo}</div></details>`;
+  }).join("");
+
+  const mistos=[];
+  (Array.isArray(pops)?pops:[]).forEach(pop=>{
+    const lista=Array.isArray(pop.baterias)?pop.baterias:[];
+    const capacidadesPop=[...new Set(lista.map(capacidadeBateriaAh).filter(v=>v!==null))];
+    if(capacidadesPop.length>1){
+      mistos.push(`<div style="padding:7px 9px;background:#fffaf0;border:1px solid #f2dfb5;border-radius:5px;margin-top:5px"><b>${escapeHtml(pop.nome||"POP sem nome")}</b> — ${capacidadesPop.sort((a,b)=>a-b).map(fmt).join(" / ")} Ah</div>`);
+    }
+  });
+
+  painel.innerHTML=`<section style="border:1px solid #d6e4db;border-radius:8px;padding:11px;background:#f7fbf8">
+    <div style="font-weight:bold;color:#155e3b;margin-bottom:9px">📊 Quantidade por capacidade</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px">${cards}</div>
+    <div style="font-weight:bold;color:#155e3b;margin:14px 0 5px">📍 POPs que utilizam somente cada capacidade</div>
+    ${grupos}
+    ${mistos.length?`<details style="margin-top:7px;border:1px solid #f2dfb5;border-radius:7px;padding:8px;background:#fff"><summary style="cursor:pointer;font-weight:bold;color:#8a5a12">POPs com capacidades misturadas (${mistos.length})</summary>${mistos.join("")}</details>`:""}
+    <div style="font-size:11px;color:#666;margin-top:8px">Os totais são calculados automaticamente a partir das baterias cadastradas no estoque e nos POPs. POPs com capacidades diferentes aparecem na seção de capacidades misturadas.</div>
+  </section>`;
 }
 let cliquesSecretosAdminBaterias=0;
 let ultimoCliqueSecretoAdminBaterias=0;
