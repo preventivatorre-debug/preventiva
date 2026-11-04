@@ -94,7 +94,7 @@ button:disabled{
 
 .resumo{
   display:grid;
-  grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-template-columns:repeat(7,minmax(0,1fr));
   gap:8px;
   margin-bottom:15px;
   align-items:stretch;
@@ -1689,6 +1689,69 @@ body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
 .pesquisa-bateria-rapida .pesquisa-bateria-linha>div{flex:1;min-width:0}
 .pesquisa-bateria-rapida input{max-width:100%;box-sizing:border-box}
 @media(max-width:850px){.painel-baterias-duplo{grid-template-columns:1fr}.painel-bateria-recolhivel{width:auto}}
+
+.resumo-pops-sem-energia{
+  border:0;
+  border-left:5px solid #dc3545;
+  background:#fff0f0;
+  color:#842029;
+  cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.resumo-pops-sem-energia:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,.18);
+}
+.resumo-pops-sem-energia small{
+  display:block;
+  margin-top:4px;
+  font-size:9px;
+  line-height:1;
+}
+.resumo-pops-sem-energia.sem-ocorrencias{
+  border-left-color:#28a745;
+  background:#f0faf3;
+  color:#155724;
+}
+.pop-sem-energia-item{
+  border:1px solid #f1b8bd;
+  border-left:6px solid #dc3545;
+  border-radius:8px;
+  padding:13px;
+  background:#fff7f7;
+}
+.pop-sem-energia-item strong{
+  display:block;
+  font-size:17px;
+  color:#842029;
+  margin-bottom:8px;
+}
+.pop-sem-energia-detalhes{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.pop-sem-energia-detalhes div{
+  background:#fff;
+  border:1px solid #f0d7d9;
+  border-radius:6px;
+  padding:8px;
+  min-width:0;
+}
+.pop-sem-energia-detalhes span{
+  display:block;
+  color:#666;
+  font-size:11px;
+  margin-bottom:3px;
+}
+.pop-sem-energia-detalhes b{
+  display:block;
+  font-size:13px;
+  overflow-wrap:anywhere;
+}
+@media(max-width:600px){
+  .pop-sem-energia-detalhes{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 
@@ -1897,6 +1960,18 @@ body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
   🔴 Preventivas vencidas
   <strong id="preventivasVencidas">0</strong>
 </div>
+
+<button
+  type="button"
+  id="cardPopsSemEnergia"
+  class="resumo-card resumo-pops-sem-energia"
+  onclick="abrirPopsSemEnergia()"
+  title="Clique para ver os POPs atualmente sem energia"
+>
+  🔴 POPs sem energia
+  <strong id="totalPopsSemEnergia">0</strong>
+  <small>Clique para ver os POPs</small>
+</button>
 
 </div>
 
@@ -6618,6 +6693,87 @@ function gerarBotaoWhatsAppConcessionaria(pop){
   return `<a class="btn-aciona-concessionaria" href="${url}" target="_blank" rel="noopener noreferrer">📲 Acionar ${concessionaria}</a>`;
 }
 
+
+/* =========================================================
+   RESUMO VISUAL — POPs SEM ENERGIA
+   Usa os mesmos campos de contingência já usados pelo Telegram.
+   Uma ocorrência só aparece enquanto não houver restabelecimento.
+========================================================= */
+function obterPOPsSemEnergia(){
+  return (Array.isArray(pops)?pops:[])
+    .map((pop,i)=>({pop,i}))
+    .filter(({pop})=>!!pop?.quedaEnergiaEm && !pop?.energiaRestabelecidaEm)
+    .sort((a,b)=>new Date(a.pop.quedaEnergiaEm)-new Date(b.pop.quedaEnergiaEm));
+}
+
+function atualizarCardPOPsSemEnergia(){
+  const lista=obterPOPsSemEnergia();
+  const numero=document.getElementById("totalPopsSemEnergia");
+  const card=document.getElementById("cardPopsSemEnergia");
+  if(numero)numero.textContent=lista.length;
+  if(card){
+    card.classList.toggle("sem-ocorrencias",lista.length===0);
+    card.title=lista.length
+      ? "Clique para ver os POPs atualmente sem energia"
+      : "Nenhum POP está registrado sem energia";
+  }
+}
+
+function abrirPopsSemEnergia(){
+  const lista=obterPOPsSemEnergia();
+  const modal=document.getElementById("modalPopsSemEnergia");
+  const conteudo=document.getElementById("listaPopsSemEnergia");
+  const resumo=document.getElementById("resumoPopsSemEnergia");
+  if(!modal||!conteudo)return;
+
+  if(resumo){
+    resumo.textContent=lista.length
+      ? `${lista.length} POP(s) com ocorrência de falta de energia ainda não normalizada.`
+      : "Nenhum POP está atualmente registrado sem energia.";
+  }
+
+  if(!lista.length){
+    conteudo.innerHTML='<div class="garantia-vazia">🟢 Todos os POPs estão sem ocorrência ativa de falta de energia.</div>';
+  }else{
+    conteudo.innerHTML=lista.map(({pop})=>{
+      const contingencia=calcularContingencia(pop,new Date());
+      const autonomia=Number(pop._autonomiaAjustada)||0;
+      const inicio=formatarDataHora(pop.quedaEnergiaEm);
+      const decorrido=formatarDuracaoMinutos((Date.now()-new Date(pop.quedaEnergiaEm).getTime())/60000);
+      const limite=contingencia?.limite?formatarDataHora(contingencia.limite.toISOString()):"--";
+      const status=contingencia?.status==="vencido"
+        ? "🚨 Prazo de acionamento ultrapassado"
+        : contingencia?.status==="critico"
+          ? "🔴 Próximo do limite de acionamento"
+          : contingencia?.status==="atencao"
+            ? "🟠 Atenção ao prazo de acionamento"
+            : "🟡 Ocorrência em acompanhamento";
+      return `
+        <div class="pop-sem-energia-item">
+          <strong>⚡ ${escapeHtml(pop.nome||"POP sem nome")}</strong>
+          <div class="pop-sem-energia-detalhes">
+            <div><span>Falta de energia desde</span><b>${escapeHtml(inicio)}</b></div>
+            <div><span>Tempo sem energia</span><b>${escapeHtml(decorrido)}</b></div>
+            <div><span>Autonomia estimada</span><b>${escapeHtml(autonomia>0?formatarAutonomia(autonomia):"--")}</b></div>
+            <div><span>Limite de acionamento</span><b>${escapeHtml(limite)}</b></div>
+            <div><span>Equipe enviada</span><b>${pop.equipeEnviadaEm?"Sim — "+escapeHtml(formatarDataHora(pop.equipeEnviadaEm)):"Ainda não"}</b></div>
+            <div><span>Distância</span><b>${Number(pop.distanciaKm)>0?escapeHtml(Number(pop.distanciaKm).toFixed(1)+" km"):"Não informada"}</b></div>
+          </div>
+          <div class="garantia-status" style="background:#fff0f0;color:#842029">${status}</div>
+          <button type="button" class="editar" onclick="fecharModalPopsSemEnergia();document.getElementById('busca').value=${JSON.stringify(String(pop.nome||""))};buscarPOP();">📍 Localizar POP na tela</button>
+        </div>`;
+    }).join("");
+  }
+
+  modal.style.display="block";
+}
+
+function fecharModalPopsSemEnergia(event){
+  if(event && event.target!==event.currentTarget)return;
+  const modal=document.getElementById("modalPopsSemEnergia");
+  if(modal)modal.style.display="none";
+}
+
 function render(preservarBusca=true){
 
   const buscaElemento=
@@ -8086,6 +8242,8 @@ function render(preservarBusca=true){
     "preventivasVencidas"
   ).textContent=totalVencida;
 
+  atualizarCardPOPsSemEnergia();
+
 atualizarNotificacoesGarantia();
 
   atualizarListaPOPs();
@@ -9474,6 +9632,22 @@ document.addEventListener("keydown",function(event){
 
   </div>
 
+</div>
+
+<!-- POPs atualmente em contingência de energia -->
+<div
+  id="modalPopsSemEnergia"
+  class="modal-garantia"
+  onclick="fecharModalPopsSemEnergia(event)"
+>
+  <div class="modal-garantia-conteudo" onclick="event.stopPropagation()">
+    <div class="modal-garantia-cabecalho">
+      <h2 style="color:#b42318">🔴 POPs sem energia</h2>
+      <button type="button" class="btn-fechar-modal" onclick="fecharModalPopsSemEnergia()">✕ Fechar</button>
+    </div>
+    <p id="resumoPopsSemEnergia" style="margin:0 0 12px;color:#555"></p>
+    <div id="listaPopsSemEnergia" class="lista-garantias"></div>
+  </div>
 </div>
 
 <script>
