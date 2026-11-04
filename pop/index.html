@@ -1976,6 +1976,26 @@ body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
          placeholder="Nome do POP"
          disabled>
 
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin:6px 0">
+    <input id="novoSensorIp" type="text" inputmode="decimal"
+           placeholder="IP do sensor de energia (opcional)" disabled>
+    <select id="novoSensorCidr" disabled
+            style="padding:9px;border:1px solid #ccc;border-radius:5px">
+      <option value="29" selected>/29</option>
+      <option value="28">/28</option>
+      <option value="27">/27</option>
+      <option value="26">/26</option>
+      <option value="25">/25</option>
+      <option value="24">/24</option>
+      <option value="23">/23</option>
+      <option value="22">/22</option>
+      <option value="21">/21</option>
+      <option value="20">/20</option>
+      <option value="30">/30</option>
+    </select>
+  </div>
+  <small id="novoSensorRede" style="display:block;margin:0 4px 8px;color:#555">Rede calculada: informe o IP do sensor</small>
+
   <input id="novoAh"
          type="number"
          step="0.01"
@@ -2878,6 +2898,11 @@ function bancoParaPop(row){
     id:row.id,
 
     nome:row.nome||"",
+    sensorIp:String(row.sensor_ip||""),
+    sensorCidr:Number(row.sensor_cidr)||29,
+    sensorStatus:String(row.sensor_status||""),
+    sensorUltimaVerificacao:row.sensor_ultima_verificacao||null,
+    sensorLatenciaMs:row.sensor_latencia_ms==null?null:Number(row.sensor_latencia_ms),
 
     // Código único da unidade informado pela concessionária.
     codigoUnico:String(row.codigo_unico||""),
@@ -2962,6 +2987,8 @@ function popParaBanco(pop){
     id:pop.id,
 
     nome:pop.nome||"",
+    sensor_ip:String(pop.sensorIp||"").trim()||null,
+    sensor_cidr:[20,21,22,23,24,25,26,27,28,29,30].includes(Number(pop.sensorCidr)) ? Number(pop.sensorCidr) : 29,
 
     // Persiste o código único na coluna codigo_unico do Supabase.
     codigo_unico:String(pop.codigoUnico||"").trim()||null,
@@ -5142,8 +5169,13 @@ function montarScriptAcionamento(pop,campos={}){
   const dados={...dadosAcionamentoPop(pop),...campos};
   const inicio=pop.quedaEnergiaEm?formatarDataHora(pop.quedaEnergiaEm):"--";
   const limite=c.limite?formatarDataHora(c.limite.toISOString()):"--";
-  const acionamento=dados.horaAcionamento||formatarDataHora(new Date().toISOString());
+  const acionamento=dados.horaAcionamento||new Date().toISOString();
   const data=dados.data||formatarDataInput(new Date());
+  const somenteHora=(valor)=>{
+    if(!valor)return "--";
+    const d=new Date(valor);
+    return Number.isNaN(d.getTime())?"--":d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  };
   const distancia=Number(pop.distanciaKm||0).toFixed(1);
   const desloc=formatarDuracaoMinutos(calcularDeslocamentoMinutos(pop));
   const acionarApos=formatarDuracaoMinutos(Number(pop.margemSegurancaMin ?? 30));
@@ -5166,10 +5198,10 @@ function montarScriptAcionamento(pop,campos={}){
 🚗 Deslocamento: ${desloc}
 🚨 Acionar equipe após: ${acionarApos} sem energia
 🔋 Autonomia: ${autonomia}
-🕐 Início: ${inicio}
-🚨 Limite para acionar: ${limite}
+🕐 Início: ${somenteHora(pop.quedaEnergiaEm)}
+🚨 Limite para acionar: ${somenteHora(c.limite)}
 
-⏰ Hora do Acionamento: ${acionamento}
+⏰ Hora do Acionamento: ${somenteHora(acionamento)}
 🚗 Carro: ${dados.carro||equipe.carro||"--"}
 📍 KM Inicial: ${dados.kmInicial||""}
 🏁 KM Final: ${dados.kmFinal||""}
@@ -5417,7 +5449,10 @@ function formatarMensagemTelegram(pop,c,etapa){
     const inicio=new Date(pop.quedaEnergiaEm);
     const fim=new Date(pop.energiaRestabelecidaEm);
     const duracao=(fim-inicio)/60000;
-    return `💡 ENERGIA RESTABELECIDA\n\n${cabecalho}🕐 Restabelecida: ${formatarDataHora(pop.energiaRestabelecidaEm)}\n⏱️ Duração da falta: ${formatarDuracaoMinutos(duracao)}\n🚗 Equipe enviada: ${pop.equipeEnviadaEm?"Sim":"Não"}\n✅ Ocorrência encerrada.\n🔕 O monitoramento automático foi interrompido.`;
+    const situacaoEquipe=pop.equipeEnviadaEm
+      ? `🚗 Equipe já havia sido enviada às ${new Date(pop.equipeEnviadaEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}.\n📞 Entrando em contato com a equipe agora para avisar que a energia foi restabelecida.`
+      : "🚗 A equipe não chegou a ser enviada.";
+    return `💡 ENERGIA RESTABELECIDA\n\n${cabecalho}🕐 Restabelecida: ${formatarDataHora(pop.energiaRestabelecidaEm)}\n⏱️ Duração da falta: ${formatarDuracaoMinutos(duracao)}\n${situacaoEquipe}\n✅ Ocorrência encerrada.\n🔕 O monitoramento automático foi interrompido.`;
   }
   return `🤖 Atualização do POP ${nome}`;
 }
@@ -5677,6 +5712,57 @@ async function notificarTelegramEtapa(pop,etapa,c){
   }
 }
 
+
+// Acionamento automático da equipe quando o prazo configurado é atingido.
+// Reutiliza a escala, os dados salvos e o mesmo gerador de script do botão manual.
+async function tentarAcionamentoAutomaticoEquipe(pop,c){
+  if(!pop || !pop.quedaEnergiaEm || pop.energiaRestabelecidaEm || pop.equipeEnviadaEm) return;
+  if(!c || !c.limite || Date.now() < c.limite.getTime()) return;
+
+  const cfg=lerConfigTelegram();
+  if(!cfg.ativo || !cfg.token || !cfg.chatId) return;
+
+  const data=formatarDataInput(new Date());
+  const equipe=equipePlantaoParaData(data);
+  if(!equipe || !equipe.tecnico){
+    console.warn("[ACIONAMENTO AUTOMÁTICO] Escala sem técnico para o POP:",pop.nome);
+    return;
+  }
+
+  // Revalida antes de montar/enviar para não disparar após o restabelecimento.
+  if(pop.energiaRestabelecidaEm || pop.equipeEnviadaEm) return;
+
+  const salvos=lerDadosAcionamentos();
+  const anterior=salvos[pop.id]||{};
+  const dados={
+    ...dadosAcionamentoPop(pop),
+    ...anterior,
+    data,
+    tecnico:anterior.tecnico||equipe.tecnico,
+    auxiliar:anterior.auxiliar||equipe.auxiliar||"",
+    carro:anterior.carro||equipe.carro||"",
+    horaAcionamento:formatarDataHora(new Date().toISOString())
+  };
+  const script=montarScriptAcionamento(pop,dados);
+  const mensagem="🚨 ACIONAMENTO AUTOMÁTICO — PRAZO ATINGIDO\n\n"+script;
+
+  // Só marca a equipe como enviada depois da confirmação de sucesso do Telegram.
+  const resultado=await enviarTelegram(mensagem);
+  if(!resultado.ok){
+    console.error("[ACIONAMENTO AUTOMÁTICO] Telegram não confirmou o envio para:",pop.nome,resultado.error||"");
+    return;
+  }
+
+  const agora=new Date().toISOString();
+  dados.horaAcionamento=formatarDataHora(agora);
+  salvos[pop.id]={...dados,acionamentoEm:agora,automatico:true};
+  salvarDadosAcionamentos(salvos);
+  pop.equipeEnviadaEm=agora;
+  await salvarContingencia(pop);
+  console.log("[ACIONAMENTO AUTOMÁTICO] Equipe acionada:",pop.nome);
+  render();
+}
+
 let verificacaoTelegramEmAndamento=false;
 
 async function verificarNotificacoesTelegram(){
@@ -5702,7 +5788,10 @@ async function verificarNotificacoesTelegram(){
     // Se a falta foi registrada e a mensagem inicial ainda não saiu, tenta enviar.
     await notificarTelegramEtapa(pop,"FALTA_REGISTRADA",c);
 
-    // Atualização automática a cada 30 minutos enquanto a ocorrência estiver ativa.
+    // Ao atingir o horário limite, envia automaticamente o script de acionamento.
+      await tentarAcionamentoAutomaticoEquipe(pop,c);
+
+      // Atualização automática a cada 30 minutos enquanto a ocorrência estiver ativa.
       await notificarTelegramPeriodic30Min(pop,c);
     }
   }finally{
@@ -7240,6 +7329,24 @@ function render(preservarBusca=true){
             <span class="concessionaria-detectada">${escapeHtml(identificarConcessionaria(pop.whatsappConcessionaria)||"Concessionária não identificada")}</span>
             <small style="color:#666">A identificação usa o número cadastrado. Confirme o contato antes de usar.</small>
           </div>
+          <div style="display:grid;grid-template-columns:minmax(180px,2fr) minmax(100px,1fr);gap:8px;max-width:560px;margin-top:10px">
+            <label style="font-size:12px;font-weight:700">IP do sensor de energia
+              <input type="text" inputmode="decimal" placeholder="Ex.: 172.27.30.10"
+                value="${escapeHtml(pop.sensorIp||"")}" ${!modoEdicao?"disabled":""}
+                oninput="pops[${i}].sensorIp=this.value.trim(); existemAlteracoes=true; atualizarRedeSensorPop(${i},this);">
+            </label>
+            <label style="font-size:12px;font-weight:700">Máscara da rede
+              <select ${!modoEdicao?"disabled":""} style="width:100%;padding:9px;border:1px solid #ccc;border-radius:5px"
+                onchange="pops[${i}].sensorCidr=Number(this.value); existemAlteracoes=true; atualizarRedeSensorPop(${i},this);">
+                ${[29,28,27,26,25,24,23,22,21,20,30].map(c=>`<option value="${c}" ${Number(pop.sensorCidr||29)===c?"selected":""}>/${c}</option>`).join("")}
+              </select>
+            </label>
+          </div>
+          <small class="sensor-rede-pop" style="display:block;margin-top:4px;color:#555;line-height:1.5">${escapeHtml(calcularDadosSensorTexto(pop.sensorIp||"",pop.sensorCidr||29))}</small>
+          <div class="sensor-status-auto" id="sensor-status-${i}" style="margin-top:8px;padding:8px 10px;border-radius:6px;background:#eef1f4;color:#444;font-size:13px;font-weight:700">
+            ${pop.sensorStatus === "Online" ? `🟢 SENSOR ONLINE${pop.sensorLatenciaMs!=null?` — ${Math.round(pop.sensorLatenciaMs)} ms`:""}` : pop.sensorStatus === "Offline" ? "🔴 SENSOR OFFLINE — SEM RESPOSTA AO PING" : "⚪ AGUARDANDO PRIMEIRA VERIFICAÇÃO DA VPS"}
+            ${pop.sensorUltimaVerificacao ? `<small style="display:block;font-weight:400;margin-top:4px">Última verificação: ${escapeHtml(new Date(pop.sensorUltimaVerificacao).toLocaleString("pt-BR"))}</small>` : ""}
+          </div>
         </div>
 
 
@@ -8442,6 +8549,56 @@ function buscarPOP(){
 
 
 /* =========================================================
+   SENSOR DE ENERGIA — IP E MÁSCARA
+   Nesta etapa apenas grava os dados no cadastro.
+   A criação automática de rota será ligada ao serviço da VPS
+   em uma próxima etapa, sem expor credenciais no navegador.
+========================================================= */
+function calcularRedeSensor(ip,cidr){
+  const partes=String(ip||"").trim().split(".");
+  const mascara=Number(cidr);
+  if(partes.length!==4 || ![20,21,22,23,24,25,26,27,28,29,30].includes(mascara)) return null;
+  const octetos=partes.map(v=>/^\d{1,3}$/.test(v)?Number(v):-1);
+  if(octetos.some(v=>v<0||v>255)) return null;
+  const numero=octetos.reduce((a,v)=>(a*256+v)>>>0,0)>>>0;
+  const mask=mascara===0?0:(0xFFFFFFFF << (32-mascara))>>>0;
+  const rede=(numero&mask)>>>0;
+  return [rede>>>24,(rede>>>16)&255,(rede>>>8)&255,rede&255].join(".")+"/"+mascara;
+}
+function calcularRedeSensorTexto(ip,cidr){
+  if(!String(ip||"").trim()) return "Rede calculada: informe o IP do sensor";
+  const rede=calcularRedeSensor(ip,cidr);
+  return rede ? "Rede calculada: "+rede : "IP inválido. Informe um IPv4 válido.";
+}
+function calcularDadosSensorTexto(ip,cidr){
+  const endereco=String(ip||"").trim();
+  if(!endereco) return "IP do sensor: não cadastrado · Rede: não calculada";
+  const rede=calcularRedeSensor(endereco,cidr);
+  return rede
+    ? "IP do sensor: "+endereco+" · Rede: "+rede
+    : "IP do sensor: "+endereco+" · IP inválido para a máscara /"+Number(cidr||29);
+}
+function atualizarRedeSensorNovo(){
+  const ip=document.getElementById("novoSensorIp");
+  const cidr=document.getElementById("novoSensorCidr");
+  const texto=document.getElementById("novoSensorRede");
+  if(ip&&cidr&&texto) texto.textContent=calcularRedeSensorTexto(ip.value,cidr.value);
+}
+function atualizarRedeSensorPop(indice,elemento){
+  const card=elemento.closest(".nome-pop-edicao");
+  const texto=card?.querySelector(".sensor-rede-pop");
+  const pop=pops[indice];
+  if(texto&&pop) texto.textContent=calcularDadosSensorTexto(pop.sensorIp,pop.sensorCidr);
+}
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const ip=document.getElementById("novoSensorIp");
+  const cidr=document.getElementById("novoSensorCidr");
+  if(ip) ip.addEventListener("input",atualizarRedeSensorNovo);
+  if(cidr) cidr.addEventListener("change",atualizarRedeSensorNovo);
+});
+
+/* =========================================================
    CRIAR POP
 ========================================================= */
 
@@ -8485,6 +8642,21 @@ async function criarPOP(){
 
   }
 
+  const sensorIp=document.getElementById("novoSensorIp").value.trim();
+  const sensorCidr=Number(document.getElementById("novoSensorCidr").value)||29;
+  if(sensorIp && !calcularRedeSensor(sensorIp,sensorCidr)){
+    alert("O IP do sensor é inválido. Confira os quatro octetos e a máscara.");
+    return;
+  }
+  if(sensorIp){
+    const novaRede=calcularRedeSensor(sensorIp,sensorCidr);
+    const conflito=pops.find(p=>p.sensorIp && calcularRedeSensor(p.sensorIp,p.sensorCidr||29)===novaRede);
+    if(conflito){
+      alert("Essa mesma rede já está cadastrada no POP "+(conflito.nome||"sem nome")+". Verifique antes de continuar.");
+      return;
+    }
+  }
+
 
   const existe=
     pops.some(
@@ -8510,6 +8682,8 @@ async function criarPOP(){
     id:novoId(),
 
     nome:nome,
+    sensorIp:document.getElementById("novoSensorIp").value.trim(),
+    sensorCidr:Number(document.getElementById("novoSensorCidr").value)||29,
 
     ah:ah,
 
@@ -8568,6 +8742,9 @@ async function criarPOP(){
   document.getElementById(
     "novoNome"
   ).value="";
+  document.getElementById("novoSensorIp").value="";
+  document.getElementById("novoSensorCidr").value="29";
+  atualizarRedeSensorNovo();
 
   document.getElementById(
     "novoAh"
@@ -9298,6 +9475,138 @@ document.addEventListener("keydown",function(event){
   </div>
 
 </div>
+
+<script>
+/* O status é gravado pela VPS diretamente no Supabase da Autonomia.
+   O painel apenas consulta os campos de status; não faz ping pelo navegador. */
+const SENSOR_STATUS_INTERVAL_MS = 30000;
+let consultandoStatusSensores = false;
+
+function atualizarBadgeSensorBanco(i, pop) {
+  const el = document.getElementById(`sensor-status-${i}`);
+  if (!el) return;
+  const status = String(pop.sensorStatus || "").toLowerCase();
+  const ultima = pop.sensorUltimaVerificacao
+    ? new Date(pop.sensorUltimaVerificacao).toLocaleString("pt-BR")
+    : "Ainda não verificado pela VPS";
+  if (status === "online") {
+    el.style.background = "#e8f5e9";
+    el.style.color = "#176b2c";
+    el.innerHTML = `🟢 SENSOR ONLINE${pop.sensorLatenciaMs != null ? ` — ${Math.round(pop.sensorLatenciaMs)} ms` : ""}<small style="display:block;font-weight:400;margin-top:4px">Última verificação: ${escapeHtml(ultima)}</small>`;
+  } else if (status === "offline") {
+    el.style.background = "#fdecea";
+    el.style.color = "#a32118";
+    el.innerHTML = `🔴 SENSOR OFFLINE — SEM RESPOSTA AO PING<small style="display:block;font-weight:400;margin-top:4px">Última verificação: ${escapeHtml(ultima)}</small>`;
+  } else {
+    el.style.background = "#eef1f4";
+    el.style.color = "#555";
+    el.textContent = "⚪ AGUARDANDO PRIMEIRA VERIFICAÇÃO DA VPS";
+  }
+}
+
+async function processarEventoSensorNoHtml(i, pop, statusNovo) {
+  const statusAnterior = String(pop.sensorStatus || "").toLowerCase();
+  const novo = String(statusNovo || "").toLowerCase();
+
+  // Sensor OFF: abre a mesma contingência usada pelo botão "Registrar falta".
+  // Também funciona se o painel for aberto depois que o sensor já caiu.
+  if (novo === "offline" && !(pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm)) {
+    if (!Number(pop._autonomiaAjustada) || Number(pop._autonomiaAjustada) <= 0) {
+      console.warn(`[SENSOR POP] ${pop.nome}: OFFLINE, mas autonomia não calculada; contingência não aberta.`);
+      return false;
+    }
+
+    pop.quedaEnergiaEm = new Date().toISOString();
+    pop.equipeEnviadaEm = null;
+    pop.energiaRestabelecidaEm = null;
+
+    try {
+      await salvarContingencia(pop);
+      render();
+      await notificarTelegramEtapa(pop, "FALTA_REGISTRADA", calcularContingencia(pop, new Date()));
+      console.log(`[SENSOR POP] ${pop.nome}: falta registrada automaticamente pelo sensor.`);
+      return true;
+    } catch (error) {
+      console.error(`[SENSOR POP] ${pop.nome}: erro ao abrir contingência:`, error);
+      pop.quedaEnergiaEm = null;
+      return false;
+    }
+  }
+
+  // Sensor ON: encerra a contingência aberta pelo mesmo campo usado no botão manual.
+  if (novo === "online" && statusAnterior === "offline" &&
+      pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm) {
+    pop.energiaRestabelecidaEm = new Date().toISOString();
+    try {
+      await salvarContingencia(pop);
+      render();
+      await notificarTelegramEtapa(pop, "ENERGIA_RESTABELECIDA", calcularContingencia(pop, new Date()));
+      console.log(`[SENSOR POP] ${pop.nome}: restabelecimento registrado automaticamente.`);
+      return true;
+    } catch (error) {
+      console.error(`[SENSOR POP] ${pop.nome}: erro ao registrar restabelecimento:`, error);
+      pop.energiaRestabelecidaEm = null;
+      return false;
+    }
+  }
+
+  return false;
+}
+
+async function atualizarStatusSensoresDoBanco() {
+  if (consultandoStatusSensores || !Array.isArray(pops) || !pops.length) return;
+  consultandoStatusSensores = true;
+  let houveMudancaContingencia = false;
+  try {
+    const { data, error } = await supabaseClient
+      .from("pops_autonomia")
+      .select("id,sensor_status,sensor_ultima_verificacao,sensor_latencia_ms");
+    if (error) throw error;
+    const porId = new Map((data || []).map(row => [String(row.id), row]));
+
+    for (let i = 0; i < pops.length; i++) {
+      const pop = pops[i];
+      const row = porId.get(String(pop.id));
+      if (!row) continue;
+
+      const statusNovo = row.sensor_status || "";
+      const statusNormalizado = String(statusNovo).trim().toLowerCase();
+      const statusAnterior = String(pop.sensorStatus || "").trim().toLowerCase();
+
+      // Importante: também processa OFFLINE quando a página é aberta já com
+      // o sensor fora do ar. Antes, a rotina só tratava mudança de estado;
+      // se o HTML carregasse depois da queda, a contingência nunca era aberta.
+      const faltaAberta = !!(pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm);
+      const precisaAbrirFalta = statusNormalizado === "offline" && !faltaAberta;
+      const mudouEstado = statusNormalizado !== statusAnterior;
+
+      if (precisaAbrirFalta || mudouEstado) {
+        const alterou = await processarEventoSensorNoHtml(i, pop, statusNovo);
+        houveMudancaContingencia = houveMudancaContingencia || alterou;
+      }
+
+      pop.sensorStatus = statusNovo;
+      pop.sensorUltimaVerificacao = row.sensor_ultima_verificacao || null;
+      pop.sensorLatenciaMs = row.sensor_latencia_ms == null ? null : Number(row.sensor_latencia_ms);
+      atualizarBadgeSensorBanco(i, pop);
+    }
+
+    if (houveMudancaContingencia) render();
+  } catch (e) {
+    console.warn("Não foi possível atualizar o status dos sensores pelo Supabase:", e.message || e);
+  } finally {
+    consultandoStatusSensores = false;
+  }
+}
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    atualizarStatusSensoresDoBanco();
+    setInterval(atualizarStatusSensoresDoBanco, SENSOR_STATUS_INTERVAL_MS);
+  }, 2500);
+});
+</script>
+
 </body>
 </html>
 <style>
