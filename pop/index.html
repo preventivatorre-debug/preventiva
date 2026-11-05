@@ -1969,9 +1969,9 @@ body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
   onclick="abrirPopsSemEnergia()"
   title="Clique para ver os POPs atualmente sem energia"
 >
-  🔴 POPs sem energia
+  <span id="tituloCardPopsSemEnergia">🔴 POPs sem energia</span>
   <strong id="totalPopsSemEnergia">0</strong>
-  <small>Clique para ver os POPs</small>
+  <small id="subtituloCardPopsSemEnergia">Clique para ver os POPs</small>
 </button>
 
 </div>
@@ -5448,6 +5448,7 @@ async function salvarConfigTelegram(){
     );
 
     atualizarStatusTelegram("✅ Configuração do Telegram salva no banco de dados.");
+    atualizarCardPOPsSemEnergia();
   }catch(error){
     console.error("Telegram DB:",error);
     atualizarStatusTelegram("🔴 Erro ao salvar no banco: "+error.message);
@@ -6711,8 +6712,30 @@ function atualizarCardPOPsSemEnergia(){
   const lista=obterPOPsSemEnergia();
   const numero=document.getElementById("totalPopsSemEnergia");
   const card=document.getElementById("cardPopsSemEnergia");
+  const titulo=document.getElementById("tituloCardPopsSemEnergia");
+  const subtitulo=document.getElementById("subtituloCardPopsSemEnergia");
+  const telegramAtivo=lerConfigTelegram().ativo;
+
+  // Quando o Telegram estiver pausado, altera somente este card do resumo.
+  if(!telegramAtivo){
+    if(titulo)titulo.textContent="⏸️ Notificações desativadas";
+    if(numero)numero.textContent="—";
+    if(subtitulo)subtitulo.textContent="Telegram temporariamente pausado";
+    if(card){
+      card.classList.remove("sem-ocorrencias");
+      card.title="As notificações do Telegram estão desativadas";
+      card.removeAttribute("onclick");
+      card.style.cursor="default";
+    }
+    return;
+  }
+
+  if(titulo)titulo.textContent="🔴 POPs sem energia";
   if(numero)numero.textContent=lista.length;
+  if(subtitulo)subtitulo.textContent="Clique para ver os POPs";
   if(card){
+    card.setAttribute("onclick","abrirPopsSemEnergia()");
+    card.style.cursor="pointer";
     card.classList.toggle("sem-ocorrencias",lista.length===0);
     card.title=lista.length
       ? "Clique para ver os POPs atualmente sem energia"
