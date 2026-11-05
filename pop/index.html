@@ -9683,34 +9683,65 @@ let consultandoStatusSensores = false;
 function atualizarBadgeSensorBanco(i, pop) {
   const el = document.getElementById(`sensor-status-${i}`);
   if (!el) return;
-  const status = String(pop.sensorStatus || "").toLowerCase();
+
+  const status = String(
+    pop.sensorStatusLeitura || pop.sensorStatus || ""
+  ).trim().toLowerCase();
+
   const ultima = pop.sensorUltimaVerificacao
     ? new Date(pop.sensorUltimaVerificacao).toLocaleString("pt-BR")
     : "Ainda não verificado pela VPS";
+
   if (status === "online") {
     el.style.background = "#e8f5e9";
     el.style.color = "#176b2c";
-    el.innerHTML = `🟢 SENSOR ONLINE${pop.sensorLatenciaMs != null ? ` — ${Math.round(pop.sensorLatenciaMs)} ms` : ""}<small style="display:block;font-weight:400;margin-top:4px">Última verificação: ${escapeHtml(ultima)}</small>`;
+
+    el.innerHTML = `🟢 SENSOR ONLINE${
+      pop.sensorLatenciaMs != null
+        ? ` — ${Math.round(pop.sensorLatenciaMs)} ms`
+        : ""
+    }<small style="display:block;font-weight:400;margin-top:4px">
+      Última verificação: ${escapeHtml(ultima)}
+    </small>`;
+
   } else if (status === "offline") {
     el.style.background = "#fdecea";
     el.style.color = "#a32118";
-    el.innerHTML = `🔴 SENSOR OFFLINE — SEM RESPOSTA AO PING<small style="display:block;font-weight:400;margin-top:4px">Última verificação: ${escapeHtml(ultima)}</small>`;
+
+    el.innerHTML = `🔴 SENSOR OFFLINE — SEM RESPOSTA AO PING
+      <small style="display:block;font-weight:400;margin-top:4px">
+        Última verificação: ${escapeHtml(ultima)}
+      </small>`;
+
   } else {
     el.style.background = "#eef1f4";
     el.style.color = "#555";
+
     el.textContent = "⚪ AGUARDANDO PRIMEIRA VERIFICAÇÃO DA VPS";
   }
 }
 
 async function processarEventoSensorNoHtml(i, pop, statusNovo) {
-  const statusAnterior = String(pop.sensorStatus || "").toLowerCase();
-  const novo = String(statusNovo || "").toLowerCase();
 
-  // Sensor OFF: abre a mesma contingência usada pelo botão "Registrar falta".
-  // Também funciona se o painel for aberto depois que o sensor já caiu.
-  if (novo === "offline" && !(pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm)) {
-    if (!Number(pop._autonomiaAjustada) || Number(pop._autonomiaAjustada) <= 0) {
-      console.warn(`[SENSOR POP] ${pop.nome}: OFFLINE, mas autonomia não calculada; contingência não aberta.`);
+  const statusAnterior = String(pop.sensorStatus || "")
+    .trim().toLowerCase();
+
+  const novo = String(statusNovo || "")
+    .trim().toLowerCase();
+
+  // SENSOR OFFLINE: registra falta de energia.
+  if (
+    novo === "offline" &&
+    !(pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm)
+  ) {
+
+    if (
+      !Number(pop._autonomiaAjustada) ||
+      Number(pop._autonomiaAjustada) <= 0
+    ) {
+      console.warn(
+        `[SENSOR POP] ${pop.nome}: autonomia não calculada.`
+      );
       return false;
     }
 
@@ -9720,30 +9751,71 @@ async function processarEventoSensorNoHtml(i, pop, statusNovo) {
 
     try {
       await salvarContingencia(pop);
+
       render();
-      await notificarTelegramEtapa(pop, "FALTA_REGISTRADA", calcularContingencia(pop, new Date()));
-      console.log(`[SENSOR POP] ${pop.nome}: falta registrada automaticamente pelo sensor.`);
+
+      await notificarTelegramEtapa(
+        pop,
+        "FALTA_REGISTRADA",
+        calcularContingencia(pop, new Date())
+      );
+
+      console.log(
+        `[SENSOR POP] ${pop.nome}: falta registrada automaticamente.`
+      );
+
       return true;
+
     } catch (error) {
-      console.error(`[SENSOR POP] ${pop.nome}: erro ao abrir contingência:`, error);
+
+      console.error(
+        `[SENSOR POP] ${pop.nome}: erro ao abrir contingência:`,
+        error
+      );
+
       pop.quedaEnergiaEm = null;
+
       return false;
     }
   }
 
-  // Sensor ON: encerra a contingência aberta pelo mesmo campo usado no botão manual.
-  if (novo === "online" && statusAnterior === "offline" &&
-      pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm) {
+  // SENSOR ONLINE: encerra uma contingência existente.
+  if (
+    novo === "online" &&
+    statusAnterior === "offline" &&
+    pop.quedaEnergiaEm &&
+    !pop.energiaRestabelecidaEm
+  ) {
+
     pop.energiaRestabelecidaEm = new Date().toISOString();
+
     try {
+
       await salvarContingencia(pop);
+
       render();
-      await notificarTelegramEtapa(pop, "ENERGIA_RESTABELECIDA", calcularContingencia(pop, new Date()));
-      console.log(`[SENSOR POP] ${pop.nome}: restabelecimento registrado automaticamente.`);
+
+      await notificarTelegramEtapa(
+        pop,
+        "ENERGIA_RESTABELECIDA",
+        calcularContingencia(pop, new Date())
+      );
+
+      console.log(
+        `[SENSOR POP] ${pop.nome}: energia restabelecida automaticamente.`
+      );
+
       return true;
+
     } catch (error) {
-      console.error(`[SENSOR POP] ${pop.nome}: erro ao registrar restabelecimento:`, error);
+
+      console.error(
+        `[SENSOR POP] ${pop.nome}: erro ao registrar restabelecimento:`,
+        error
+      );
+
       pop.energiaRestabelecidaEm = null;
+
       return false;
     }
   }
@@ -9752,51 +9824,119 @@ async function processarEventoSensorNoHtml(i, pop, statusNovo) {
 }
 
 async function atualizarStatusSensoresDoBanco() {
-  if (consultandoStatusSensores || !Array.isArray(pops) || !pops.length) return;
+
+  if (
+    consultandoStatusSensores ||
+    !Array.isArray(pops) ||
+    !pops.length
+  ) return;
+
   consultandoStatusSensores = true;
+
   let houveMudancaContingencia = false;
+
   try {
+
     const { data, error } = await supabaseClient
       .from("pops_autonomia")
       .select("id,sensor_status,sensor_ultima_verificacao,sensor_latencia_ms");
+
     if (error) throw error;
-    const porId = new Map((data || []).map(row => [String(row.id), row]));
+
+    const porId = new Map(
+      (data || []).map(row => [String(row.id), row])
+    );
+
+    // Verifica se o processamento automático está ativado.
+    const telegramAtivo = lerConfigTelegram().ativo;
 
     for (let i = 0; i < pops.length; i++) {
+
       const pop = pops[i];
+
       const row = porId.get(String(pop.id));
+
       if (!row) continue;
 
       const statusNovo = row.sensor_status || "";
-      const statusNormalizado = String(statusNovo).trim().toLowerCase();
-      const statusAnterior = String(pop.sensorStatus || "").trim().toLowerCase();
 
-      // Importante: também processa OFFLINE quando a página é aberta já com
-      // o sensor fora do ar. Antes, a rotina só tratava mudança de estado;
-      // se o HTML carregasse depois da queda, a contingência nunca era aberta.
-      const faltaAberta = !!(pop.quedaEnergiaEm && !pop.energiaRestabelecidaEm);
-      const precisaAbrirFalta = statusNormalizado === "offline" && !faltaAberta;
-      const mudouEstado = statusNormalizado !== statusAnterior;
+      const statusNormalizado = String(statusNovo)
+        .trim()
+        .toLowerCase();
 
-      if (precisaAbrirFalta || mudouEstado) {
-        const alterou = await processarEventoSensorNoHtml(i, pop, statusNovo);
-        houveMudancaContingencia = houveMudancaContingencia || alterou;
+      const statusAnterior = String(pop.sensorStatus || "")
+        .trim()
+        .toLowerCase();
+
+      // Atualiza os dados visuais sempre.
+      // O ping continua sendo consultado normalmente.
+      pop.sensorStatusLeitura = statusNovo;
+
+      pop.sensorUltimaVerificacao =
+        row.sensor_ultima_verificacao || null;
+
+      pop.sensorLatenciaMs =
+        row.sensor_latencia_ms == null
+          ? null
+          : Number(row.sensor_latencia_ms);
+
+      // PAUSA:
+      // Não abre nem encerra ocorrências.
+      // Não altera o último estado processado.
+      if (!telegramAtivo) {
+
+        atualizarBadgeSensorBanco(i, pop);
+
+        continue;
       }
 
+      const faltaAberta = !!(
+        pop.quedaEnergiaEm &&
+        !pop.energiaRestabelecidaEm
+      );
+
+      const precisaAbrirFalta =
+        statusNormalizado === "offline" &&
+        !faltaAberta;
+
+      const mudouEstado =
+        statusNormalizado !== statusAnterior;
+
+      // Processa somente quando necessário.
+      if (precisaAbrirFalta || mudouEstado) {
+
+        const alterou = await processarEventoSensorNoHtml(
+          i,
+          pop,
+          statusNovo
+        );
+
+        houveMudancaContingencia =
+          houveMudancaContingencia || alterou;
+      }
+
+      // Atualiza o último estado processado.
       pop.sensorStatus = statusNovo;
-      pop.sensorUltimaVerificacao = row.sensor_ultima_verificacao || null;
-      pop.sensorLatenciaMs = row.sensor_latencia_ms == null ? null : Number(row.sensor_latencia_ms);
+
       atualizarBadgeSensorBanco(i, pop);
     }
 
-    if (houveMudancaContingencia) render();
+    if (houveMudancaContingencia) {
+      render();
+    }
+
   } catch (e) {
-    console.warn("Não foi possível atualizar o status dos sensores pelo Supabase:", e.message || e);
+
+    console.warn(
+      "Não foi possível atualizar os sensores pelo Supabase:",
+      e.message || e
+    );
+
   } finally {
+
     consultandoStatusSensores = false;
   }
 }
-
 window.addEventListener("load", () => {
   setTimeout(() => {
     atualizarStatusSensoresDoBanco();
