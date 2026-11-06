@@ -1778,7 +1778,7 @@ body.autenticado #telaAutenticacao{display:none}
 <div id="telaAutenticacao">
   <section class="auth-card">
     <h2>🔐 Acesso ao Controle de POPs</h2>
-    <p>Entre com seu e-mail e senha pessoal. No primeiro acesso, faça seu cadastro. O acesso de edição continuará protegido pela senha de edição já utilizada no sistema.</p>
+    <p>Entre com seu e-mail e senha pessoal. No primeiro acesso, faça seu cadastro.</p>
     <form id="formAutenticacao" onsubmit="entrarOuCadastrar(event)">
       <label for="authEmpresa">Empresa</label>
       <input id="authEmpresa" type="text" placeholder="Nome da empresa" autocomplete="organization">
@@ -2559,6 +2559,16 @@ function compararAuditoria(antes,depois){
   }
   return linhas;
 }
+function auditoriaTemMudancaReal(item){
+  const op=String(item.operacao||'').toUpperCase();
+  if(op!=='UPDATE')return true;
+  const antes=item.dados_anteriores&&typeof item.dados_anteriores==='object'?item.dados_anteriores:{};
+  const depois=item.dados_novos&&typeof item.dados_novos==='object'?item.dados_novos:{};
+  const ignorar=new Set(['updated_at','created_at','criado_em','alterado_em','atualizado_em','ultimo_ping','last_ping','ping_em','sensor_status','sensor_latencia_ms','sensor_ultimo_ping','sensor_verificado_em','ultima_verificacao_sensor','status_sensor','latencia_sensor_ms']);
+  const chaves=new Set([...Object.keys(antes),...Object.keys(depois)]);
+  for(const k of chaves){if(ignorar.has(k))continue;if(JSON.stringify(antes[k])!==JSON.stringify(depois[k]))return true;}
+  return false;
+}
 function descricaoOperacaoAuditoria(item){
   const t=String(item.tabela||'').toLowerCase(),op=String(item.operacao||'').toUpperCase();
   const antes=item.dados_anteriores||{},depois=item.dados_novos||{};
@@ -2577,11 +2587,12 @@ async function abrirAuditoriaAlteracoes(){
   try{
     const {data,error}=await supabaseClient.from("auditoria_alteracoes")
       .select("id,tabela,operacao,registro_id,email_usuario,ocorrido_em,dados_anteriores,dados_novos")
-      .order("ocorrido_em",{ascending:false}).limit(300);
+      .order("ocorrido_em",{ascending:false}).limit(500);
     if(error)throw error;
-    if(!data?.length){status.textContent="Nenhuma alteração registrada ainda.";return;}
-    status.textContent=`Exibindo ${data.length} alterações recentes.`;
-    lista.innerHTML=data.map(item=>{
+    const relevantes=(data||[]).filter(auditoriaTemMudancaReal);
+    if(!relevantes.length){status.textContent="Nenhuma edição ou inclusão relevante encontrada.";return;}
+    status.textContent=`Exibindo ${relevantes.length} alterações reais (consultas e atualizações automáticas foram ignoradas).`;
+    lista.innerHTML=relevantes.map(item=>{
       const quando=item.ocorrido_em?new Date(item.ocorrido_em).toLocaleString("pt-BR"):"—";
       const descricao=descricaoOperacaoAuditoria(item);
       const tabela=String(item.tabela||'').replace(/_/g,' ');
