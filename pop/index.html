@@ -1674,6 +1674,23 @@ body.baterias-admin-desbloqueado .acoes-bateria-protegidas{display:flex}
 body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
 .selo-baterias-admin{display:none;color:#166534;font-size:11px;font-weight:700}
 
+
+/* AUTENTICAÇÃO OBRIGATÓRIA */
+body:not(.autenticado) .container{display:none!important}
+#telaAutenticacao{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#f2f4f6}
+body.autenticado #telaAutenticacao{display:none}
+.auth-card{width:100%;max-width:430px;background:#fff;padding:26px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+.auth-card h2{margin:0 0 8px;color:#1f6f43}
+.auth-card p{color:#555;line-height:1.5}
+.auth-card label{display:block;font-weight:bold;font-size:13px;margin:13px 0 5px}
+.auth-card input{width:100%;padding:11px;border:1px solid #cbd5d0;border-radius:7px;margin:0}
+.auth-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+.auth-actions button{flex:1}
+.auth-secondary{background:#52616b}
+#authStatus{padding:10px;border-radius:7px;background:#f1f5f9;margin-top:12px;font-size:13px;overflow-wrap:anywhere}
+.auth-userbar{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 13px;background:#e8f4ed;border-radius:8px;font-size:13px}
+.auth-userbar button{margin:0;background:#555}
+
 </style>
 
 <style>
@@ -1758,9 +1775,33 @@ body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
 
 <body>
 
+<div id="telaAutenticacao">
+  <section class="auth-card">
+    <h2>🔐 Acesso ao Controle de POPs</h2>
+    <p>Entre com seu e-mail e senha pessoal. No primeiro acesso, faça seu cadastro. O acesso de edição continuará protegido pela senha de edição já utilizada no sistema.</p>
+    <form id="formAutenticacao" onsubmit="entrarOuCadastrar(event)">
+      <label for="authEmpresa">Empresa</label>
+      <input id="authEmpresa" type="text" placeholder="Nome da empresa" autocomplete="organization">
+      <label for="authFuncao">Função na empresa</label>
+      <input id="authFuncao" type="text" placeholder="Ex.: Técnico, supervisor, operador">
+      <label for="authEmail">E-mail</label>
+      <input id="authEmail" type="email" autocomplete="username" required placeholder="seu@email.com">
+      <label for="authPassword">Senha da conta</label>
+      <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="Mínimo de 6 caracteres">
+      <div class="auth-actions">
+        <button id="btnAuthEntrar" type="submit">Entrar</button>
+        <button type="button" class="auth-secondary" onclick="cadastrarConta()">Primeiro acesso / Cadastro</button>
+      </div>
+    </form>
+    <div id="authStatus" role="status">Faça login para acessar o sistema.</div>
+  </section>
+</div>
+
+
 <div class="container">
 
 <h1>🔋 Controle de Autonomia dos POPs</h1>
+<div class="auth-userbar"><span>Conectado: <strong id="authUsuarioEmail">—</strong></span><button type="button" onclick="sairDaConta()">Sair do sistema</button></div>
 
 <details class="painel-edicao-recolhivel">
   <summary>🔒 Edição e ferramentas administrativas</summary>
@@ -1789,6 +1830,9 @@ body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
             disabled>
       🔒 Bloquear Edição
     </button>
+    <button id="btnHistoricoSuperAdmin" type="button" class="editar" style="display:none" onclick="abrirAuditoriaAlteracoes()">📋 Histórico de alterações (Super Admin)</button>
+    <button id="btnAcessosPendentes" type="button" class="editar" style="display:none;background:#8a5a00" onclick="abrirAprovacoesAcesso()">🔐 Acessos pendentes</button>
+    <button id="btnGerenciarUsuarios" type="button" class="editar" style="display:none;background:#34495e" onclick="abrirGerenciarUsuarios()">👥 Usuários cadastrados</button>
 
     <button type="button" class="salvar" onclick="exportarPlanilhaAutonomia()" style="background:#217346">
       📊 Gerar Planilha de Autonomia (Excel)
@@ -2209,6 +2253,45 @@ body.baterias-admin-desbloqueado .selo-baterias-admin{display:inline-block}
   </div>
 </div>
 
+
+<div id="modalAprovacoesAcesso" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:13000;padding:15px;overflow:auto">
+  <div style="max-width:900px;margin:25px auto;background:#fff;border-radius:12px;padding:18px">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h2 style="margin:0;color:#1f6f43">🔐 Solicitações de acesso</h2><button class="bloquear" onclick="fecharAprovacoesAcesso()">Fechar</button></div>
+    <p style="color:#555">Confira a empresa, a função e o e-mail antes de liberar o acesso.</p>
+    <div id="aprovacoesStatus" style="padding:10px;background:#f1f5f9;border-radius:7px">Carregando...</div>
+    <div id="aprovacoesLista" style="display:grid;gap:10px;margin-top:12px"></div>
+  </div>
+</div>
+
+<div id="modalGerenciarUsuarios" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:13001;padding:15px;overflow:auto">
+  <div style="max-width:1050px;margin:25px auto;background:#fff;border-radius:12px;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 style="margin:0;color:#1f6f43">👥 Usuários cadastrados</h2>
+      <button class="bloquear" onclick="fecharGerenciarUsuarios()">Fechar</button>
+    </div>
+    <p style="color:#555">O Super Admin pode alterar empresa, função e situação do acesso, ou excluir definitivamente uma conta.</p>
+    <div id="usuariosAdminStatus" style="padding:10px;background:#f1f5f9;border-radius:7px">Carregando...</div>
+    <div style="overflow:auto;max-height:65vh"><table style="min-width:850px"><thead><tr><th>E-mail</th><th>Empresa</th><th>Função</th><th>Situação</th><th>Cadastro</th><th>Presença</th><th>Último acesso</th><th>Ações</th></tr></thead><tbody id="usuariosAdminLista"></tbody></table></div>
+  </div>
+</div>
+
+<div id="modalAuditoriaAlteracoes" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:12000;padding:15px;overflow:auto" onclick="if(event.target===this)fecharAuditoriaAlteracoes()">
+  <div style="max-width:1100px;margin:25px auto;background:#fff;border-radius:12px;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 style="margin:0;color:#1f6f43">📋 Histórico de alterações</h2>
+      <button type="button" class="bloquear" onclick="fecharAuditoriaAlteracoes()">Fechar</button>
+    </div>
+    <p style="font-size:13px;color:#555">Registro automático do banco de dados: usuário, e-mail, data, tabela e tipo de operação.</p>
+    <div id="auditoriaStatus" style="padding:9px;background:#f1f5f9;border-radius:6px">Carregando...</div>
+    <div style="overflow:auto;max-height:65vh">
+      <table style="min-width:750px">
+        <thead><tr><th>Data/hora</th><th>Usuário</th><th>Tabela</th><th>Operação</th><th>ID do registro</th><th>Detalhes</th></tr></thead>
+        <tbody id="auditoriaLista"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2230,12 +2313,285 @@ const SUPABASE_ANON_KEY =
 const SENHA_EDICAO =
 "8Hgkg77d6f";
 
+// Único e-mail autorizado a visualizar a auditoria.
+const EMAIL_SUPER_ADMIN = "flaviojrfm50@gmail.com";
+
 const supabaseClient =
 window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
 
+
+/* AUTENTICAÇÃO INDIVIDUAL + APROVAÇÃO DO SUPER ADMIN */
+let usuarioAutenticado=null;
+let sistemaJaIniciado=false;
+const TABELA_ACESSOS='solicitacoes_acesso_pops';
+const TABELA_PRESENCA='presenca_sessoes_pops';
+let intervaloPresenca=null;
+let presencaAtualRegistrada=false;
+const CHAVE_SESSAO_DISPOSITIVO='ff_pops_session_id';
+function obterIdSessaoDispositivo(){
+  let id=sessionStorage.getItem(CHAVE_SESSAO_DISPOSITIVO);
+  if(!id){id=(crypto.randomUUID?crypto.randomUUID():('sess_'+Date.now()+'_'+Math.random().toString(36).slice(2)));sessionStorage.setItem(CHAVE_SESSAO_DISPOSITIVO,id);}
+  return id;
+}
+function identificarDispositivo(){
+  const ua=navigator.userAgent||'';let navegador='Navegador';
+  if(/Edg\//.test(ua))navegador='Edge';else if(/Chrome\//.test(ua))navegador='Chrome';else if(/Firefox\//.test(ua))navegador='Firefox';else if(/Safari\//.test(ua))navegador='Safari';
+  let sistema='Sistema não identificado';
+  if(/Windows/i.test(ua))sistema='Windows';else if(/Mac OS|Macintosh/i.test(ua))sistema='macOS';else if(/Android/i.test(ua))sistema='Android';else if(/iPhone|iPad/i.test(ua))sistema='iOS';else if(/Linux/i.test(ua))sistema='Linux';
+  return navegador+' / '+sistema;
+}
+async function registrarPresencaOnline(){
+  if(!usuarioAutenticado?.id)return;
+  const agora=new Date().toISOString(),meta=usuarioAutenticado.user_metadata||{},sessao=obterIdSessaoDispositivo();
+  const {error}=await supabaseClient.from(TABELA_PRESENCA).upsert({session_id:sessao,usuario_id:usuarioAutenticado.id,email:usuarioAutenticado.email||'',empresa:meta.empresa||'',funcao:meta.funcao||'',dispositivo:identificarDispositivo(),online:true,ultimo_sinal:agora,ultimo_login:presencaAtualRegistrada?undefined:agora,atualizado_em:agora},{onConflict:'session_id'});
+  if(error){console.warn('Presença não registrada:',error.message);return;}
+  if(!presencaAtualRegistrada){await supabaseClient.from('historico_sessoes_pops').insert({usuario_id:usuarioAutenticado.id,email:usuarioAutenticado.email||'',evento:'login',session_id:sessao,dispositivo:identificarDispositivo()});presencaAtualRegistrada=true;}
+}
+function iniciarMonitoramentoPresenca(){if(intervaloPresenca)clearInterval(intervaloPresenca);registrarPresencaOnline();intervaloPresenca=setInterval(registrarPresencaOnline,30000);}
+async function registrarPresencaOffline(){
+  if(intervaloPresenca){clearInterval(intervaloPresenca);intervaloPresenca=null;}if(!usuarioAutenticado?.id)return;
+  const agora=new Date().toISOString(),sessao=obterIdSessaoDispositivo();
+  const {error}=await supabaseClient.from(TABELA_PRESENCA).update({online:false,ultimo_sinal:agora,ultimo_logout:agora,atualizado_em:agora}).eq('session_id',sessao).eq('usuario_id',usuarioAutenticado.id);
+  if(!error&&presencaAtualRegistrada)await supabaseClient.from('historico_sessoes_pops').insert({usuario_id:usuarioAutenticado.id,email:usuarioAutenticado.email||'',evento:'logout',session_id:sessao,dispositivo:identificarDispositivo()});presencaAtualRegistrada=false;sessionStorage.removeItem(CHAVE_SESSAO_DISPOSITIVO);
+}
+function mostrarStatusAuth(mensagem,erro=false){
+  const el=document.getElementById("authStatus");
+  if(el){el.textContent=mensagem;el.style.background=erro?"#fee2e2":"#f1f5f9";el.style.color=erro?"#991b1b":"#334155";}
+}
+function ehSuperAdmin(){return String(usuarioAutenticado?.email||'').trim().toLowerCase()===EMAIL_SUPER_ADMIN;}
+async function criarSolicitacaoAcesso(user){
+  const empresa=document.getElementById('authEmpresa').value.trim();
+  const funcao=document.getElementById('authFuncao').value.trim();
+  if(!empresa||!funcao){mostrarStatusAuth('Informe a empresa e sua função para solicitar acesso.',true);return false;}
+  const {error}=await supabaseClient.from(TABELA_ACESSOS).insert({usuario_id:user.id,email:user.email,empresa,funcao,status:'pendente'});
+  if(error){if(error.code==='23505'){mostrarStatusAuth('Já existe uma solicitação para este usuário. Aguarde a aprovação.');return false;}throw error;}
+  mostrarStatusAuth('Solicitação enviada! O acesso ficará bloqueado até o Super Admin aprovar.');
+  return false;
+}
+async function cadastrarConta(){
+  const email=document.getElementById('authEmail').value.trim().toLowerCase();
+  const password=document.getElementById('authPassword').value;
+  const empresa=document.getElementById('authEmpresa').value.trim();
+  const funcao=document.getElementById('authFuncao').value.trim();
+  if(!email||!password||!empresa||!funcao){mostrarStatusAuth('Preencha empresa, função, e-mail e senha para solicitar o primeiro acesso.',true);return;}
+  if(password.length<6){mostrarStatusAuth('A senha deve ter pelo menos 6 caracteres.',true);return;}
+  const btn=document.getElementById('btnAuthEntrar');btn.disabled=true;
+  try{
+    const {data,error}=await supabaseClient.auth.signUp({email,password,options:{data:{empresa,funcao}}});
+    if(error)throw error;
+    if(data.user && data.session){usuarioAutenticado=data.user;await criarSolicitacaoAcesso(data.user);}
+    else mostrarStatusAuth('Cadastro criado. Confirme o e-mail enviado pelo Supabase e depois entre para enviar/acompanhar a solicitação.');
+  }catch(e){mostrarStatusAuth('Não foi possível cadastrar: '+e.message,true);}
+  finally{btn.disabled=false;}
+}
+async function entrarOuCadastrar(event){
+  event.preventDefault();
+  const email=document.getElementById('authEmail').value.trim().toLowerCase();
+  const password=document.getElementById('authPassword').value;
+  const btn=document.getElementById('btnAuthEntrar');btn.disabled=true;
+  try{
+    const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    usuarioAutenticado=data.user;
+    if(ehSuperAdmin()){await liberarAcessoSistema();return;}
+    const {data:sol,error:err}=await supabaseClient.from(TABELA_ACESSOS).select('id,status,empresa,funcao').eq('usuario_id',data.user.id).maybeSingle();
+    if(err)throw err;
+    if(!sol){await criarSolicitacaoAcesso(data.user);return;}
+    if(sol.status!=='aprovado'){
+      mostrarStatusAuth(sol.status==='reprovado'?'Sua solicitação não foi aprovada. Procure o administrador.':'Solicitação recebida para '+sol.empresa+'. Aguardando autorização do Super Admin.');
+      await supabaseClient.auth.signOut();usuarioAutenticado=null;return;
+    }
+    await liberarAcessoSistema();
+  }catch(e){mostrarStatusAuth('Falha no login: '+e.message,true);}
+  finally{btn.disabled=false;}
+}
+async function liberarAcessoSistema(){
+  if(!usuarioAutenticado){const {data}=await supabaseClient.auth.getUser();usuarioAutenticado=data?.user||null;}
+  if(!usuarioAutenticado){mostrarStatusAuth('Sessão não identificada. Faça login novamente.',true);return;}
+  if(!ehSuperAdmin()){
+    const {data:sol,error}=await supabaseClient.from(TABELA_ACESSOS).select('status').eq('usuario_id',usuarioAutenticado.id).maybeSingle();
+    if(error||sol?.status!=='aprovado'){
+      await supabaseClient.auth.signOut();usuarioAutenticado=null;
+      mostrarStatusAuth('Acesso ainda não autorizado pelo Super Admin.');return;
+    }
+  }
+  document.body.classList.add('autenticado');
+  document.getElementById('authUsuarioEmail').textContent=usuarioAutenticado.email||'Usuário autenticado';
+  atualizarPermissaoSuperAdmin();
+  iniciarMonitoramentoPresenca();
+  if(!sistemaJaIniciado){sistemaJaIniciado=true;await iniciar();}
+}
+function atualizarPermissaoSuperAdmin(){
+  const autorizado=ehSuperAdmin();
+  const b=document.getElementById('btnHistoricoSuperAdmin');if(b)b.style.display=autorizado?'inline-block':'none';
+  const a=document.getElementById('btnAcessosPendentes');if(a)a.style.display=autorizado?'inline-block':'none';
+  const u=document.getElementById('btnGerenciarUsuarios');if(u)u.style.display=autorizado?'inline-block':'none';
+  if(!autorizado){const m=document.getElementById('modalAuditoriaAlteracoes');if(m)m.style.display='none';const ap=document.getElementById('modalAprovacoesAcesso');if(ap)ap.style.display='none';const us=document.getElementById('modalGerenciarUsuarios');if(us)us.style.display='none';}
+}
+async function abrirAprovacoesAcesso(){
+  if(!ehSuperAdmin()){alert('Acesso restrito ao Super Admin.');return;}
+  document.getElementById('modalAprovacoesAcesso').style.display='block';
+  const status=document.getElementById('aprovacoesStatus'),lista=document.getElementById('aprovacoesLista');
+  status.textContent='Carregando solicitações...';lista.innerHTML='';
+  const {data,error}=await supabaseClient.from(TABELA_ACESSOS).select('id,email,empresa,funcao,criado_em,status').eq('status','pendente').order('criado_em',{ascending:true});
+  if(error){status.textContent='Erro ao carregar: '+error.message;return;}
+  if(!data?.length){status.textContent='Não há solicitações pendentes.';return;}
+  status.textContent=data.length+' solicitação(ões) aguardando aprovação.';
+  lista.innerHTML=data.map(x=>`<article style="border:1px solid #d9e2dc;border-radius:9px;padding:13px"><b>${escapeHtml(x.empresa)}</b><div>Responsável/e-mail: ${escapeHtml(x.email)}</div><div>Função: ${escapeHtml(x.funcao)}</div><small style="color:#666">Solicitado em: ${x.criado_em?new Date(x.criado_em).toLocaleString('pt-BR'):'—'}</small><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button onclick="decidirAcesso('${x.id}','aprovado')">✅ Aprovar e liberar</button><button class="remove" onclick="decidirAcesso('${x.id}','reprovado')">✖ Recusar</button></div></article>`).join('');
+}
+async function decidirAcesso(id,statusNovo){
+  if(!ehSuperAdmin())return alert('Acesso restrito.');
+  const confirmacao=statusNovo==='aprovado'?'Confirma liberar o acesso deste usuário?':'Confirma recusar esta solicitação?';
+  if(!confirm(confirmacao))return;
+  const {error}=await supabaseClient.from(TABELA_ACESSOS).update({status:statusNovo,aprovado_por:usuarioAutenticado.email,decidido_em:new Date().toISOString()}).eq('id',id);
+  if(error){alert('Não foi possível atualizar: '+error.message);return;}
+  await abrirAprovacoesAcesso();
+}
+function fecharAprovacoesAcesso(){document.getElementById('modalAprovacoesAcesso').style.display='none';}
+function fecharGerenciarUsuarios(){document.getElementById('modalGerenciarUsuarios').style.display='none';}
+async function abrirGerenciarUsuarios(){
+  if(!ehSuperAdmin())return alert('Acesso restrito ao Super Admin.');
+  document.getElementById('modalGerenciarUsuarios').style.display='block';
+  const st=document.getElementById('usuariosAdminStatus'),tb=document.getElementById('usuariosAdminLista');
+  st.textContent='Carregando usuários...';tb.innerHTML='';
+  const {data,error}=await supabaseClient.from(TABELA_ACESSOS)
+    .select('id,usuario_id,email,empresa,funcao,status,criado_em')
+    .order('criado_em',{ascending:false});
+  if(error){st.textContent='Erro ao carregar usuários: '+error.message;return;}
+  const {data:presencas,error:errPres}=await supabaseClient.from(TABELA_PRESENCA).select('session_id,usuario_id,online,ultimo_sinal,ultimo_login,dispositivo');
+  if(errPres){st.textContent='Usuários carregados, mas não foi possível consultar presença: '+errPres.message+' — execute o SQL de múltiplos dispositivos.';return;}
+  const mapaPresenca=new Map();(presencas||[]).forEach(p=>{if(!mapaPresenca.has(p.usuario_id))mapaPresenca.set(p.usuario_id,[]);mapaPresenca.get(p.usuario_id).push(p);});
+  st.textContent=`${data?.length||0} usuário(s). Cada navegador/computador é contado como uma sessão independente.`;
+  if(!data?.length){tb.innerHTML='<tr><td colspan="8">Nenhum usuário cadastrado.</td></tr>';return;}
+  tb.innerHTML=data.map(u=>{const sessoes=mapaPresenca.get(u.usuario_id)||[];const ativas=sessoes.filter(p=>p.online&&p.ultimo_sinal&&(Date.now()-new Date(p.ultimo_sinal).getTime())<120000);const ultima=[...sessoes].sort((a,b)=>new Date(b.ultimo_sinal||0)-new Date(a.ultimo_sinal||0))[0];const ultimaData=ultima?.ultimo_sinal?new Date(ultima.ultimo_sinal).toLocaleString('pt-BR'):'Nunca entrou';const resumo=ativas.length?ativas.map(p=>`<div style="margin:3px 0"><b style="color:#15803d">● Online</b> — ${escapeHtml(p.dispositivo||'Dispositivo')}<br><small>${p.ultimo_sinal?new Date(p.ultimo_sinal).toLocaleString('pt-BR'):'—'}</small></div>`).join(''):'<b style="color:#b91c1c">● Offline</b>';const alerta=ativas.length>1?`<div style="color:#b45309;font-weight:bold;margin-top:5px">⚠ ${ativas.length} dispositivos conectados</div>`:'';return `<tr>
+    <td>${escapeHtml(u.email)}</td><td>${escapeHtml(u.empresa)}</td><td>${escapeHtml(u.funcao)}</td><td>${escapeHtml(u.status)}</td><td>${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):'—'}</td>
+    <td>${resumo}${alerta}</td><td>${escapeHtml(ultimaData)}</td>
+    <td><button class="editar" onclick="editarUsuarioAcesso('${u.id}')">✏️ Editar</button><button class="remove" onclick="excluirUsuarioAcesso('${u.id}','${escapeHtml(u.email)}')">🗑️ Excluir</button></td>
+  </tr>`;}).join('');
+}
+async function editarUsuarioAcesso(id){
+  if(!ehSuperAdmin())return alert('Acesso restrito.');
+  const {data,error}=await supabaseClient.from(TABELA_ACESSOS).select('empresa,funcao,status').eq('id',id).single();
+  if(error)return alert('Erro: '+error.message);
+  const empresa=prompt('Empresa:',data.empresa||'');if(empresa===null)return;
+  const funcao=prompt('Função:',data.funcao||'');if(funcao===null)return;
+  const status=prompt('Situação: pendente, aprovado ou reprovado',data.status||'aprovado');if(status===null)return;
+  if(!['pendente','aprovado','reprovado'].includes(status.trim().toLowerCase()))return alert('Situação inválida.');
+  const {error:err}=await supabaseClient.from(TABELA_ACESSOS).update({
+    empresa:empresa.trim(),funcao:funcao.trim(),status:status.trim().toLowerCase(),
+    aprovado_por:usuarioAutenticado.email,decidido_em:new Date().toISOString()
+  }).eq('id',id);
+  if(err)return alert('Não foi possível atualizar: '+err.message);
+  await abrirGerenciarUsuarios();
+}
+async function excluirUsuarioAcesso(id,email){
+  if(!ehSuperAdmin())return alert('Acesso restrito.');
+  if(!confirm(`Excluir definitivamente a conta ${email}?\n\nIsso remove o usuário do Supabase Auth e sua solicitação de acesso. Esta ação não pode ser desfeita.`))return;
+  const {data,error}=await supabaseClient.functions.invoke('admin-gerenciar-usuario',{body:{acao:'excluir',solicitacao_id:id}});
+  if(error)return alert('Falha ao excluir usuário: '+error.message+'\nVerifique se a Edge Function admin-gerenciar-usuario foi publicada.');
+  if(data?.error)return alert(data.error);
+  alert('Usuário excluído com sucesso.');
+  await abrirGerenciarUsuarios();
+}
+
+async function sairDaConta(){
+  if(modoEdicao)bloquearEdicao();
+  await registrarPresencaOffline();
+  const {error}=await supabaseClient.auth.signOut();if(error){alert('Não foi possível sair: '+error.message);return;}
+  usuarioAutenticado=null;sistemaJaIniciado=false;atualizarPermissaoSuperAdmin();document.body.classList.remove('autenticado','modo-edicao');mostrarStatusAuth('Você saiu do sistema. Entre novamente para continuar.');
+}
+async function verificarSessaoInicial(){
+  try{const {data,error}=await supabaseClient.auth.getSession();if(error)throw error;if(data.session){usuarioAutenticado=data.session.user;await liberarAcessoSistema();}else{document.body.classList.remove('autenticado');usuarioAutenticado=null;atualizarPermissaoSuperAdmin();}}
+  catch(e){console.error('Sessão:',e);mostrarStatusAuth('Erro ao verificar a sessão: '+e.message,true);}
+}
+supabaseClient.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_OUT'){if(intervaloPresenca){clearInterval(intervaloPresenca);intervaloPresenca=null;}presencaAtualRegistrada=false;usuarioAutenticado=null;sistemaJaIniciado=false;document.body.classList.remove('autenticado','modo-edicao');}
+  else if(session?.user){usuarioAutenticado=session.user;const el=document.getElementById('authUsuarioEmail');if(el)el.textContent=session.user.email||'Usuário autenticado';atualizarPermissaoSuperAdmin();}
+});
+
+const ROTULOS_AUDITORIA={
+  autonomia_horas:'Autonomia (horas)',autonomia:'Autonomia',nome:'Nome',nome_pop:'Nome do POP',
+  capacidade_ah:'Capacidade (Ah)',banco_ah:'Banco de baterias (Ah)',tensao:'Tensão',
+  quantidade:'Quantidade',baterias:'Baterias',dados_baterias:'Dados das baterias',
+  patrimonio:'Patrimônio',numero_serie:'Número de série',serial:'Número de série',
+  cca:'CCA',saude:'Saúde',saude_percentual:'Saúde (%)',data_teste:'Data do teste',
+  equipamento:'Equipamento',status:'Situação',observacao:'Observação',observacoes:'Observações',
+  distancia_km:'Distância (km)',velocidade_kmh:'Velocidade (km/h)',pop_id:'POP'
+};
+function rotuloCampoAuditoria(k){
+  if(ROTULOS_AUDITORIA[k])return ROTULOS_AUDITORIA[k];
+  return String(k||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+function valorAuditoria(v){
+  if(v===null||v===undefined||v==='')return 'vazio';
+  if(typeof v==='boolean')return v?'Sim':'Não';
+  if(Array.isArray(v))return `${v.length} item(ns)`;
+  if(typeof v==='object')return JSON.stringify(v);
+  return String(v);
+}
+function identidadeBateria(b){
+  if(!b||typeof b!=='object')return valorAuditoria(b);
+  return b.patrimonio||b.numero_serie||b.serial||b.codigo||b.id||b.nome||'bateria';
+}
+function compararAuditoria(antes,depois){
+  const a=antes&&typeof antes==='object'?antes:{},d=depois&&typeof depois==='object'?depois:{};
+  const chaves=[...new Set([...Object.keys(a),...Object.keys(d)])];
+  const linhas=[];
+  for(const k of chaves){
+    if(['updated_at','created_at','criado_em','alterado_em'].includes(k))continue;
+    const av=a[k],dv=d[k];
+    if(JSON.stringify(av)===JSON.stringify(dv))continue;
+    const rot=rotuloCampoAuditoria(k);
+    if(Array.isArray(av)||Array.isArray(dv)){
+      const aa=Array.isArray(av)?av:[],dd=Array.isArray(dv)?dv:[];
+      const chave=x=>JSON.stringify(x);
+      const removidos=aa.filter(x=>!dd.some(y=>chave(y)===chave(x)));
+      const adicionados=dd.filter(x=>!aa.some(y=>chave(y)===chave(x)));
+      removidos.forEach(x=>linhas.push(`Removeu ${rot.toLowerCase()}: ${identidadeBateria(x)}`));
+      adicionados.forEach(x=>linhas.push(`Adicionou ${rot.toLowerCase()}: ${identidadeBateria(x)}`));
+      if(!removidos.length&&!adicionados.length)linhas.push(`Alterou ${rot}`);
+    }else{
+      linhas.push(`${rot}: ${valorAuditoria(av)} → ${valorAuditoria(dv)}`);
+    }
+  }
+  return linhas;
+}
+function descricaoOperacaoAuditoria(item){
+  const t=String(item.tabela||'').toLowerCase(),op=String(item.operacao||'').toUpperCase();
+  const antes=item.dados_anteriores||{},depois=item.dados_novos||{};
+  const nome=depois.nome||depois.nome_pop||antes.nome||antes.nome_pop||'registro';
+  if(op==='DELETE')return `Removeu ${t.includes('equip')?'equipamento':t.includes('pop')?'POP':'registro'}: ${nome}`;
+  if(op==='INSERT')return `Cadastrou ${t.includes('equip')?'equipamento':t.includes('pop')?'POP':'registro'}: ${nome}`;
+  const dif=compararAuditoria(antes,depois);
+  if(!dif.length)return `Atualizou ${nome}`;
+  return dif.map(x=>`${nome} — ${x}`).join(' | ');
+}
+async function abrirAuditoriaAlteracoes(){
+  if(!ehSuperAdmin()){alert("Acesso restrito ao superadministrador.");atualizarPermissaoSuperAdmin();return;}
+  const modal=document.getElementById("modalAuditoriaAlteracoes");modal.style.display="block";
+  const status=document.getElementById("auditoriaStatus"),lista=document.getElementById("auditoriaLista");
+  status.textContent="Carregando histórico...";lista.innerHTML="";
+  try{
+    const {data,error}=await supabaseClient.from("auditoria_alteracoes")
+      .select("id,tabela,operacao,registro_id,email_usuario,ocorrido_em,dados_anteriores,dados_novos")
+      .order("ocorrido_em",{ascending:false}).limit(300);
+    if(error)throw error;
+    if(!data?.length){status.textContent="Nenhuma alteração registrada ainda.";return;}
+    status.textContent=`Exibindo ${data.length} alterações recentes.`;
+    lista.innerHTML=data.map(item=>{
+      const quando=item.ocorrido_em?new Date(item.ocorrido_em).toLocaleString("pt-BR"):"—";
+      const descricao=descricaoOperacaoAuditoria(item);
+      const tabela=String(item.tabela||'').replace(/_/g,' ');
+      return `<tr><td>${escapeHtml(quando)}</td><td>${escapeHtml(item.email_usuario||"Usuário não identificado")}</td><td>${escapeHtml(tabela)}</td><td>${escapeHtml(item.operacao||"")}</td><td>${escapeHtml(item.registro_id||"—")}</td><td style="text-align:left;min-width:280px">${escapeHtml(descricao)}</td></tr>`;
+    }).join("");
+  }catch(e){status.textContent="Não foi possível carregar a auditoria: "+e.message;}
+}
+function fecharAuditoriaAlteracoes(){
+  document.getElementById("modalAuditoriaAlteracoes").style.display="none";
+}
 
 /* =========================================================
    VARIÁVEIS
@@ -2752,6 +3108,11 @@ function calcularProximaPreventiva(data,dias){
 ========================================================= */
 
 function ativarEdicao(){
+
+  if(!usuarioAutenticado){
+    alert("Faça login com seu e-mail antes de liberar a edição.");
+    return;
+  }
 
   const senha=prompt(
     "🔐 Digite a senha para ativar o modo edição:"
@@ -9038,7 +9399,7 @@ async function excluirPOP(i){
 
 async function salvarTudo(){
 
-  if(!modoEdicao) return;
+  if(!usuarioAutenticado || !modoEdicao) return;
 
 
   const btn=
@@ -9243,7 +9604,7 @@ async function iniciar(){
 
 }
 
-iniciar();
+verificarSessaoInicial();
 
 // Atualização em tempo real dos cronômetros, sem recarregar a página.
 setInterval(atualizarRelogiosContingencia,1000);
