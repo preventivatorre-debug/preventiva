@@ -3685,6 +3685,13 @@ function atualizarCampos(){
   document.querySelectorAll("input, select")
     .forEach(campo=>{
 
+      // Filtros do histórico são campos de consulta: ficam sempre habilitados,
+      // mesmo quando o modo de edição geral do painel está bloqueado.
+      if(campo.closest && campo.closest(".historico-geradores")){
+        campo.disabled=false;
+        return;
+      }
+
       if(campo.id==="busca" || campo.id==="buscaPatrimonioBateria"){
 
         // A pesquisa rápida de bateria é somente consulta e fica livre,
@@ -11302,6 +11309,11 @@ window.addEventListener("load", () => {
 .historico-geradores-filtros{display:grid;grid-template-columns:1fr 1fr 1.4fr auto auto;gap:8px;align-items:end}
 .historico-geradores-filtros label{display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:4px}
 .historico-geradores-filtros input,.historico-geradores-filtros select{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box}
+.historico-geradores-filtros input[type="date"],
+.historico-geradores-filtros select{pointer-events:auto!important;cursor:pointer!important;opacity:1!important;background:#fff!important;color:#222!important}
+.historico-geradores-filtros input[type="date"]:disabled,
+.historico-geradores-filtros select:disabled{background:#fff!important;color:#222!important;cursor:pointer!important}
+
 .historico-geradores-filtros button{margin:0;white-space:nowrap}
 .historico-limpar{background:#666}
 .historico-geradores-resumo{margin:12px 0;padding:9px 11px;background:#f2f6fa;border-radius:6px;font-size:13px;font-weight:700}
