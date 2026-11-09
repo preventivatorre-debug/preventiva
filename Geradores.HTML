@@ -13,8 +13,10 @@
     select, input[type="text"], textarea { width: 100%; padding: 10px; margin: 10px 0 20px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
     .checklist-item { margin: 10px 0; font-size: 16px; }
     input[type="checkbox"] { margin-right: 8px; transform: scale(1.3); }
-    button { width: 100%; background: #007bff; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-size: 18px; }
+    button { width: 100%; background: #007bff; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-size: 18px; margin-top: 8px; }
     button:hover { background: #0056b3; }
+    .botao-copiar { background: #198754; }
+    .botao-copiar:hover { background: #146c43; }
     .assinatura { margin-top: 30px; text-align: center; }
     .assinatura input { border: none; border-bottom: 1px solid #000; width: 70%; text-align: center; font-size: 18px; }
     .copiado { color: green; font-weight: bold; display: none; text-align: center; margin-top: 15px; font-size: 18px; }
@@ -45,7 +47,7 @@
 
     <label for="novoGerador">Adicionar Novo Gerador:</label>
     <input type="text" id="novoGerador" placeholder="Digite o nome do novo gerador">
-    <button onclick="adicionarGerador()">➕ Adicionar Gerador</button>
+    <button type="button" onclick="adicionarGerador()">➕ Adicionar Gerador</button>
 
     <div id="checklist" class="checklist"></div>
 
@@ -54,11 +56,13 @@
 
     <div class="assinatura">
       <p>Assinatura do Técnico:</p>
-      <input type="text" readonly>
+      <input type="text" id="assinaturaTecnico" readonly>
     </div>
 
-    <button onclick="enviarTelegram()">📨 Enviar para Telegram</button>
-    <p id="msgCopiado" class="copiado">✅ Enviado com sucesso!</p>
+    <button type="button" onclick="copiarRelatorio()" class="botao-copiar">📋 Copiar relatório</button>
+    <button type="button" onclick="enviarTelegram()">📨 Enviar para Telegram</button>
+    <p id="msgCopiado" class="copiado">✅ Relatório copiado!</p>
+    <p id="msgTelegram" class="copiado">✅ Enviado para o Telegram!</p>
   </div>
 
 <script>
@@ -74,18 +78,22 @@
     if (!nome) { alert("Digite um nome válido!"); return; }
 
     const select = document.getElementById("geradorSelect");
-    const option = document.createElement("option");
-    const chave = nome.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const chave = nome.toLowerCase().replace(/[^a-z0-9]/g, "") || ("gerador" + Date.now());
 
+    if (checklistPorGerador[chave]) {
+      alert("Já existe um gerador com esse nome ou identificador.");
+      return;
+    }
+
+    const option = document.createElement("option");
     option.value = chave;
     option.textContent = nome;
     select.appendChild(option);
 
-    checklistPorGerador[chave] = [...checklistPorGerador["tg3100"]];
+    checklistPorGerador[chave] = [...checklistPorGerador.tg3100];
 
     select.value = chave;
     carregarChecklist();
-
     document.getElementById("novoGerador").value = "";
   }
 
@@ -95,53 +103,97 @@
     div.innerHTML = "";
 
     if (checklistPorGerador[gerador]) {
-      const lista = checklistPorGerador[gerador];
-      lista.forEach(item => {
+      checklistPorGerador[gerador].forEach(item => {
         const divItem = document.createElement("div");
         divItem.className = "checklist-item";
-        divItem.innerHTML = `<label><input type="checkbox"> ${item}</label>`;
+        const label = document.createElement("label");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        label.append(checkbox, document.createTextNode(" " + item));
+        divItem.appendChild(label);
         div.appendChild(divItem);
       });
     }
   }
 
   document.getElementById("tecnico").addEventListener("input", function() {
-    document.querySelector(".assinatura input").value = this.value;
+    document.getElementById("assinaturaTecnico").value = this.value;
   });
 
-  function enviarTelegram() {
-    const protocolo = document.getElementById("protocolo").value || "Não informado";
-    const tecnico = document.getElementById("tecnico").value || "Não informado";
-    const cidade = document.getElementById("cidade").value || "Não informada";
-
+  function gerarTextoRelatorio() {
+    const protocolo = document.getElementById("protocolo").value.trim() || "Não informado";
+    const tecnico = document.getElementById("tecnico").value.trim() || "Não informado";
+    const cidade = document.getElementById("cidade").value.trim() || "Não informada";
     const select = document.getElementById("geradorSelect");
-    const gerador = select.options[select.selectedIndex].text;
-
+    const gerador = select.value ? select.options[select.selectedIndex].text : "Não selecionado";
+    const observacao = document.getElementById("obs").value.trim() || "Nenhuma observação";
+    const data = new Date().toLocaleDateString("pt-BR");
     const itens = document.querySelectorAll(".checklist-item input[type='checkbox']");
-    const observacao = document.getElementById("obs").value || "Nenhuma observação";
-
     const lista = checklistPorGerador[select.value] || [];
 
-    let texto = `🧾 *Checklist de Gerador*\n\n#️⃣ *Protocolo:* ${protocolo}\n🔌 *Gerador:* ${gerador}\n👷 *Técnico:* ${tecnico}\n🏙️ *Cidade:* ${cidade}\n📅 Data: ${new Date().toLocaleDateString('pt-BR')}\n\n*Itens Verificados:*\n`;
+    let texto = `CHECKLIST DE GERADOR\n\nProtocolo: ${protocolo}\nGerador: ${gerador}\nTécnico: ${tecnico}\nCidade: ${cidade}\nData: ${data}\n\nITENS VERIFICADOS:\n`;
 
     itens.forEach((item, i) => {
-      texto += `${item.checked ? "✅" : "❌"} ${lista[i]}\n`;
+      texto += `${item.checked ? "[X]" : "[ ]"} ${lista[i] || "Item"}\n`;
     });
 
-    texto += `\n📝 *Observações:* ${observacao}`;
+    texto += `\nObservações: ${observacao}\nAssinatura do Técnico: ${tecnico}`;
+    return texto;
+  }
 
-    const botToken = "8401740337:AAFxWCHx8M8Mc8Z-WHhhT-nfGlhAGP9L4dA";
-    const chatId = "-4860857271";
+  async function copiarRelatorio() {
+    const texto = gerarTextoRelatorio();
+    const msg = document.getElementById("msgCopiado");
 
-    fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: texto, parse_mode: "Markdown" })
-    }).then(() => {
-      const msg = document.getElementById("msgCopiado");
+    try {
+      await navigator.clipboard.writeText(texto);
+      msg.textContent = "✅ Relatório copiado!";
       msg.style.display = "block";
       setTimeout(() => msg.style.display = "none", 3000);
-    });
+    } catch (erro) {
+      const area = document.createElement("textarea");
+      area.value = texto;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+
+      let sucesso = false;
+      try { sucesso = document.execCommand("copy"); } catch (e) {}
+      area.remove();
+
+      if (sucesso) {
+        msg.textContent = "✅ Relatório copiado!";
+        msg.style.display = "block";
+        setTimeout(() => msg.style.display = "none", 3000);
+      } else {
+        window.prompt("Copie o relatório abaixo:", texto);
+      }
+    }
+  }
+
+  async function enviarTelegram() {
+    const texto = gerarTextoRelatorio();
+    const botToken = "8401740337:AAFxWCHx8M8Mc8Z-WHhhT-nfGlhAGP9L4dA";
+    const chatId = "-4860857271";
+    const msg = document.getElementById("msgTelegram");
+
+    try {
+      const resposta = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text: texto })
+      });
+      const resultado = await resposta.json();
+      if (!resposta.ok || !resultado.ok) throw new Error("Falha ao enviar");
+
+      msg.textContent = "✅ Enviado para o Telegram!";
+      msg.style.display = "block";
+      setTimeout(() => msg.style.display = "none", 3000);
+    } catch (erro) {
+      alert("Não foi possível enviar para o Telegram. Verifique a conexão e a configuração do bot.");
+    }
   }
 </script>
 
