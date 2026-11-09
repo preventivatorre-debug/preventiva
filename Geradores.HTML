@@ -19,7 +19,7 @@
 <label for="obs">Observações:</label><textarea id="obs" placeholder="Digite aqui qualquer observação..." rows="4"></textarea>
 <div class="assinatura"><p>Assinatura do Técnico:</p><input type="text" id="assinaturaTecnico" readonly></div>
 <div class="botoes"><button type="button" class="botao-copiar" onclick="copiarRelatorio()">📋 Copiar relatório para postar no grupo</button><button type="button" onclick="enviarRelatorio()">✅ Enviar relatório e concluir preventiva</button></div>
-<p class="aviso">O botão de copiar não conclui a preventiva. Para atualizar o painel principal, o técnico deve tocar em “Enviar relatório e concluir preventiva”.</p>
+<p class="aviso">Ao copiar o relatório, o sistema pergunta se o checklist já foi finalizado. Se confirmar e todos os itens estiverem marcados, a baixa é registrada no painel principal.</p>
 </main>
 <script>
 const SUPABASE_URL='https://idzteltrnttmwzqjlkgj.supabase.co';
@@ -38,8 +38,33 @@ document.getElementById('geradorSelect').addEventListener('change',carregarCheck
 document.getElementById('tecnico').addEventListener('input',e=>document.getElementById('assinaturaTecnico').value=e.target.value);
 function preencherDaUrl(){const map={cidade:'cidade',gerador:'geradorSelect',tecnico:'tecnico'};for(const [p,id] of Object.entries(map)){const v=params.get(p);if(!v)continue;const el=document.getElementById(id);if(id==='geradorSelect'){let opt=[...el.options].find(o=>o.text.toLowerCase()===v.toLowerCase()||o.value.toLowerCase()===v.toLowerCase());if(!opt){opt=document.createElement('option');opt.value='custom_'+Date.now();opt.textContent=v;el.append(opt);checklistPorGerador[opt.value]=checklistPorGerador.tg3100;}el.value=opt.value;carregarChecklist();}else el.value=v;}document.getElementById('assinaturaTecnico').value=document.getElementById('tecnico').value;}
 function gerarTextoRelatorio(){const sel=document.getElementById('geradorSelect');const gerador=sel.value?sel.options[sel.selectedIndex].text:'Não selecionado';const tecnico=document.getElementById('tecnico').value.trim()||'Não informado';const cidade=document.getElementById('cidade').value.trim()||'Não informada';const itens=[...document.querySelectorAll('.checklist-item input')];const lista=checklistPorGerador[sel.value]||[];const feitos=itens.filter(x=>x.checked).length;let t=`CHECKLIST DE GERADOR\n\nProtocolo: ${document.getElementById('protocolo').value.trim()||'Não informado'}\nGerador: ${gerador}\nTécnico: ${tecnico}\nCidade: ${cidade}\nData: ${new Date().toLocaleDateString('pt-BR')}\n\nITENS VERIFICADOS:\n`;itens.forEach((x,i)=>t+=`${x.checked?'[X]':'[ ]'} ${lista[i]||'Item'}\n`);t+=`\nItens concluídos: ${feitos}/${itens.length}\nObservações: ${document.getElementById('obs').value.trim()||'Nenhuma observação'}\nAssinatura do Técnico: ${tecnico}`;return {texto:t,feitos,total:itens.length,gerador,tecnico,cidade,itens,lista};}
-async function copiarRelatorio(){const r=gerarTextoRelatorio();try{await navigator.clipboard.writeText(r.texto);mostrarStatus('Relatório copiado. Agora cole no grupo do Telegram. A preventiva ainda não foi baixada.','ok');}catch(e){window.prompt('Copie o relatório:',r.texto);}}
+async function copiarRelatorio(){
+ const r=gerarTextoRelatorio();
+ try{await navigator.clipboard.writeText(r.texto);}
+ catch(e){const area=document.createElement('textarea');area.value=r.texto;document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();}
+ if(!geradorId){mostrarStatus('Relatório copiado. Para dar baixa no painel, abra o checklist pelo link individual gerado no painel.','erro');return;}
+ const confirmar=confirm('Relatório copiado para postar no grupo.\n\nO checklist já foi finalizado e todos os itens foram realmente executados?\n\nOK = registrar como FEITO no painel.\nCancelar = manter pendente.');
+ if(confirmar){await registrarConclusao(r);}
+ else{mostrarStatus('📋 Relatório copiado. A preventiva continua PENDENTE no painel até a confirmação de conclusão.','ok');}
+}
 function semanaSexta(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()-5+7)%7));return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-async function enviarRelatorio(){const r=gerarTextoRelatorio();if(!geradorId){mostrarStatus('Este link não está vinculado a um gerador cadastrado no painel. Abra pelo link enviado pelo sistema.','erro');return;}if(!r.total||r.feitos!==r.total){mostrarStatus(`Ainda faltam marcar ${r.total-r.feitos} item(ns). Confira o checklist antes de concluir.`, 'erro');return;}if(!r.tecnico||r.tecnico==='Não informado'){mostrarStatus('Informe o nome do técnico.','erro');return;}if(!confirm('Confirma que todos os itens foram executados e deseja registrar a preventiva como concluída?'))return;mostrarStatus('Enviando relatório e registrando conclusão...');const payload={gerador_id:geradorId,semana_inicio:semanaSexta(),cidade:r.cidade,gerador_nome:r.gerador,tecnico:r.tecnico,protocolo:document.getElementById('protocolo').value.trim()||null,relatorio_texto:r.texto,itens_total:r.total,itens_concluidos:r.feitos,observacoes:document.getElementById('obs').value.trim()||null,status:'concluida',concluida_em:new Date().toISOString()};const {error}=await db.from('preventivas_geradores').upsert(payload,{onConflict:'gerador_id,semana_inicio'});if(error){console.error(error);mostrarStatus('Não foi possível registrar no painel: '+error.message,'erro');return;}mostrarStatus('✅ Relatório salvo! A preventiva foi marcada como concluída no painel principal. Você também pode copiar o relatório e postar no grupo.','ok');}
+async function registrarConclusao(r){
+ if(!geradorId){mostrarStatus('Este link não está vinculado a um gerador cadastrado no painel. Abra pelo link individual gerado no painel.','erro');return false;}
+ if(!r.total||r.feitos!==r.total){mostrarStatus(`Não é possível concluir: faltam marcar ${r.total-r.feitos} item(ns). Confira o checklist.`, 'erro');return false;}
+ if(!r.tecnico||r.tecnico==='Não informado'){mostrarStatus('Informe o nome do técnico.','erro');return false;}
+ mostrarStatus('Registrando conclusão no painel principal...');
+ const payload={gerador_id:geradorId,semana_inicio:semanaSexta(),cidade:r.cidade,gerador_nome:r.gerador,tecnico:r.tecnico,protocolo:document.getElementById('protocolo').value.trim()||null,relatorio_texto:r.texto,itens_total:r.total,itens_concluidos:r.feitos,observacoes:document.getElementById('obs').value.trim()||null,status:'concluida',concluida_em:new Date().toISOString()};
+ const {error}=await db.from('preventivas_geradores').upsert(payload,{onConflict:'gerador_id,semana_inicio'});
+ if(error){console.error(error);mostrarStatus('Não foi possível registrar no painel: '+error.message,'erro');return false;}
+ mostrarStatus('✅ Concluído! O Supabase registrou esta preventiva e o painel principal mostrará o gerador como FEITO nesta semana.','ok');
+ return true;
+}
+async function enviarRelatorio(){
+ const r=gerarTextoRelatorio();
+ if(!geradorId){mostrarStatus('Este link não está vinculado a um gerador cadastrado no painel. Abra pelo link enviado pelo sistema.','erro');return;}
+ if(!r.total||r.feitos!==r.total){mostrarStatus(`Ainda faltam marcar ${r.total-r.feitos} item(ns). Confira o checklist antes de concluir.`, 'erro');return;}
+ if(!confirm('Confirma que todos os itens foram executados e deseja registrar a preventiva como concluída no painel?'))return;
+ await registrarConclusao(r);
+}
 preencherDaUrl();if(!geradorId)mostrarStatus('Atenção: abra este checklist pelo link gerado no painel para vincular a conclusão ao gerador correto.','erro');else mostrarStatus('Checklist vinculado ao gerador cadastrado. Preencha todos os itens e envie o relatório ao finalizar.','ok');
 </script></body></html>
