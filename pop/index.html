@@ -1910,6 +1910,35 @@ body.autenticado button.salvar{background-color:#1769aa}
 }
 #conteudoEstoqueBaterias .estoque-grupo-capacidade{overflow:visible}
 
+
+
+#painelChecklistGeradores{display:none}
+#painelChecklistGeradores.aberto{display:block}
+#cardPreventivasGeradores{cursor:pointer}
+/* CHECKLIST SEMANAL DOS GERADORES */
+.geradores-painel{background:#fff;border-radius:10px;padding:15px;margin:12px 0 18px;border-left:6px solid #d97706;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+.geradores-painel h2{margin:0 0 6px;color:#92400e;font-size:19px}
+.geradores-explicacao{font-size:13px;color:#555;margin:0 0 12px;line-height:1.5}
+.gerador-cadastro{display:none;background:#fff8eb;border:1px solid #f2d5a6;border-radius:8px;padding:12px;margin:12px 0}
+body.modo-edicao .gerador-cadastro{display:block}
+.gerador-form-grid{display:grid;grid-template-columns:1fr 1.2fr 1.2fr auto;gap:8px;align-items:end}
+.gerador-form-grid label{display:block;font-size:12px;font-weight:bold;color:#555;margin-bottom:4px}
+.gerador-form-grid input{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;margin:0}
+.geradores-lista{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-top:12px}
+.gerador-card{border:1px solid #e5e7eb;border-radius:9px;padding:12px;background:#fafafa;min-width:0}
+.gerador-card h3{margin:0 0 7px;color:#1f6f43;font-size:16px}
+.gerador-meta{font-size:13px;line-height:1.55;color:#444}
+.gerador-status{display:inline-block;margin-top:8px;padding:5px 8px;border-radius:5px;font-size:11px;font-weight:bold;background:#fff3cd;color:#805b00}
+.gerador-status.ok{background:#dcfce7;color:#166534}
+.gerador-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.gerador-acoes button{margin:0;flex:1 1 110px;font-size:12px}
+.gerador-acoes .btn-enviar-gerador{background:#229ed9}
+.gerador-acoes .btn-concluir-gerador{background:#218838}
+.gerador-acoes .btn-excluir-gerador{background:#b91c1c}
+.gerador-script-box{width:100%;min-height:180px;margin-top:12px;padding:10px;border:1px solid #ccc;border-radius:7px;font:12px/1.5 monospace;white-space:pre-wrap}
+.gerador-status-geral{margin-top:10px;padding:9px;border-radius:6px;background:#f2f4f6;font-size:13px}
+@media(max-width:700px){.gerador-form-grid{grid-template-columns:1fr}.gerador-acoes{flex-direction:column}.gerador-acoes button{width:100%}}
+
 </style>
 
 <style>
@@ -2113,6 +2142,47 @@ body.autenticado button.salvar{background-color:#1769aa}
   </div>
 </details>
 
+<section class="geradores-painel" id="painelChecklistGeradores">
+  <h2>⚙️ Checklist semanal dos geradores</h2>
+  <p class="geradores-explicacao">
+    Cadastre cada cidade, o gerador instalado e o técnico responsável. Toda sexta-feira,
+    gere a mensagem individual de cada cidade e envie pelo Telegram ou copie para encaminhar.
+    O técnico recebe o link com todas as atividades da preventiva.
+  </p>
+
+  <div class="gerador-cadastro">
+    <strong>➕ Cadastrar / atualizar gerador</strong>
+    <div class="gerador-form-grid" style="margin-top:9px">
+      <div>
+        <label for="geradorCidade">Cidade</label>
+        <input id="geradorCidade" type="text" placeholder="Ex.: São Raimundo Nonato">
+      </div>
+      <div>
+        <label for="geradorNome">Identificação do gerador</label>
+        <input id="geradorNome" type="text" placeholder="Ex.: Gerador do POP Centro">
+      </div>
+      <div>
+        <label for="geradorTecnico">Técnico responsável</label>
+        <input id="geradorTecnico" type="text" placeholder="Nome do responsável">
+      </div>
+      <button type="button" class="salvar" onclick="salvarCadastroGerador()">💾 Salvar cidade</button>
+    </div>
+    <small style="display:block;color:#666;margin-top:7px">O cadastro e o controle semanal ficam salvos no banco de dados.</small>
+  </div>
+
+  <div id="geradoresStatusGeral" class="gerador-status-geral">Carregando geradores cadastrados...</div>
+  <div id="geradoresLista" class="geradores-lista"></div>
+  <div id="geradorScriptArea" style="display:none;margin-top:14px">
+    <strong>📋 Mensagem da preventiva semanal</strong>
+    <textarea id="geradorScriptTexto" class="gerador-script-box" readonly></textarea>
+    <div class="gerador-acoes">
+      <button type="button" onclick="copiarScriptGerador()">📋 Copiar mensagem</button>
+      <button type="button" class="btn-enviar-gerador" onclick="enviarScriptGeradorTelegram()">📨 Enviar pelo Telegram</button>
+    </div>
+    <small id="geradorScriptStatus" style="display:block;margin-top:7px;color:#555"></small>
+  </div>
+</section>
+
 <details class="equipe-plantao-config">
   <summary>👷 Cadastro da Equipe de Plantão / Veículo</summary>
   <div class="equipe-plantao-grid">
@@ -2226,6 +2296,18 @@ body.autenticado button.salvar{background-color:#1769aa}
     🟡 Próximas do vencimento
     <strong id="preventivasAlerta">0</strong>
   </div>
+
+<button
+  type="button"
+  id="cardPreventivasGeradores"
+  class="resumo-card"
+  onclick="abrirPainelGeradores()"
+  title="Clique para cadastrar geradores e técnicos e controlar as preventivas semanais"
+>
+  ⚙️ Preventivas de geradores
+  <strong id="totalPreventivasGeradores">0</strong>
+  <small id="subtituloPreventivasGeradores">Geradores cadastrados</small>
+</button>
 
 <div
   class="resumo-card resumo-vencida"
@@ -5523,7 +5605,8 @@ let configGlobalDB={
   telegramAtivo:true,
   equipesPlantao:[],
   escalaPlantao:{},
-  bateriasEstoque:[]
+  bateriasEstoque:[],
+  geradores:[]
 };
 let configGlobalCarregada=false;
 
@@ -5546,10 +5629,12 @@ async function carregarConfigGlobalDB(){
         escalaPlantao:data.escala_plantao && typeof data.escala_plantao==="object"
           ? data.escala_plantao
           : {},
-        bateriasEstoque:Array.isArray(data.baterias_estoque)?data.baterias_estoque:[]
+        bateriasEstoque:Array.isArray(data.baterias_estoque)?data.baterias_estoque:[],
+        geradores:Array.isArray(data.geradores_config)?data.geradores_config:[]
       };
     }
     configGlobalCarregada=true;
+    if(typeof renderGeradores==="function")renderGeradores();
     return configGlobalDB;
   }catch(error){
     console.error("Configuração global:",error);
@@ -5569,6 +5654,7 @@ async function salvarConfigGlobalDB(){
       ? configGlobalDB.escalaPlantao
       : {},
     baterias_estoque:Array.isArray(configGlobalDB.bateriasEstoque)?configGlobalDB.bateriasEstoque:[],
+    geradores_config:Array.isArray(configGlobalDB.geradores)?configGlobalDB.geradores:[],
     updated_at:new Date().toISOString()
   };
 
@@ -6094,6 +6180,175 @@ async function confirmarAcionamentoEquipe(){
     alert("❌ Erro ao registrar acionamento: "+error.message);
   }
 }
+
+
+/* =========================================================
+   CHECKLIST SEMANAL DOS GERADORES
+   Os dados ficam na coluna JSONB geradores_config de
+   controle_pops_config. O envio usa o bot Telegram já cadastrado.
+========================================================= */
+const LINK_CHECKLIST_GERADORES = "https://preventivatorre-debug.github.io/preventiva/Geradores.HTML";
+let geradorSelecionadoScriptId = null;
+
+function abrirPainelGeradores(){
+  const painel=document.getElementById("painelChecklistGeradores");
+  if(!painel)return;
+  painel.classList.add("aberto");
+  renderGeradores();
+  painel.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function lerGeradores(){
+  if(!Array.isArray(configGlobalDB.geradores))configGlobalDB.geradores=[];
+  return configGlobalDB.geradores;
+}
+
+function dataSextaAtual(){
+  const d=new Date();
+  const dia=d.getDay();
+  const diasAteSexta=(5-dia+7)%7;
+  d.setDate(d.getDate()+diasAteSexta);
+  return d.toLocaleDateString("pt-BR");
+}
+
+function textoChecklistGerador(g){
+  const data=dataSextaAtual();
+  return [
+    "⚙️ CHECKLIST SEMANAL DO GERADOR",
+    "",
+    "📍 Cidade: "+(g.cidade||"Não informada"),
+    "🔌 Gerador: "+(g.nome||"Não informado"),
+    "👨‍🔧 Técnico responsável: "+(g.tecnico||"Não informado"),
+    "📅 Data da preventiva: "+data+" (sexta-feira)",
+    "",
+    "Acesse o link abaixo e execute todos os itens do checklist de manutenção preventiva:",
+    LINK_CHECKLIST_GERADORES,
+    "",
+    "Ao finalizar, informe neste grupo que a preventiva foi concluída e comunique qualquer irregularidade encontrada.",
+    "",
+    "⚠️ Não marque como concluído sem realizar e conferir todos os itens."
+  ].join("\n");
+}
+
+function renderGeradores(){
+  const lista=document.getElementById("geradoresLista");
+  const status=document.getElementById("geradoresStatusGeral");
+  if(!lista||!status)return;
+  const geradores=lerGeradores();
+  if(!geradores.length){
+    lista.innerHTML='<div class="gerador-card">Nenhum gerador cadastrado. Ative o modo de edição para cadastrar a primeira cidade.</div>';
+    status.textContent="0 geradores cadastrados.";
+    return;
+  }
+  const concluidos=geradores.filter(g=>g.concluidoEm && new Date(g.concluidoEm)>=inicioCiclo).length;
+  status.textContent=`${geradores.length} gerador(es) cadastrado(s) · ${concluidos} checklist(s) concluído(s) no ciclo atual. A rotina reinicia toda sexta-feira.`;
+  const totalCard=document.getElementById("totalPreventivasGeradores");
+  const subtituloCard=document.getElementById("subtituloPreventivasGeradores");
+  if(totalCard)totalCard.textContent=geradores.length;
+  if(subtituloCard)subtituloCard.textContent=`${geradores.length-concluidos} pendente(s) nesta semana`;
+  lista.innerHTML=geradores.map(g=>{
+    const concluido=!!g.concluidoEm && new Date(g.concluidoEm).toDateString()===new Date().toDateString();
+    const ultima=g.concluidoEm?new Date(g.concluidoEm).toLocaleString("pt-BR"):"Ainda não concluído nesta semana";
+    return `<article class="gerador-card">
+      <h3>📍 ${escapeHtml(g.cidade||"Cidade não informada")}</h3>
+      <div class="gerador-meta"><strong>Gerador:</strong> ${escapeHtml(g.nome||"—")}<br>
+      <strong>Técnico:</strong> ${escapeHtml(g.tecnico||"—")}<br>
+      <strong>Última conclusão:</strong> ${escapeHtml(ultima)}</div>
+      <span class="gerador-status ${concluido?"ok":""}">${concluido?"✅ Checklist concluído hoje":"🟠 Checklist pendente"}</span>
+      <div class="gerador-acoes">
+        <button type="button" onclick="gerarScriptGerador('${String(g.id).replace(/'/g,"")}')">📋 Gerar script</button>
+        <button type="button" class="btn-concluir-gerador" onclick="marcarGeradorConcluido('${String(g.id).replace(/'/g,"")}')">✓ Marcar concluído</button>
+        ${modoEdicao?`<button type="button" class="editar" onclick="editarCadastroGerador('${String(g.id).replace(/'/g,"")}')">✏️ Editar</button><button type="button" class="btn-excluir-gerador" onclick="excluirCadastroGerador('${String(g.id).replace(/'/g,"")}')">🗑️ Excluir</button>`:""}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+async function salvarCadastroGerador(){
+  if(!modoEdicao){alert("Ative o modo de edição para cadastrar geradores.");return;}
+  const cidade=document.getElementById("geradorCidade").value.trim();
+  const nome=document.getElementById("geradorNome").value.trim();
+  const tecnico=document.getElementById("geradorTecnico").value.trim();
+  if(!cidade||!nome||!tecnico){alert("Informe a cidade, a identificação do gerador e o técnico responsável.");return;}
+  const id=window._geradorEditandoId||("gerador_"+Date.now()+"_"+Math.random().toString(36).slice(2,7));
+  const lista=lerGeradores();
+  const pos=lista.findIndex(g=>g.id===id);
+  const anterior=pos>=0?lista[pos]:{};
+  const registro={...anterior,id,cidade,nome,tecnico,atualizadoEm:new Date().toISOString()};
+  if(pos>=0)lista[pos]=registro;else lista.push(registro);
+  try{
+    await salvarConfigGlobalDB();
+    window._geradorEditandoId=null;
+    ["geradorCidade","geradorNome","geradorTecnico"].forEach(id=>document.getElementById(id).value="");
+    renderGeradores();
+    alert("✅ Cadastro do gerador salvo.");
+  }catch(e){
+    alert("❌ Erro ao salvar o gerador: "+e.message);
+  }
+}
+
+function editarCadastroGerador(id){
+  const g=lerGeradores().find(x=>x.id===id);if(!g)return;
+  document.getElementById("geradorCidade").value=g.cidade||"";
+  document.getElementById("geradorNome").value=g.nome||"";
+  document.getElementById("geradorTecnico").value=g.tecnico||"";
+  window._geradorEditandoId=id;
+  document.getElementById("geradorCidade").focus();
+  document.getElementById("painelChecklistGeradores").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+async function excluirCadastroGerador(id){
+  if(!modoEdicao)return;
+  const g=lerGeradores().find(x=>x.id===id);if(!g)return;
+  if(!confirm(`Excluir o gerador de ${g.cidade}?`))return;
+  configGlobalDB.geradores=lerGeradores().filter(x=>x.id!==id);
+  try{await salvarConfigGlobalDB();renderGeradores();}catch(e){alert("Erro ao excluir: "+e.message);}
+}
+
+function gerarScriptGerador(id){
+  const g=lerGeradores().find(x=>x.id===id);if(!g)return;
+  geradorSelecionadoScriptId=id;
+  document.getElementById("geradorScriptTexto").value=textoChecklistGerador(g);
+  document.getElementById("geradorScriptArea").style.display="block";
+  document.getElementById("geradorScriptStatus").textContent="Mensagem pronta para copiar ou enviar pelo Telegram.";
+  document.getElementById("geradorScriptArea").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+async function copiarScriptGerador(){
+  const texto=document.getElementById("geradorScriptTexto")?.value||"";
+  if(!texto)return;
+  try{await navigator.clipboard.writeText(texto);}
+  catch(e){const el=document.getElementById("geradorScriptTexto");el.select();document.execCommand("copy");}
+  document.getElementById("geradorScriptStatus").textContent="✅ Mensagem copiada. Agora é só colar no grupo ou conversa.";
+}
+
+async function enviarScriptGeradorTelegram(){
+  const texto=document.getElementById("geradorScriptTexto")?.value||"";
+  if(!texto){alert("Gere o script de uma cidade primeiro.");return;}
+  const cfg=lerConfigTelegram();
+  if(!cfg.token||!cfg.chatId){alert("Configure o token e o ID do Telegram na seção de configuração do bot.");return;}
+  document.getElementById("geradorScriptStatus").textContent="⏳ Enviando mensagem...";
+  const resultado=await enviarTelegram(texto);
+  if(!resultado.ok){
+    document.getElementById("geradorScriptStatus").textContent="❌ Não foi possível enviar. Confira o bot e tente novamente.";
+    alert("Falha no envio pelo Telegram. Verifique se o bot está ativo e se o chat ID está correto.");
+    return;
+  }
+  const g=lerGeradores().find(x=>x.id===geradorSelecionadoScriptId);
+  if(g){g.ultimoEnvioEm=new Date().toISOString();try{await salvarConfigGlobalDB();}catch(e){console.warn("Mensagem enviada, mas não foi possível salvar a data do envio:",e);}}
+  document.getElementById("geradorScriptStatus").textContent="✅ Mensagem enviada ao Telegram com sucesso.";
+  renderGeradores();
+}
+
+async function marcarGeradorConcluido(id){
+  const g=lerGeradores().find(x=>x.id===id);if(!g)return;
+  if(!confirm(`Confirmar que o checklist do gerador de ${g.cidade} foi realizado?`))return;
+  g.concluidoEm=new Date().toISOString();
+  g.concluidoPor=(usuarioAutenticado?.email||usuarioAutenticado?.user?.email||"Usuário autenticado");
+  try{await salvarConfigGlobalDB();renderGeradores();alert("✅ Checklist registrado como concluído.");}
+  catch(e){alert("❌ Não foi possível registrar a conclusão: "+e.message);}
+}
+
 
 function lerConfigTelegram(){
   if(configGlobalCarregada){
