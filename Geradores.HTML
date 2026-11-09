@@ -1,201 +1,45 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Checklist de Geradores</title>
-
-  <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
-    .container { background: white; border-radius: 12px; padding: 20px; max-width: 800px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-    h1 { text-align: center; color: #333; }
-    label { font-weight: bold; }
-    select, input[type="text"], textarea { width: 100%; padding: 10px; margin: 10px 0 20px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
-    .checklist-item { margin: 10px 0; font-size: 16px; }
-    input[type="checkbox"] { margin-right: 8px; transform: scale(1.3); }
-    button { width: 100%; background: #007bff; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-size: 18px; margin-top: 8px; }
-    button:hover { background: #0056b3; }
-    .botao-copiar { background: #198754; }
-    .botao-copiar:hover { background: #146c43; }
-    .assinatura { margin-top: 30px; text-align: center; }
-    .assinatura input { border: none; border-bottom: 1px solid #000; width: 70%; text-align: center; font-size: 18px; }
-    .copiado { color: green; font-weight: bold; display: none; text-align: center; margin-top: 15px; font-size: 18px; }
-  </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checklist de Geradores</title>
+<style>
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:16px;color:#222}.container{background:#fff;border-radius:12px;padding:20px;max-width:800px;margin:auto;box-shadow:0 2px 10px #0002}h1{text-align:center;color:#234}label{font-weight:bold}input[type=text],select,textarea{width:100%;padding:11px;margin:8px 0 16px;border:1px solid #ccc;border-radius:6px;font-size:16px}.checklist-item{margin:12px 0;font-size:16px;line-height:1.4}.checklist-item input{margin-right:9px;transform:scale(1.3)}button{width:100%;background:#0877ce;color:white;border:0;padding:14px;border-radius:7px;cursor:pointer;font-size:17px;margin-top:9px}.botao-copiar{background:#198754}.assinatura{text-align:center;margin-top:22px}.assinatura input{text-align:center}.status{padding:12px;border-radius:7px;background:#eef4f8;margin:12px 0}.ok{background:#e2f5e9;color:#176334}.erro{background:#fde8e8;color:#8c2020}.aviso{font-size:13px;color:#666}.botoes{display:grid;grid-template-columns:1fr 1fr;gap:9px}@media(max-width:560px){.botoes{grid-template-columns:1fr}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
-<body>
-  <div class="container">
-    <h1>Checklist de Geradores</h1>
-
-    <label for="protocolo">Número do Protocolo:</label>
-    <input type="text" id="protocolo" placeholder="Digite o número do protocolo">
-
-    <label for="geradorSelect">Selecione o Gerador:</label>
-    <select id="geradorSelect" onchange="carregarChecklist();">
-      <option value="">-- Escolha o gerador --</option>
-      <option value="tg3100">TG3100CXR</option>
-      <option value="vge8100">VGE8100</option>
-      <option value="tg2500">TG 2500</option>
-      <option value="bd19000">BD-19.000</option>
-    </select>
-
-    <label for="tecnico">Nome do Técnico:</label>
-    <input type="text" id="tecnico" placeholder="Digite o nome do técnico">
-
-    <label for="cidade">Cidade:</label>
-    <input type="text" id="cidade" placeholder="Digite a cidade">
-
-    <label for="novoGerador">Adicionar Novo Gerador:</label>
-    <input type="text" id="novoGerador" placeholder="Digite o nome do novo gerador">
-    <button type="button" onclick="adicionarGerador()">➕ Adicionar Gerador</button>
-
-    <div id="checklist" class="checklist"></div>
-
-    <label for="obs">Observações:</label>
-    <textarea id="obs" placeholder="Digite aqui qualquer observação..." rows="4"></textarea>
-
-    <div class="assinatura">
-      <p>Assinatura do Técnico:</p>
-      <input type="text" id="assinaturaTecnico" readonly>
-    </div>
-
-    <button type="button" onclick="copiarRelatorio()" class="botao-copiar">📋 Copiar relatório</button>
-    <button type="button" onclick="enviarTelegram()">📨 Enviar para Telegram</button>
-    <p id="msgCopiado" class="copiado">✅ Relatório copiado!</p>
-    <p id="msgTelegram" class="copiado">✅ Enviado para o Telegram!</p>
-  </div>
-
+<body><main class="container">
+<h1>Checklist de Geradores</h1>
+<div id="statusIntegracao" class="status">Carregando checklist...</div>
+<label for="protocolo">Número do Protocolo:</label><input type="text" id="protocolo" placeholder="Digite o número do protocolo">
+<label for="geradorSelect">Selecione o Gerador:</label><select id="geradorSelect"><option value="">-- Escolha o gerador --</option><option value="tg3100">TG3100CXR</option><option value="vge8100">VGE8100</option><option value="tg2500">TG 2500</option><option value="bd19000">BD-19.000</option></select>
+<label for="tecnico">Nome do Técnico:</label><input type="text" id="tecnico" placeholder="Digite o nome do técnico">
+<label for="cidade">Cidade:</label><input type="text" id="cidade" placeholder="Digite a cidade">
+<div id="checklist"></div>
+<label for="obs">Observações:</label><textarea id="obs" placeholder="Digite aqui qualquer observação..." rows="4"></textarea>
+<div class="assinatura"><p>Assinatura do Técnico:</p><input type="text" id="assinaturaTecnico" readonly></div>
+<div class="botoes"><button type="button" class="botao-copiar" onclick="copiarRelatorio()">📋 Copiar relatório para postar no grupo</button><button type="button" onclick="enviarRelatorio()">✅ Enviar relatório e concluir preventiva</button></div>
+<p class="aviso">O botão de copiar não conclui a preventiva. Para atualizar o painel principal, o técnico deve tocar em “Enviar relatório e concluir preventiva”.</p>
+</main>
 <script>
-  const checklistPorGerador = {
-    tg3100: ["Conferir o nível de óleo do motor","Conferir o nível de combustível (gasolina)","Verificar possíveis vazamentos","Analisar o funcionamento dos instrumentos do painel","Conferir se a fiação elétrica está conforme","Conferir as abraçadeiras nas mangueiras de combustível","Averiguar o estado e conservação da carcaça","Realizar a limpeza do equipamento","Analisar o funcionamento do equipamento por 5 minutos","Conferir a corrente e cadeado"],
-    vge8100: ["Conferir o nível de óleo do motor","Conferir o nível de combustível (gasolina)","Verificar possíveis vazamentos","Analisar o funcionamento dos instrumentos do painel","Conferir se a fiação elétrica está conforme","Conferir as abraçadeiras nas mangueiras de combustível","Averiguar o estado e conservação da carcaça","Realizar a limpeza do equipamento","Analisar o funcionamento do equipamento por 5 minutos","Conferir a corrente e cadeado"],
-    tg2500: ["Conferir o nível de óleo do motor","Conferir o nível de combustível (gasolina)","Verificar possíveis vazamentos","Analisar o funcionamento dos instrumentos do painel","Conferir se a fiação elétrica está conforme","Conferir as abraçadeiras nas mangueiras de combustível","Averiguar o estado e conservação da carcaça","Realizar a limpeza do equipamento","Analisar o funcionamento do equipamento por 5 minutos","Conferir a corrente e cadeado"],
-    bd19000: ["Conferir o nível de óleo do motor","Conferir o nível de água do radiador","Conferir o nível do óleo diesel comum","Averiguar possíveis vazamentos","Analisar o funcionamento dos instrumentos do painel","Verificar se a carcaça do motor está aterrada eletricamente","Conferir se a fiação elétrica está conforme","Conferir se existe extintor de incêndio carregado nas proximidades","Verificar se a carga do extintor está dentro do prazo de validade","Conferir as abraçadeiras nas mangueiras de combustível","Averiguar o estado e conservação da carcaça","Realizar a limpeza do equipamento"]
-  };
-
-  function adicionarGerador() {
-    const nome = document.getElementById("novoGerador").value.trim();
-    if (!nome) { alert("Digite um nome válido!"); return; }
-
-    const select = document.getElementById("geradorSelect");
-    const chave = nome.toLowerCase().replace(/[^a-z0-9]/g, "") || ("gerador" + Date.now());
-
-    if (checklistPorGerador[chave]) {
-      alert("Já existe um gerador com esse nome ou identificador.");
-      return;
-    }
-
-    const option = document.createElement("option");
-    option.value = chave;
-    option.textContent = nome;
-    select.appendChild(option);
-
-    checklistPorGerador[chave] = [...checklistPorGerador.tg3100];
-
-    select.value = chave;
-    carregarChecklist();
-    document.getElementById("novoGerador").value = "";
-  }
-
-  function carregarChecklist() {
-    const gerador = document.getElementById("geradorSelect").value;
-    const div = document.getElementById("checklist");
-    div.innerHTML = "";
-
-    if (checklistPorGerador[gerador]) {
-      checklistPorGerador[gerador].forEach(item => {
-        const divItem = document.createElement("div");
-        divItem.className = "checklist-item";
-        const label = document.createElement("label");
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        label.append(checkbox, document.createTextNode(" " + item));
-        divItem.appendChild(label);
-        div.appendChild(divItem);
-      });
-    }
-  }
-
-  document.getElementById("tecnico").addEventListener("input", function() {
-    document.getElementById("assinaturaTecnico").value = this.value;
-  });
-
-  function gerarTextoRelatorio() {
-    const protocolo = document.getElementById("protocolo").value.trim() || "Não informado";
-    const tecnico = document.getElementById("tecnico").value.trim() || "Não informado";
-    const cidade = document.getElementById("cidade").value.trim() || "Não informada";
-    const select = document.getElementById("geradorSelect");
-    const gerador = select.value ? select.options[select.selectedIndex].text : "Não selecionado";
-    const observacao = document.getElementById("obs").value.trim() || "Nenhuma observação";
-    const data = new Date().toLocaleDateString("pt-BR");
-    const itens = document.querySelectorAll(".checklist-item input[type='checkbox']");
-    const lista = checklistPorGerador[select.value] || [];
-
-    let texto = `CHECKLIST DE GERADOR\n\nProtocolo: ${protocolo}\nGerador: ${gerador}\nTécnico: ${tecnico}\nCidade: ${cidade}\nData: ${data}\n\nITENS VERIFICADOS:\n`;
-
-    itens.forEach((item, i) => {
-      texto += `${item.checked ? "[X]" : "[ ]"} ${lista[i] || "Item"}\n`;
-    });
-
-    texto += `\nObservações: ${observacao}\nAssinatura do Técnico: ${tecnico}`;
-    return texto;
-  }
-
-  async function copiarRelatorio() {
-    const texto = gerarTextoRelatorio();
-    const msg = document.getElementById("msgCopiado");
-
-    try {
-      await navigator.clipboard.writeText(texto);
-      msg.textContent = "✅ Relatório copiado!";
-      msg.style.display = "block";
-      setTimeout(() => msg.style.display = "none", 3000);
-    } catch (erro) {
-      const area = document.createElement("textarea");
-      area.value = texto;
-      area.style.position = "fixed";
-      area.style.opacity = "0";
-      document.body.appendChild(area);
-      area.focus();
-      area.select();
-
-      let sucesso = false;
-      try { sucesso = document.execCommand("copy"); } catch (e) {}
-      area.remove();
-
-      if (sucesso) {
-        msg.textContent = "✅ Relatório copiado!";
-        msg.style.display = "block";
-        setTimeout(() => msg.style.display = "none", 3000);
-      } else {
-        window.prompt("Copie o relatório abaixo:", texto);
-      }
-    }
-  }
-
-  async function enviarTelegram() {
-    const texto = gerarTextoRelatorio();
-    const botToken = "8401740337:AAFxWCHx8M8Mc8Z-WHhhT-nfGlhAGP9L4dA";
-    const chatId = "-4860857271";
-    const msg = document.getElementById("msgTelegram");
-
-    try {
-      const resposta = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text: texto })
-      });
-      const resultado = await resposta.json();
-      if (!resposta.ok || !resultado.ok) throw new Error("Falha ao enviar");
-
-      msg.textContent = "✅ Enviado para o Telegram!";
-      msg.style.display = "block";
-      setTimeout(() => msg.style.display = "none", 3000);
-    } catch (erro) {
-      alert("Não foi possível enviar para o Telegram. Verifique a conexão e a configuração do bot.");
-    }
-  }
-</script>
-
-</body>
-</html>
+const SUPABASE_URL='https://idzteltrnttmwzqjlkgj.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_R4WcR-nhwErOjdW-cByXmw_RCGI4aix';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const checklistPorGerador={
+ tg3100:["Conferir o nível de óleo do motor","Conferir o nível de combustível (gasolina)","Verificar possíveis vazamentos","Analisar o funcionamento dos instrumentos do painel","Conferir se a fiação elétrica está conforme","Conferir as abraçadeiras nas mangueiras de combustível","Averiguar o estado e conservação da carcaça","Realizar a limpeza do equipamento","Analisar o funcionamento do equipamento por 5 minutos","Conferir a corrente e cadeado"],
+ vge8100:["Conferir o nível de óleo do motor","Conferir o nível de combustível (gasolina)","Verificar possíveis vazamentos","Analisar o funcionamento dos instrumentos do painel","Conferir se a fiação elétrica está conforme","Conferir as abraçadeiras nas mangueiras de combustível","Averiguar o estado e conservação da carcaça","Realizar a limpeza do equipamento","Analisar o funcionamento do equipamento por 5 minutos","Conferir a corrente e cadeado"],
+ tg2500:["Conferir o nível de óleo do motor","Conferir o nível de combustível (gasolina)","Verificar possíveis vazamentos","Analisar o funcionamento dos instrumentos do painel","Conferir se a fiação elétrica está conforme","Conferir as abraçadeiras nas mangueiras de combustível","Averiguar o estado e conservação da carcaça","Realizar a limpeza do equipamento","Analisar o funcionamento do equipamento por 5 minutos","Conferir a corrente e cadeado"],
+ bd19000:["Conferir o nível de óleo do motor","Conferir o nível de água do radiador","Conferir o nível do óleo diesel comum","Averiguar possíveis vazamentos","Analisar o funcionamento dos instrumentos do painel","Verificar se a carcaça do motor está aterrada eletricamente","Conferir se a fiação elétrica está conforme","Conferir se existe extintor de incêndio carregado nas proximidades","Verificar se a carga do extintor está dentro do prazo de validade","Conferir as abraçadeiras nas mangueiras de combustível","Averiguar o estado e conservação da carcaça","Realizar a limpeza do equipamento"]
+};
+const params=new URLSearchParams(location.search);const geradorId=params.get('gerador_id')||null;
+function mostrarStatus(msg,tipo=''){const el=document.getElementById('statusIntegracao');el.textContent=msg;el.className='status '+tipo;}
+function carregarChecklist(){const chave=document.getElementById('geradorSelect').value;const div=document.getElementById('checklist');div.innerHTML='';(checklistPorGerador[chave]||[]).forEach(item=>{const d=document.createElement('div');d.className='checklist-item';const l=document.createElement('label');const c=document.createElement('input');c.type='checkbox';l.append(c,document.createTextNode(item));d.append(l);div.append(d);});}
+document.getElementById('geradorSelect').addEventListener('change',carregarChecklist);
+document.getElementById('tecnico').addEventListener('input',e=>document.getElementById('assinaturaTecnico').value=e.target.value);
+function preencherDaUrl(){const map={cidade:'cidade',gerador:'geradorSelect',tecnico:'tecnico'};for(const [p,id] of Object.entries(map)){const v=params.get(p);if(!v)continue;const el=document.getElementById(id);if(id==='geradorSelect'){let opt=[...el.options].find(o=>o.text.toLowerCase()===v.toLowerCase()||o.value.toLowerCase()===v.toLowerCase());if(!opt){opt=document.createElement('option');opt.value='custom_'+Date.now();opt.textContent=v;el.append(opt);checklistPorGerador[opt.value]=checklistPorGerador.tg3100;}el.value=opt.value;carregarChecklist();}else el.value=v;}document.getElementById('assinaturaTecnico').value=document.getElementById('tecnico').value;}
+function gerarTextoRelatorio(){const sel=document.getElementById('geradorSelect');const gerador=sel.value?sel.options[sel.selectedIndex].text:'Não selecionado';const tecnico=document.getElementById('tecnico').value.trim()||'Não informado';const cidade=document.getElementById('cidade').value.trim()||'Não informada';const itens=[...document.querySelectorAll('.checklist-item input')];const lista=checklistPorGerador[sel.value]||[];const feitos=itens.filter(x=>x.checked).length;let t=`CHECKLIST DE GERADOR\n\nProtocolo: ${document.getElementById('protocolo').value.trim()||'Não informado'}\nGerador: ${gerador}\nTécnico: ${tecnico}\nCidade: ${cidade}\nData: ${new Date().toLocaleDateString('pt-BR')}\n\nITENS VERIFICADOS:\n`;itens.forEach((x,i)=>t+=`${x.checked?'[X]':'[ ]'} ${lista[i]||'Item'}\n`);t+=`\nItens concluídos: ${feitos}/${itens.length}\nObservações: ${document.getElementById('obs').value.trim()||'Nenhuma observação'}\nAssinatura do Técnico: ${tecnico}`;return {texto:t,feitos,total:itens.length,gerador,tecnico,cidade,itens,lista};}
+async function copiarRelatorio(){const r=gerarTextoRelatorio();try{await navigator.clipboard.writeText(r.texto);mostrarStatus('Relatório copiado. Agora cole no grupo do Telegram. A preventiva ainda não foi baixada.','ok');}catch(e){window.prompt('Copie o relatório:',r.texto);}}
+function semanaSexta(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()-5+7)%7));return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+async function enviarRelatorio(){const r=gerarTextoRelatorio();if(!geradorId){mostrarStatus('Este link não está vinculado a um gerador cadastrado no painel. Abra pelo link enviado pelo sistema.','erro');return;}if(!r.total||r.feitos!==r.total){mostrarStatus(`Ainda faltam marcar ${r.total-r.feitos} item(ns). Confira o checklist antes de concluir.`, 'erro');return;}if(!r.tecnico||r.tecnico==='Não informado'){mostrarStatus('Informe o nome do técnico.','erro');return;}if(!confirm('Confirma que todos os itens foram executados e deseja registrar a preventiva como concluída?'))return;mostrarStatus('Enviando relatório e registrando conclusão...');const payload={gerador_id:geradorId,semana_inicio:semanaSexta(),cidade:r.cidade,gerador_nome:r.gerador,tecnico:r.tecnico,protocolo:document.getElementById('protocolo').value.trim()||null,relatorio_texto:r.texto,itens_total:r.total,itens_concluidos:r.feitos,observacoes:document.getElementById('obs').value.trim()||null,status:'concluida',concluida_em:new Date().toISOString()};const {error}=await db.from('preventivas_geradores').upsert(payload,{onConflict:'gerador_id,semana_inicio'});if(error){console.error(error);mostrarStatus('Não foi possível registrar no painel: '+error.message,'erro');return;}mostrarStatus('✅ Relatório salvo! A preventiva foi marcada como concluída no painel principal. Você também pode copiar o relatório e postar no grupo.','ok');}
+preencherDaUrl();if(!geradorId)mostrarStatus('Atenção: abra este checklist pelo link gerado no painel para vincular a conclusão ao gerador correto.','erro');else mostrarStatus('Checklist vinculado ao gerador cadastrado. Preencha todos os itens e envie o relatório ao finalizar.','ok');
+</script></body></html>
