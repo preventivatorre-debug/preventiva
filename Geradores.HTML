@@ -4,7 +4,19 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Checklist de Geradores</title>
 <style>
-*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:16px;color:#222}.container{background:#fff;border-radius:12px;padding:20px;max-width:800px;margin:auto;box-shadow:0 2px 10px #0002}h1{text-align:center;color:#234}label{font-weight:bold}input[type=text],select,textarea{width:100%;padding:11px;margin:8px 0 16px;border:1px solid #ccc;border-radius:6px;font-size:16px}.checklist-item{margin:12px 0;font-size:16px;line-height:1.4}.checklist-item input{margin-right:9px;transform:scale(1.3)}button{width:100%;background:#0877ce;color:white;border:0;padding:14px;border-radius:7px;cursor:pointer;font-size:17px;margin-top:9px}.botao-copiar{background:#198754}.assinatura{text-align:center;margin-top:22px}.assinatura input{text-align:center}.status{padding:12px;border-radius:7px;background:#eef4f8;margin:12px 0}.ok{background:#e2f5e9;color:#176334}.erro{background:#fde8e8;color:#8c2020}.aviso{font-size:13px;color:#666}.botoes{display:grid;grid-template-columns:1fr 1fr;gap:9px}@media(max-width:560px){.botoes{grid-template-columns:1fr}}
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:16px;color:#222}.container{background:#fff;border-radius:12px;padding:20px;max-width:800px;margin:auto;box-shadow:0 2px 10px #0002}h1{text-align:center;color:#234}label{font-weight:bold}input[type=text],select,textarea{width:100%;padding:11px;margin:8px 0 16px;border:1px solid #ccc;border-radius:6px;font-size:16px}.checklist-item{margin:12px 0;font-size:16px;line-height:1.4}.checklist-item input{margin-right:9px;transform:scale(1.3)}button{width:100%;background:#0877ce;color:white;border:0;padding:14px;border-radius:7px;cursor:pointer;font-size:17px;margin-top:9px}.botao-copiar{background:#198754}.assinatura{text-align:center;margin-top:22px}.assinatura input{text-align:center}.status{padding:12px;border-radius:7px;background:#eef4f8;margin:12px 0}.ok{background:#e2f5e9;color:#176334}.erro{background:#fde8e8;color:#8c2020}.aviso{font-size:13px;color:#666}.botoes{display:grid;grid-template-columns:1fr;gap:9px}
+.modal-confirmacao{display:none;position:fixed;inset:0;background:#0008;z-index:9999;align-items:center;justify-content:center;padding:18px}
+.modal-confirmacao.aberto{display:flex}
+.modal-card{background:#fff;width:min(100%,520px);border-radius:14px;padding:24px;box-shadow:0 12px 40px #0004}
+.modal-card h2{margin:0 0 12px;color:#183b2a;font-size:21px}
+.modal-card p{line-height:1.5;color:#333}
+.modal-alerta{background:#fff6df;border:1px solid #f0d58a;padding:11px;border-radius:8px;font-size:14px}
+.modal-acoes{display:flex;gap:10px;margin-top:18px}
+.modal-acoes button{margin:0;flex:1}
+.btn-cancelar{background:#6c757d}
+.btn-confirmar{background:#198754}
+.btn-confirmar:disabled{background:#aab3ad;cursor:not-allowed}
+@media(max-width:560px){.modal-acoes{flex-direction:column}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -18,8 +30,20 @@
 <div id="checklist"></div>
 <label for="obs">Observações:</label><textarea id="obs" placeholder="Digite aqui qualquer observação..." rows="4"></textarea>
 <div class="assinatura"><p>Assinatura do Técnico:</p><input type="text" id="assinaturaTecnico" readonly></div>
-<div class="botoes"><button type="button" class="botao-copiar" onclick="copiarRelatorio()">📋 Copiar relatório para postar no grupo</button><button type="button" onclick="enviarRelatorio()">✅ Enviar relatório e concluir preventiva</button></div>
-<p class="aviso">Ao copiar o relatório, o sistema pergunta se o checklist já foi finalizado. Se confirmar e todos os itens estiverem marcados, a baixa é registrada no painel principal.</p>
+<div class="botoes"><button type="button" class="botao-copiar" id="btnCopiarRelatorio" onclick="copiarRelatorio()">📋 Copiar relatório para postar no grupo</button></div>
+<p class="aviso">Depois de copiar, confirme na tela se a vistoria foi realmente realizada. A confirmação atualiza o painel principal.</p>
+<div class="modal-confirmacao" id="modalConfirmacao" role="dialog" aria-modal="true" aria-labelledby="tituloConfirmacao">
+ <div class="modal-card">
+  <h2 id="tituloConfirmacao">Confirmar checklist realizado</h2>
+  <p>Você confirma que realizou a vistoria completa deste gerador e que todos os campos do checklist foram devidamente conferidos, sem deixar nenhuma atividade pendente?</p>
+  <div id="resumoConfirmacao" class="modal-alerta"></div>
+  <p class="aviso">Ao confirmar, a preventiva será registrada como <strong>FEITA</strong> no painel principal, com seu nome, data e relatório.</p>
+  <div class="modal-acoes">
+   <button type="button" class="btn-cancelar" onclick="fecharConfirmacao()">Ainda não / Cancelar</button>
+   <button type="button" class="btn-confirmar" id="btnConfirmarConclusao" onclick="confirmarConclusao()">✅ Sim, realizei tudo</button>
+  </div>
+ </div>
+</div>
 </main>
 <script>
 const SUPABASE_URL='https://idzteltrnttmwzqjlkgj.supabase.co';
@@ -39,13 +63,46 @@ document.getElementById('tecnico').addEventListener('input',e=>document.getEleme
 function preencherDaUrl(){const map={cidade:'cidade',gerador:'geradorSelect',tecnico:'tecnico'};for(const [p,id] of Object.entries(map)){const v=params.get(p);if(!v)continue;const el=document.getElementById(id);if(id==='geradorSelect'){let opt=[...el.options].find(o=>o.text.toLowerCase()===v.toLowerCase()||o.value.toLowerCase()===v.toLowerCase());if(!opt){opt=document.createElement('option');opt.value='custom_'+Date.now();opt.textContent=v;el.append(opt);checklistPorGerador[opt.value]=checklistPorGerador.tg3100;}el.value=opt.value;carregarChecklist();}else el.value=v;}document.getElementById('assinaturaTecnico').value=document.getElementById('tecnico').value;}
 function gerarTextoRelatorio(){const sel=document.getElementById('geradorSelect');const gerador=sel.value?sel.options[sel.selectedIndex].text:'Não selecionado';const tecnico=document.getElementById('tecnico').value.trim()||'Não informado';const cidade=document.getElementById('cidade').value.trim()||'Não informada';const itens=[...document.querySelectorAll('.checklist-item input')];const lista=checklistPorGerador[sel.value]||[];const feitos=itens.filter(x=>x.checked).length;let t=`CHECKLIST DE GERADOR\n\nProtocolo: ${document.getElementById('protocolo').value.trim()||'Não informado'}\nGerador: ${gerador}\nTécnico: ${tecnico}\nCidade: ${cidade}\nData: ${new Date().toLocaleDateString('pt-BR')}\n\nITENS VERIFICADOS:\n`;itens.forEach((x,i)=>t+=`${x.checked?'[X]':'[ ]'} ${lista[i]||'Item'}\n`);t+=`\nItens concluídos: ${feitos}/${itens.length}\nObservações: ${document.getElementById('obs').value.trim()||'Nenhuma observação'}\nAssinatura do Técnico: ${tecnico}`;return {texto:t,feitos,total:itens.length,gerador,tecnico,cidade,itens,lista};}
 async function copiarRelatorio(){
+ const botao=document.getElementById('btnCopiarRelatorio');
  const r=gerarTextoRelatorio();
- try{await navigator.clipboard.writeText(r.texto);}
- catch(e){const area=document.createElement('textarea');area.value=r.texto;document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();}
- if(!geradorId){mostrarStatus('Relatório copiado. Para dar baixa no painel, abra o checklist pelo link individual gerado no painel.','erro');return;}
- const confirmar=confirm('Relatório copiado para postar no grupo.\n\nO checklist já foi finalizado e todos os itens foram realmente executados?\n\nOK = registrar como FEITO no painel.\nCancelar = manter pendente.');
- if(confirmar){await registrarConclusao(r);}
- else{mostrarStatus('📋 Relatório copiado. A preventiva continua PENDENTE no painel até a confirmação de conclusão.','ok');}
+ let copiado=false;
+ try{
+  if(navigator.clipboard && window.isSecureContext){
+   await navigator.clipboard.writeText(r.texto);copiado=true;
+  }
+ }catch(e){console.warn('Clipboard API indisponível:',e);}
+ if(!copiado){
+  const area=document.createElement('textarea');area.value=r.texto;area.setAttribute('readonly','');
+  area.style.position='fixed';area.style.left='-9999px';document.body.appendChild(area);area.select();
+  try{copiado=document.execCommand('copy');}catch(e){console.warn(e);}area.remove();
+ }
+ if(!copiado){
+  mostrarStatus('Não foi possível copiar automaticamente. Verifique a permissão de área de transferência do navegador.','erro');
+  return;
+ }
+ mostrarStatus('📋 Relatório copiado! Agora confirme abaixo se a vistoria foi realmente concluída.','ok');
+ abrirConfirmacao(r);
+}
+let relatorioAguardandoConfirmacao=null;
+function abrirConfirmacao(r){
+ relatorioAguardandoConfirmacao=r;
+ const faltam=r.total-r.feitos;
+ const resumo=document.getElementById('resumoConfirmacao');
+ const btn=document.getElementById('btnConfirmarConclusao');
+ if(!geradorId){resumo.textContent='Este checklist não foi aberto pelo link individual do painel. O relatório foi copiado, mas não é possível dar baixa neste acesso.';btn.disabled=true;}
+ else if(faltam>0){resumo.textContent=`Atenção: ${r.feitos} de ${r.total} itens marcados. Faltam ${faltam}. Marque todos os itens somente depois de executar e conferir cada atividade.`;btn.disabled=true;}
+ else{resumo.textContent=`${r.cidade} · ${r.gerador} · ${r.tecnico} · ${r.feitos}/${r.total} itens conferidos.`;btn.disabled=false;}
+ document.getElementById('modalConfirmacao').classList.add('aberto');
+}
+function fecharConfirmacao(){document.getElementById('modalConfirmacao').classList.remove('aberto');relatorioAguardandoConfirmacao=null;}
+async function confirmarConclusao(){
+ if(!relatorioAguardandoConfirmacao)return;
+ const btn=document.getElementById('btnConfirmarConclusao');btn.disabled=true;btn.textContent='Registrando...';
+ try{
+  const ok=await registrarConclusao(relatorioAguardandoConfirmacao);
+  if(ok){fecharConfirmacao();mostrarStatus('✅ Checklist confirmado e registrado como FEITO no painel principal.','ok');}
+ }catch(e){console.error(e);mostrarStatus('Erro ao registrar a conclusão: '+e.message,'erro');}
+ finally{btn.disabled=false;btn.textContent='✅ Sim, realizei tudo';}
 }
 function semanaSexta(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()-5+7)%7));return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 async function registrarConclusao(r){
@@ -59,12 +116,6 @@ async function registrarConclusao(r){
  mostrarStatus('✅ Concluído! O Supabase registrou esta preventiva e o painel principal mostrará o gerador como FEITO nesta semana.','ok');
  return true;
 }
-async function enviarRelatorio(){
- const r=gerarTextoRelatorio();
- if(!geradorId){mostrarStatus('Este link não está vinculado a um gerador cadastrado no painel. Abra pelo link enviado pelo sistema.','erro');return;}
- if(!r.total||r.feitos!==r.total){mostrarStatus(`Ainda faltam marcar ${r.total-r.feitos} item(ns). Confira o checklist antes de concluir.`, 'erro');return;}
- if(!confirm('Confirma que todos os itens foram executados e deseja registrar a preventiva como concluída no painel?'))return;
- await registrarConclusao(r);
-}
+document.getElementById('modalConfirmacao').addEventListener('click',e=>{if(e.target.id==='modalConfirmacao')fecharConfirmacao();});
 preencherDaUrl();if(!geradorId)mostrarStatus('Atenção: abra este checklist pelo link gerado no painel para vincular a conclusão ao gerador correto.','erro');else mostrarStatus('Checklist vinculado ao gerador cadastrado. Preencha todos os itens e envie o relatório ao finalizar.','ok');
 </script></body></html>
