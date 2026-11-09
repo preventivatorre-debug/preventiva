@@ -1930,6 +1930,9 @@ body.modo-edicao .gerador-cadastro{display:block}
 .gerador-meta{font-size:13px;line-height:1.55;color:#444}
 .gerador-status{display:inline-block;margin-top:8px;padding:5px 8px;border-radius:5px;font-size:11px;font-weight:bold;background:#fff3cd;color:#805b00}
 .gerador-status.ok{background:#dcfce7;color:#166534}
+.gerador-status-relatorio{border:0;cursor:pointer;font-family:inherit;display:inline-block}
+.gerador-status-relatorio:hover{filter:brightness(.96);box-shadow:0 0 0 2px rgba(22,101,52,.14)}
+
 .gerador-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .gerador-acoes button{margin:0;flex:1 1 110px;font-size:12px}
 .gerador-acoes .btn-enviar-gerador{background:#229ed9}
@@ -2176,6 +2179,20 @@ body.modo-edicao .gerador-cadastro{display:block}
 
   <div id="geradoresStatusGeral" class="gerador-status-geral">Carregando geradores cadastrados...</div>
   <div id="geradoresLista" class="geradores-lista"></div>
+
+  <details class="historico-geradores" id="historicoGeradores">
+    <summary>📅 Relatório histórico dos checklists dos geradores</summary>
+    <div class="historico-geradores-filtros">
+      <div><label for="historicoDataInicio">Data inicial</label><input type="date" id="historicoDataInicio"></div>
+      <div><label for="historicoDataFim">Data final</label><input type="date" id="historicoDataFim"></div>
+      <div><label for="historicoGeradorFiltro">Gerador</label><select id="historicoGeradorFiltro"><option value="">Todos os geradores</option></select></div>
+      <button type="button" onclick="buscarHistoricoGeradores()">🔎 Consultar</button>
+      <button type="button" class="historico-limpar" onclick="limparFiltroHistoricoGeradores()">Limpar</button>
+    </div>
+    <div id="historicoGeradoresResumo" class="historico-geradores-resumo">Selecione o período e clique em Consultar.</div>
+    <div id="historicoGeradoresLista" class="historico-geradores-lista"></div>
+  </details>
+
   <div id="geradorScriptArea" style="display:none;margin-top:14px">
     <strong>📋 Mensagem da preventiva semanal</strong>
     <textarea id="geradorScriptTexto" class="gerador-script-box" readonly></textarea>
@@ -6186,6 +6203,138 @@ async function confirmarAcionamentoEquipe(){
 }
 
 
+
+
+let historicoRelatoriosGeradores = [];
+
+function preencherFiltroGeradoresHistorico(){
+  const select=document.getElementById("historicoGeradorFiltro");
+  if(!select)return;
+  const atual=select.value;
+  const geradores=Array.isArray(configGlobalDB?.geradores)?configGlobalDB.geradores:[];
+  select.innerHTML='<option value="">Todos os geradores</option>'+geradores.map(g=>
+    `<option value="${escapeHtml(String(g.id))}">${escapeHtml((g.cidade||"") + " · " + (g.nome||"Gerador"))}</option>`
+  ).join("");
+  select.value=atual;
+}
+
+function dataLocalHistorico(valor){
+  if(!valor)return "";
+  const d=new Date(valor);
+  if(Number.isNaN(d.getTime()))return "";
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+async function buscarHistoricoGeradores(){
+  const resumo=document.getElementById("historicoGeradoresResumo");
+  const lista=document.getElementById("historicoGeradoresLista");
+  if(!resumo||!lista)return;
+  resumo.textContent="Consultando relatórios no Supabase...";
+  lista.innerHTML="";
+  try{
+    const {data,error}=await supabaseClient
+      .from("preventivas_geradores")
+      .select("*")
+      .eq("status","concluida")
+      .order("concluida_em",{ascending:false});
+    if(error)throw error;
+
+    const inicio=document.getElementById("historicoDataInicio")?.value||"";
+    const fim=document.getElementById("historicoDataFim")?.value||"";
+    const geradorId=document.getElementById("historicoGeradorFiltro")?.value||"";
+
+    historicoRelatoriosGeradores=(data||[]).filter(r=>{
+      const dia=dataLocalHistorico(r.concluida_em);
+      if(inicio && (!dia || dia<inicio))return false;
+      if(fim && (!dia || dia>fim))return false;
+      if(geradorId && String(r.gerador_id)!==geradorId)return false;
+      return true;
+    });
+
+    resumo.textContent=`${historicoRelatoriosGeradores.length} checklist(s) concluído(s) encontrado(s)${inicio||fim?" no período selecionado":""}.`;
+    if(!historicoRelatoriosGeradores.length){
+      lista.innerHTML='<div class="historico-gerador-vazio">Nenhum checklist concluído encontrado para os filtros selecionados.</div>';
+      return;
+    }
+    lista.innerHTML=historicoRelatoriosGeradores.map((r,i)=>{
+      const data=r.concluida_em?new Date(r.concluida_em).toLocaleString("pt-BR"):"Data não informada";
+      const total=Number(r.itens_total||0), feitos=Number(r.itens_concluidos||0);
+      return `<article class="historico-gerador-item">
+        <div class="historico-gerador-info">
+          <strong>${escapeHtml(r.cidade||"Cidade não informada")} · ${escapeHtml(r.gerador_nome||"Gerador")}</strong><br>
+          📅 ${escapeHtml(data)}<br>
+          👷 Técnico: ${escapeHtml(r.tecnico||"Não informado")} · Protocolo: ${escapeHtml(r.protocolo||"—")}<br>
+          ☑️ ${feitos||"—"}${total?"/"+total:""} itens concluídos
+        </div>
+        <button type="button" onclick="abrirRelatorioHistoricoGerador(${i})">📄 Ver relatório</button>
+      </article>`;
+    }).join("");
+  }catch(e){
+    console.error("Erro ao consultar histórico de geradores:",e);
+    resumo.textContent="Não foi possível consultar o histórico. Verifique as permissões SELECT da tabela preventivas_geradores no Supabase.";
+    lista.innerHTML='<div class="historico-gerador-vazio">Falha ao carregar o histórico.</div>';
+  }
+}
+
+function abrirRelatorioHistoricoGerador(indice){
+  const registro=historicoRelatoriosGeradores[indice];
+  if(!registro){alert("Relatório não encontrado. Faça a consulta novamente.");return;}
+  const modal=document.getElementById("modalRelatorioGerador");
+  const subtitulo=document.getElementById("subtituloRelatorioGerador");
+  const area=document.getElementById("textoRelatorioGerador");
+  if(!modal||!subtitulo||!area){alert("Janela de relatório não encontrada. Atualize o painel.");return;}
+  const texto=String(registro.relatorio_texto||"").trim();
+  subtitulo.textContent=`${registro.cidade||"Cidade"} · ${registro.gerador_nome||"Gerador"} · ${registro.tecnico||"Técnico"} · ${registro.concluida_em?new Date(registro.concluida_em).toLocaleString("pt-BR"):"Data não informada"}`;
+  area.textContent=texto||"Este registro não possui o texto detalhado do relatório salvo.";
+  relatorioGeradorAberto=texto;
+  modal.classList.add("aberto");
+  modal.setAttribute("aria-hidden","false");
+}
+
+function limparFiltroHistoricoGeradores(){
+  ["historicoDataInicio","historicoDataFim"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  const select=document.getElementById("historicoGeradorFiltro");if(select)select.value="";
+  buscarHistoricoGeradores();
+}
+
+let relatorioGeradorAberto = "";
+function abrirRelatorioGerador(id){
+  const registro = window.relatoriosGeradoresSemana instanceof Map
+    ? window.relatoriosGeradoresSemana.get(String(id))
+    : null;
+  if(!registro || registro.status !== "concluida"){
+    alert("Não foi encontrado o registro concluído desta semana. Atualize o painel e tente novamente.");
+    return;
+  }
+  const texto = String(registro.relatorio_texto || "").trim();
+  const subtitulo = document.getElementById("subtituloRelatorioGerador");
+  const areaTexto = document.getElementById("textoRelatorioGerador");
+  const modal = document.getElementById("modalRelatorioGerador");
+  if(!subtitulo || !areaTexto || !modal){
+    console.error("Estrutura do modal de relatório não encontrada no documento.");
+    alert("Não foi possível abrir o relatório: a janela de visualização não foi carregada. Atualize o painel.");
+    return;
+  }
+  subtitulo.textContent =
+    `${registro.cidade || "Cidade não informada"} · ${registro.gerador_nome || "Gerador"} · ${registro.tecnico || "Técnico"} · ${registro.concluida_em ? new Date(registro.concluida_em).toLocaleString("pt-BR") : "Data não informada"}`;
+  areaTexto.textContent = texto ||
+    "Este checklist foi marcado como concluído, mas o relatório detalhado não foi salvo no Supabase. Os próximos relatórios serão exibidos aqui.";
+  relatorioGeradorAberto = texto;
+  modal.classList.add("aberto");
+  modal.setAttribute("aria-hidden","false");
+}
+function fecharRelatorioGerador(){
+  const modal=document.getElementById("modalRelatorioGerador");
+  modal.classList.remove("aberto");
+  modal.setAttribute("aria-hidden","true");
+}
+async function copiarRelatorioSalvoGerador(){
+  if(!relatorioGeradorAberto){alert("Não há relatório salvo para copiar.");return;}
+  try{await navigator.clipboard.writeText(relatorioGeradorAberto);alert("Relatório copiado.");}
+  catch(e){const ta=document.createElement("textarea");ta.value=relatorioGeradorAberto;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();alert("Relatório copiado.");}
+}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")fecharRelatorioGerador();});
+
 /* =========================================================
    CHECKLIST SEMANAL DOS GERADORES
    Os dados ficam na coluna JSONB geradores_config de
@@ -6245,6 +6394,7 @@ function textoChecklistGerador(g){
 }
 
 async function renderGeradores(){
+  preencherFiltroGeradoresHistorico();
   const lista=document.getElementById("geradoresLista");
   const status=document.getElementById("geradoresStatusGeral");
   if(!lista||!status)return;
@@ -6260,9 +6410,10 @@ async function renderGeradores(){
   const semana=`${inicio.getFullYear()}-${String(inicio.getMonth()+1).padStart(2,'0')}-${String(inicio.getDate()).padStart(2,'0')}`;
   let concluidos=new Map();
   try{
-    const {data,error}=await supabaseClient.from("preventivas_geradores").select("gerador_id,concluida_em,status").eq("semana_inicio",semana);
+    const {data,error}=await supabaseClient.from("preventivas_geradores").select("gerador_id,concluida_em,status,relatorio_texto,protocolo,cidade,gerador_nome,tecnico,itens_total,itens_concluidos,observacoes").eq("semana_inicio",semana);
     if(error)throw error;
     (data||[]).forEach(r=>concluidos.set(String(r.gerador_id),r));
+    window.relatoriosGeradoresSemana=concluidos;
   }catch(e){console.warn("Não foi possível consultar conclusões dos checklists:",e);}
   const qtd=geradores.filter(g=>concluidos.get(String(g.id))?.status==="concluida").length;
   status.textContent=`${geradores.length} gerador(es) cadastrado(s) · ${qtd} checklist(s) concluído(s) nesta semana.`;
@@ -6276,7 +6427,9 @@ async function renderGeradores(){
       <div class="gerador-meta"><strong>Gerador:</strong> ${escapeHtml(g.nome||"—")}<br>
       <strong>Técnico:</strong> ${escapeHtml(g.tecnico||"—")}<br>
       <strong>Última conclusão:</strong> ${escapeHtml(ultima)}</div>
-      <span class="gerador-status ${concluido?"ok":""}">${concluido?"✅ Checklist concluído":"🟠 Checklist pendente"}</span>
+      ${concluido
+        ? `<button type="button" class="gerador-status ok gerador-status-relatorio" onclick="abrirRelatorioGerador('${String(g.id).replace(/'/g,"")}')" title="Clique para visualizar o relatório realizado">✅ Checklist concluído · Ver relatório</button>`
+        : `<span class="gerador-status">🟠 Checklist pendente</span>`}
       <div class="gerador-acoes">
         <button type="button" onclick="gerarScriptGerador('${String(g.id).replace(/'/g,"")}')">📋 Gerar script</button>
         <button type="button" onclick="window.open('${linkChecklistGerador(g).replace(/'/g,"%27")}','_blank')">🔗 Abrir checklist</button>
@@ -7797,7 +7950,10 @@ function gerarRelatorioAuditoriaBaterias(modo){
   }
   const escHtml=v=>typeof escapeHtml==="function"?escapeHtml(String(v??"")):String(v??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const tabela=registros.map(r=>"<tr>"+colunas.map(c=>"<td>"+escHtml(c[1].startsWith("data")?dataAuditoriaBR(r[c[1]]):r[c[1]])+"</td>").join("")+"</tr>").join("");
-  const rel=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Auditoria de baterias</title><style>body{font:12px Arial;color:#222;margin:24px}h1{font-size:20px}.meta{color:#555}.resumo{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}.resumo span{border:1px solid #bbb;padding:8px;border-radius:5px}table{border-collapse:collapse;width:100%;font-size:9px}th,td{border:1px solid #aaa;padding:5px;text-align:left;overflow-wrap:anywhere}th{background:#eee}.assinaturas{display:flex;gap:50px;margin-top:55px}.assinaturas div{border-top:1px solid #333;padding-top:7px;flex:1;text-align:center}@media print{body{margin:10mm}tr{break-inside:avoid}}</style></head><body><h1>Relatório de Auditoria — Baterias dos POPs</h1><div class="meta">Gerado em: ${escHtml(geradoEm)} | Base: dados registrados no sistema</div><div class="resumo"><span>Instaladas: <b>${resumo.instaladas}</b></span><span>Estoque: <b>${resumo.estoque}</b></span><span>Descartes: <b>${resumo.descarte}</b></span><span>Remanejadas (histórico): <b>${resumo.remanejadas}</b></span></div><p>Critério de classificação: saúde abaixo de 50% ou CCA medido abaixo de 50% do CCA padrão cadastrado. A baixa definitiva registra operador e data do descarte. Baterias instaladas continuam no POP até a equipe registrar a retirada.</p><table><thead><tr>${colunas.map(c=>"<th>"+escHtml(c[0])+"</th>").join("")}</tr></thead><tbody>${tabela||"<tr><td colspan='"+colunas.length+"'>Nenhum registro de bateria.</td></tr>"}</tbody></table><div class="assinaturas"><div>Responsável técnico</div><div>Conferência / Auditoria</div></div><p class="meta">Este relatório reflete os dados disponíveis no sistema no momento da emissão.</p></body></html>`;
+  const rel=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Auditoria de baterias</title><style>body{font:12px Arial;color:#222;margin:24px}h1{font-size:20px}.meta{color:#555}.resumo{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}.resumo span{border:1px solid #bbb;padding:8px;border-radius:5px}table{border-collapse:collapse;width:100%;font-size:9px}th,td{border:1px solid #aaa;padding:5px;text-align:left;overflow-wrap:anywhere}th{background:#eee}.assinaturas{display:flex;gap:50px;margin-top:55px}.assinaturas div{border-top:1px solid #333;padding-top:7px;flex:1;text-align:center}@media print{body{margin:10mm}tr{break-inside:avoid}}</style></head><body><h1>Relatório de Auditoria — Baterias dos POPs</h1><div class="meta">Gerado em: ${escHtml(geradoEm)} | Base: dados registrados no sistema</div><div class="resumo"><span>Instaladas: <b>${resumo.instaladas}</b></span><span>Estoque: <b>${resumo.estoque}</b></span><span>Descartes: <b>${resumo.descarte}</b></span><span>Remanejadas (histórico): <b>${resumo.remanejadas}</b></span></div><p>Critério de classificação: saúde abaixo de 50% ou CCA medido abaixo de 50% do CCA padrão cadastrado. A baixa definitiva registra operador e data do descarte. Baterias instaladas continuam no POP até a equipe registrar a retirada.</p><table><thead><tr>${colunas.map(c=>"<th>"+escHtml(c[0])+"</th>").join("")}</tr></thead><tbody>${tabela||"<tr><td colspan='"+colunas.length+"'>Nenhum registro de bateria.</td></tr>"}</tbody></table><div class="assinaturas"><div>Responsável técnico</div><div>Conferência / Auditoria</div></div><p class="meta">Este relatório reflete os dados disponíveis no sistema no momento da emissão.</p>
+
+
+</body></html>`;
   const janela=window.open("","_blank");
   if(!janela){alert("O navegador bloqueou a janela do relatório. Permita pop-ups para este sistema e tente novamente.");return;}
   janela.document.open();janela.document.write(rel);janela.document.close();
@@ -11107,6 +11263,57 @@ window.addEventListener("load", () => {
   }, 2500);
 });
 </script>
+
+<div id="modalRelatorioGerador" class="modal-relatorio-gerador" aria-hidden="true">
+  <div class="modal-relatorio-gerador-conteudo" role="dialog" aria-modal="true" aria-labelledby="tituloRelatorioGerador">
+    <div class="modal-relatorio-gerador-topo">
+      <div>
+        <h2 id="tituloRelatorioGerador">📋 Relatório do checklist</h2>
+        <small id="subtituloRelatorioGerador">Preventiva concluída</small>
+      </div>
+      <button type="button" class="modal-relatorio-fechar" onclick="fecharRelatorioGerador()" aria-label="Fechar">✕</button>
+    </div>
+    <pre id="textoRelatorioGerador" class="texto-relatorio-gerador"></pre>
+    <div class="modal-relatorio-acoes">
+      <button type="button" onclick="copiarRelatorioSalvoGerador()">📋 Copiar relatório</button>
+      <button type="button" class="modal-relatorio-fechar-acao" onclick="fecharRelatorioGerador()">Fechar</button>
+    </div>
+  </div>
+</div>
+<style>
+.modal-relatorio-gerador{display:none;position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.62);padding:18px;overflow:auto;align-items:center;justify-content:center}
+.modal-relatorio-gerador.aberto{display:flex}
+.modal-relatorio-gerador-conteudo{width:min(850px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:12px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.modal-relatorio-gerador-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid #e5e7eb;padding-bottom:12px}
+.modal-relatorio-gerador-topo h2{margin:0 0 5px;color:#166534;font-size:20px}
+.modal-relatorio-gerador-topo small{color:#666}
+.modal-relatorio-fechar{margin:0;background:#555;font-size:17px}
+.texto-relatorio-gerador{white-space:pre-wrap;overflow-wrap:anywhere;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px;font:13px/1.6 Arial,sans-serif;max-height:62vh;overflow:auto;margin:14px 0}
+.modal-relatorio-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.modal-relatorio-acoes button{margin:0}
+.modal-relatorio-fechar-acao{background:#555}
+@media(max-width:600px){.modal-relatorio-gerador{padding:8px}.modal-relatorio-gerador-conteudo{padding:13px}.modal-relatorio-acoes{flex-direction:column}.modal-relatorio-acoes button{width:100%}}
+</style>
+
+<style>
+.historico-geradores{margin-top:16px;background:#fff;border:1px solid #dce5df;border-left:5px solid #2980b9;border-radius:8px;padding:0 13px 13px}
+.historico-geradores>summary{cursor:pointer;padding:13px 2px;font-weight:800;color:#1f5f9f;list-style:none}
+.historico-geradores>summary::-webkit-details-marker{display:none}
+.historico-geradores-filtros{display:grid;grid-template-columns:1fr 1fr 1.4fr auto auto;gap:8px;align-items:end}
+.historico-geradores-filtros label{display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:4px}
+.historico-geradores-filtros input,.historico-geradores-filtros select{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box}
+.historico-geradores-filtros button{margin:0;white-space:nowrap}
+.historico-limpar{background:#666}
+.historico-geradores-resumo{margin:12px 0;padding:9px 11px;background:#f2f6fa;border-radius:6px;font-size:13px;font-weight:700}
+.historico-geradores-lista{display:grid;gap:9px}
+.historico-gerador-item{border:1px solid #dce5df;border-radius:7px;padding:11px;background:#fbfdfb;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.historico-gerador-info{min-width:0;line-height:1.55;font-size:13px}
+.historico-gerador-info strong{color:#155e3b}
+.historico-gerador-item button{margin:0;flex-shrink:0;background:#16834a}
+.historico-gerador-vazio{padding:16px;text-align:center;color:#666;background:#f7f7f7;border-radius:7px}
+@media(max-width:800px){.historico-geradores-filtros{grid-template-columns:1fr 1fr}.historico-geradores-filtros button{width:100%}}
+@media(max-width:520px){.historico-geradores-filtros{grid-template-columns:1fr}.historico-gerador-item{align-items:stretch;flex-direction:column}.historico-gerador-item button{width:100%}}
+</style>
 
 </body>
 </html>
