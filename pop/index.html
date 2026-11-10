@@ -2935,7 +2935,7 @@ function mostrarSplashOxenteNet(){
   const splash=document.createElement("div");
   splash.id="oxenteSplash";
   splash.setAttribute("aria-label","Controle de autonomia de baterias carregando");
-  splash.innerHTML='<img alt="Símbolo X" src="'+logo.src+'"><strong>CONTROLE DE AUTONOMIA DE BATERIAS</strong><div class="oxente-progress" aria-label="Carregando"><span></span></div>';
+  splash.innerHTML='<img alt="Símbolo X" src="'+logo.src+'"><strong></strong><div class="oxente-progress" aria-label="Carregando"><span></span></div>';
   document.body.appendChild(splash);
   window._oxenteSplashTimer=setTimeout(()=>{
     splash.classList.add("saindo");
