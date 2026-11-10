@@ -5935,7 +5935,7 @@ function carregarEscalaMensal(){
     return `<tr>
       <td><input id="escalaColab${l.semana}" type="text" value="${escaparAttr(d.colaborador||"")}" placeholder="Ex.: João Roberto - Vanderson Junior"${somenteLeitura}></td>
       <td style="text-align:center;font-weight:bold">${l.semana}ª SEMANA</td>
-      <td class="escala-periodo">${l.inicioTexto} a ${l.fimTexto}</td>
+      <td class="escala-periodo">${String(l.inicio).padStart(2,"0")} a ${String(l.fim).padStart(2,"0")}</td>
       <td><input id="escalaCarro${l.semana}" type="text" value="${escaparAttr(d.carro||"")}" placeholder="Ex.: STRADA SLO2B54"${somenteLeitura}></td>
     </tr>`;
   }).join("");
@@ -6647,7 +6647,7 @@ async function gerarEscalaWord(){
     return new TableRow({children:[
       celula(d.colaborador||"",{bold:true,align:AlignmentType.LEFT,width:4700}),
       celula(`${l.semana}ª SEMANA`,{width:2300}),
-      celula(`${l.inicioTexto} a ${l.fimTexto}`,{bold:true,color:"1F3F68",width:2500})
+      celula(`${String(l.inicio).padStart(2,"0")} a ${String(l.fim).padStart(2,"0")}`,{bold:true,color:"1F3F68",width:2500})
     ]});
   })];
   const tabela=new Table({width:{size:9500,type:WidthType.DXA},columnWidths:[4700,2300,2500],borders:bordas,rows});
