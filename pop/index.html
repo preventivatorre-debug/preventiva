@@ -1941,6 +1941,15 @@ body.modo-edicao .gerador-cadastro{display:block}
 .gerador-status-geral{margin-top:10px;padding:9px;border-radius:6px;background:#f2f4f6;font-size:13px}
 @media(max-width:700px){.gerador-form-grid{grid-template-columns:1fr}.gerador-acoes{flex-direction:column}.gerador-acoes button{width:100%}}
 
+
+
+.pop-localizado-destaque{
+  outline:4px solid #f0b429 !important;
+  outline-offset:3px;
+  box-shadow:0 0 0 6px rgba(240,180,41,.18) !important;
+  transition:outline .2s ease,box-shadow .2s ease;
+}
+
 </style>
 
 <style>
@@ -2286,7 +2295,7 @@ body.modo-edicao .gerador-cadastro{display:block}
   >
 
     <span class="notificacao-titulo">
-      🔴 Pós-garantia / vida útil avançada
+      🔴 Pós-garantia
     </span>
 
     <strong
@@ -2348,6 +2357,19 @@ body.modo-edicao .gerador-cadastro{display:block}
   <span id="tituloCardPopsSemEnergia">🔴 POPs sem energia</span>
   <strong id="totalPopsSemEnergia">0</strong>
   <small id="subtituloCardPopsSemEnergia">Clique para ver os POPs</small>
+</button>
+
+<button
+  type="button"
+  id="cardPopsSemEnergiaManual"
+  class="resumo-card resumo-pops-sem-energia"
+  onclick="abrirPopsSemEnergia()"
+  title="Clique para acompanhar os POPs com falta de energia"
+  style="display:none;background:#fff0f0;border-left:5px solid #dc3545"
+>
+  <span>⚡ Ocorrências de energia</span>
+  <strong id="totalPopsSemEnergiaManual">0</strong>
+  <small>Controle de acionamento das equipes</small>
 </button>
 
 </div>
@@ -8039,9 +8061,19 @@ function atualizarCardPOPsSemEnergia(){
   const card=document.getElementById("cardPopsSemEnergia");
   const titulo=document.getElementById("tituloCardPopsSemEnergia");
   const subtitulo=document.getElementById("subtituloCardPopsSemEnergia");
+  const cardManual=document.getElementById("cardPopsSemEnergiaManual");
+  const numeroManual=document.getElementById("totalPopsSemEnergiaManual");
   const telegramAtivo=lerConfigTelegram().ativo;
 
-  // Quando o Telegram estiver pausado, altera somente este card do resumo.
+  // Card operacional independente: aparece somente com ocorrência ativa
+  // e quando as notificações automáticas do Telegram estiverem pausadas.
+  if(cardManual){
+    cardManual.style.display=(!telegramAtivo && lista.length>0)?"flex":"none";
+    if(numeroManual)numeroManual.textContent=lista.length;
+    cardManual.title="Clique para acompanhar e controlar os POPs com falta de energia";
+  }
+
+  // O card original continua representando o estado das notificações Telegram.
   if(!telegramAtivo){
     if(titulo)titulo.textContent="⏸️ Notificações desativadas";
     if(numero)numero.textContent="—";
@@ -8084,7 +8116,7 @@ function abrirPopsSemEnergia(){
   if(!lista.length){
     conteudo.innerHTML='<div class="garantia-vazia">🟢 Todos os POPs estão sem ocorrência ativa de falta de energia.</div>';
   }else{
-    conteudo.innerHTML=lista.map(({pop})=>{
+    conteudo.innerHTML=lista.map(({pop,i})=>{
       const contingencia=calcularContingencia(pop,new Date());
       const autonomia=Number(pop._autonomiaAjustada)||0;
       const inicio=formatarDataHora(pop.quedaEnergiaEm);
@@ -8109,7 +8141,7 @@ function abrirPopsSemEnergia(){
             <div><span>Distância</span><b>${Number(pop.distanciaKm)>0?escapeHtml(Number(pop.distanciaKm).toFixed(1)+" km"):"Não informada"}</b></div>
           </div>
           <div class="garantia-status" style="background:#fff0f0;color:#842029">${status}</div>
-          <button type="button" class="editar" onclick="fecharModalPopsSemEnergia();document.getElementById('busca').value=${JSON.stringify(String(pop.nome||""))};buscarPOP();">📍 Localizar POP na tela</button>
+          <button type="button" class="editar" onclick="localizarPOPContingencia(${i})">📍 Localizar POP na tela</button>
         </div>`;
     }).join("");
   }
@@ -8121,6 +8153,39 @@ function fecharModalPopsSemEnergia(event){
   if(event && event.target!==event.currentTarget)return;
   const modal=document.getElementById("modalPopsSemEnergia");
   if(modal)modal.style.display="none";
+}
+
+/* Localiza o POP pelo índice interno, sem inserir o nome em um onclick.
+   Isso evita que aspas, acentos ou caracteres especiais quebrem o botão. */
+function localizarPOPContingencia(i){
+  const pop=pops[Number(i)];
+  if(!pop){
+    alert("Não foi possível localizar este POP. Atualize a lista e tente novamente.");
+    return;
+  }
+
+  fecharModalPopsSemEnergia();
+
+  const campo=document.getElementById("busca");
+  if(campo)campo.value=String(pop.nome||"");
+
+  buscarPOP();
+
+  const alvo=Array.from(document.querySelectorAll(".pop"))
+    .find(el=>String(el.dataset.nome||"")===String(pop.nome||"").trim().toLowerCase());
+
+  if(!alvo){
+    alert("O POP foi selecionado, mas não foi encontrado na lista exibida.");
+    return;
+  }
+
+  alvo.style.display="block";
+  alvo.scrollIntoView({behavior:"smooth",block:"start"});
+
+  alvo.classList.remove("pop-localizado-destaque");
+  void alvo.offsetWidth;
+  alvo.classList.add("pop-localizado-destaque");
+  window.setTimeout(()=>alvo.classList.remove("pop-localizado-destaque"),3000);
 }
 
 function render(preservarBusca=true){
