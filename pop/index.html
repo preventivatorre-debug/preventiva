@@ -2030,7 +2030,29 @@ body.modo-edicao .gerador-cadastro{display:block}
   .pop-sem-energia-detalhes{grid-template-columns:1fr 1fr}
 }
 </style>
-</head>
+
+<style id="painel-energia-abaixo-pesquisa">
+.painel-energia-pesquisa{margin:0 0 12px;padding:11px 12px;background:#fff;border:1px solid #d7e0e8;border-left:4px solid #dc3545;border-radius:8px;box-shadow:0 2px 7px rgba(31,55,75,.08)}
+.painel-energia-topo{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;color:#842029}
+.painel-energia-topo strong{font-size:14px}
+.painel-energia-topo span{font-size:12px;font-weight:700}
+.cards-energia-pesquisa{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:7px}
+.card-energia-pesquisa{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin:0;padding:9px 10px;background:#fff!important;border:1px solid #d8e1e8;border-left:4px solid #dc3545;border-radius:7px;color:#263746!important;text-align:left;font-size:12px;font-weight:600;box-shadow:0 1px 3px rgba(31,55,75,.06)}
+.card-energia-pesquisa small{display:block;margin-top:3px;color:#704044;font-size:10px;font-weight:600}
+.card-energia-pesquisa:hover{background:#ffe2e2}
+.acoes-lista-pops{display:flex;justify-content:flex-end;margin:0 0 12px}
+.btn-ver-todos-pops{margin:0;background:#1f6f43;font-weight:700}
+@media(max-width:600px){.cards-energia-pesquisa{grid-template-columns:repeat(2,minmax(0,1fr))}.card-energia-pesquisa{padding:8px;font-size:11px}}
+</style>
+\n<style>
+/* Seletor de POPs: mesmas cores neutras e verdes do restante do painel */
+.painel-todos-pops{margin:8px 0 12px;padding:10px;background:#fff;border:1px solid #d7e0e8;border-radius:8px;box-shadow:0 2px 7px rgba(31,55,75,.08)}
+.painel-todos-pops .painel-energia-topo{color:#263746;margin-bottom:9px}
+.cards-todos-pops{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:8px}
+.painel-todos-pops .card-todos-pops{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:11px 12px;border:1px solid #d8e1e8;border-left:4px solid #287447;border-radius:7px;background:#fff!important;color:#263746!important;cursor:pointer;font-weight:600;box-shadow:0 1px 3px rgba(31,55,75,.06)}
+.painel-todos-pops .card-todos-pops small{display:block;margin-top:4px;color:#687783!important;font-size:11px;font-weight:400}
+.painel-todos-pops .card-todos-pops:hover{background:#f0f7f2!important;border-color:#b9d5c2}
+</style></head>
 
 <body>
 
@@ -2441,6 +2463,27 @@ body.modo-edicao .gerador-cadastro{display:block}
   <datalist id="listaPOPs"></datalist>
 
 </div>
+
+<!-- Acompanhamento rápido: somente POPs com falta de energia ativa -->
+<section id="painelEnergiaAbaixoPesquisa" class="painel-energia-pesquisa" style="display:none" aria-live="polite">
+  <div class="painel-energia-topo">
+    <strong>⚡ POPs sem energia</strong>
+    <span id="contadorEnergiaAbaixoPesquisa">0 ocorrências</span>
+  </div>
+  <div id="cardsEnergiaAbaixoPesquisa" class="cards-energia-pesquisa"></div>
+</section>
+
+<div class="acoes-lista-pops">
+  <button type="button" id="btnVerTodosPOPs" class="btn-ver-todos-pops" onclick="mostrarTodosPOPs()">📋 Ver todos os POPs</button>
+</div>
+<section id="painelTodosPOPs" class="painel-todos-pops" style="display:none">
+  <div class="painel-energia-topo">
+    <strong>📋 Selecione um POP</strong>
+    <span id="contadorTodosPOPs">0 POPs</span>
+  </div>
+  <div id="cardsTodosPOPs" class="cards-todos-pops"></div>
+</section>
+
 
 <div class="form-pop">
 
@@ -8057,6 +8100,7 @@ function obterPOPsSemEnergia(){
 
 function atualizarCardPOPsSemEnergia(){
   const lista=obterPOPsSemEnergia();
+  atualizarPainelEnergiaAbaixoPesquisa(lista);
   const numero=document.getElementById("totalPopsSemEnergia");
   const card=document.getElementById("cardPopsSemEnergia");
   const titulo=document.getElementById("tituloCardPopsSemEnergia");
@@ -8098,6 +8142,48 @@ function atualizarCardPOPsSemEnergia(){
       ? "Clique para ver os POPs atualmente sem energia"
       : "Nenhum POP está registrado sem energia";
   }
+}
+
+function atualizarPainelEnergiaAbaixoPesquisa(lista=obterPOPsSemEnergia()){
+  const painel=document.getElementById("painelEnergiaAbaixoPesquisa");
+  const cards=document.getElementById("cardsEnergiaAbaixoPesquisa");
+  const contador=document.getElementById("contadorEnergiaAbaixoPesquisa");
+  if(!painel||!cards)return;
+  painel.style.display=lista.length?"block":"none";
+  if(contador)contador.textContent=`${lista.length} ${lista.length===1?"ocorrência ativa":"ocorrências ativas"}`;
+  cards.innerHTML=lista.map(({pop,i})=>{
+    const inicio=pop.quedaEnergiaEm?formatarDataHora(pop.quedaEnergiaEm):"Horário não informado";
+    return `<button type="button" class="card-energia-pesquisa" onclick="localizarPOPContingencia(${i})">
+      <span>🔴 ${escapeHtml(pop.nome||"POP sem nome")}<small>Desde ${escapeHtml(inicio)}</small></span>
+      <span aria-hidden="true">›</span>
+    </button>`;
+  }).join("");
+}
+
+function mostrarTodosPOPs(){
+  const painel=document.getElementById("painelTodosPOPs");
+  const cards=document.getElementById("cardsTodosPOPs");
+  const contador=document.getElementById("contadorTodosPOPs");
+  if(!painel||!cards)return;
+
+  const abrir=painel.style.display==="none";
+  if(!abrir){
+    painel.style.display="none";
+    return;
+  }
+
+  cards.innerHTML=pops.map((pop,i)=>{
+    const semEnergia=!!(pop.quedaEnergiaEm&&!pop.energiaRestabelecidaEm);
+    const subtitulo=semEnergia?"🔴 Falta de energia registrada":"🟢 Situação normal";
+    return `<button type="button" class="card-todos-pops" onclick="localizarPOPContingencia(${i})">
+      <span>${escapeHtml(pop.nome||"POP sem nome")}<small>${subtitulo}</small></span>
+      <span aria-hidden="true">›</span>
+    </button>`;
+  }).join("");
+
+  if(contador)contador.textContent=`${pops.length} POP(s) cadastrados`;
+  painel.style.display="block";
+  painel.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 
 function abrirPopsSemEnergia(){
@@ -8170,6 +8256,9 @@ function localizarPOPContingencia(i){
   if(campo)campo.value=String(pop.nome||"");
 
   buscarPOP();
+
+  const painelTodos=document.getElementById("painelTodosPOPs");
+  if(painelTodos)painelTodos.style.display="none";
 
   const alvo=Array.from(document.querySelectorAll(".pop"))
     .find(el=>String(el.dataset.nome||"")===String(pop.nome||"").trim().toLowerCase());
