@@ -1876,6 +1876,56 @@ body.autenticado button.salvar{background-color:#1769aa}
 }
 
 
+/* ESTOQUE DE BATERIAS: abre em tela inteira para visualizar todos os campos */
+#painelEstoqueBaterias[open]{
+  position:fixed!important;inset:10px!important;z-index:24000!important;
+  width:auto!important;height:auto!important;max-width:none!important;max-height:none!important;
+  margin:0!important;padding:16px 18px!important;overflow-y:auto!important;overflow-x:hidden!important;
+  background:#fff!important;border:1px solid #cbd5dc!important;border-radius:12px!important;
+  box-shadow:0 12px 45px rgba(0,0,0,.35)!important;
+}
+#painelEstoqueBaterias[open]>.conteudo-painel-estoque{width:100%;max-width:none;}
+#painelEstoqueBaterias[open]>summary{
+  position:sticky;top:-16px;z-index:50;background:#fff;padding:10px 4px 13px!important;
+  margin:0 0 12px!important;border-bottom:1px solid #dce3e8;
+}
+#painelEstoqueBaterias[open] #conteudoEstoqueBaterias>.bateria-scroll-top{display:none!important}
+#painelEstoqueBaterias[open] #conteudoEstoqueBaterias>.bateria-table-scroll{
+  width:100%!important;max-width:none!important;max-height:none!important;height:auto!important;
+  overflow-x:hidden!important;overflow-y:visible!important;overscroll-behavior: auto!important;
+}
+/* No modo tela cheia, a rolagem vertical pertence somente ao painel externo. */
+#painelEstoqueBaterias[open] #conteudoEstoqueBaterias,
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade{
+  max-height:none!important;overflow:visible!important;
+}
+#painelEstoqueBaterias[open]{overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade{width:100%;overflow:visible!important;}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade table{
+  width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse;
+}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th,
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade td{
+  padding:8px 6px!important;white-space:normal!important;overflow-wrap:anywhere;word-break:normal;
+  vertical-align:middle;font-size:12px;
+}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th:nth-child(1){width:13%}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th:nth-child(2){width:11%}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th:nth-child(3){width:7%}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th:nth-child(4){width:12%}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th:nth-child(5){width:9%}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th:nth-child(6){width:20%}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th:nth-child(7){width:14%}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade th:nth-child(8){width:14%}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade textarea,
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade select{width:100%!important;min-width:0!important;max-width:100%;box-sizing:border-box;}
+#painelEstoqueBaterias[open] .estoque-grupo-capacidade td button{max-width:100%;white-space:normal;}
+@media(max-width:900px){
+  #painelEstoqueBaterias[open]{inset:4px!important;padding:10px!important;}
+  #painelEstoqueBaterias[open] .estoque-grupo-capacidade th,
+  #painelEstoqueBaterias[open] .estoque-grupo-capacidade td{font-size:10px;padding:5px 3px!important;}
+}
+
 /* Estoque separado por capacidade e observações de localização */
 .estoque-grupo-capacidade{margin:0 0 16px;padding:10px;background:#f8fafb;border:1px solid #d8e0e5;border-radius:10px}
 .estoque-grupo-capacidade h4{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 9px;padding:9px 12px;background:#e9f0f3;border-left:4px solid #657985;border-radius:6px;color:#263943}
@@ -1916,7 +1966,10 @@ body.autenticado button.salvar{background-color:#1769aa}
 #cardPreventivasGeradores{cursor:pointer}
 /* CHECKLIST SEMANAL DOS GERADORES */
 .geradores-painel{background:#fff;border-radius:10px;padding:15px;margin:12px 0 18px;border-left:6px solid #d97706;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-.geradores-painel h2{margin:0 0 6px;color:#92400e;font-size:19px}
+.geradores-painel h2{margin:0;color:#92400e;font-size:19px}
+.geradores-painel-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.btn-fechar-geradores{border:0;border-radius:7px;background:#b42318;color:#fff;padding:8px 12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-fechar-geradores:hover{background:#8f1d14}
 .geradores-explicacao{font-size:13px;color:#555;margin:0 0 12px;line-height:1.5}
 .gerador-cadastro{display:none;background:#fff8eb;border:1px solid #f2d5a6;border-radius:8px;padding:12px;margin:12px 0}
 body.modo-edicao .gerador-cadastro{display:block}
@@ -2052,6 +2105,9 @@ body.modo-edicao .gerador-cadastro{display:block}
 .painel-todos-pops .card-todos-pops{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:11px 12px;border:1px solid #d8e1e8;border-left:4px solid #287447;border-radius:7px;background:#fff!important;color:#263746!important;cursor:pointer;font-weight:600;box-shadow:0 1px 3px rgba(31,55,75,.06)}
 .painel-todos-pops .card-todos-pops small{display:block;margin-top:4px;color:#687783!important;font-size:11px;font-weight:400}
 .painel-todos-pops .card-todos-pops:hover{background:#f0f7f2!important;border-color:#b9d5c2}
+.painel-todos-pops .card-todos-pops.pop-preventiva-alerta{border-left-color:#d99a16}
+.painel-todos-pops .card-todos-pops.pop-preventiva-vencida{border-left-color:#dc3545}
+.painel-todos-pops .card-todos-pops:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
 </style></head>
 
 <body>
@@ -2176,7 +2232,10 @@ body.modo-edicao .gerador-cadastro{display:block}
 </details>
 
 <section class="geradores-painel" id="painelChecklistGeradores">
-  <h2>⚙️ Checklist semanal dos geradores</h2>
+  <div class="geradores-painel-topo">
+    <h2>⚙️ Checklist semanal dos geradores</h2>
+    <button type="button" class="btn-fechar-geradores" onclick="fecharPainelGeradores()" aria-label="Fechar painel de geradores">✕ Fechar</button>
+  </div>
   <p class="geradores-explicacao">
     Cadastre cada cidade, o gerador instalado e o técnico responsável. Toda sexta-feira,
     gere a mensagem individual de cada cidade e envie pelo Telegram ou copie para encaminhar.
@@ -2343,9 +2402,18 @@ body.modo-edicao .gerador-cadastro{display:block}
     <strong id="preventivasOk">0</strong>
   </div>
 
-  <div class="resumo-card resumo-alerta">
+  <div
+    class="resumo-card resumo-alerta"
+    onclick="mostrarPreventivasProximas()"
+    role="button"
+    tabindex="0"
+    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mostrarPreventivasProximas();}"
+    title="Clique para ver as preventivas que vencem nos próximos 7 dias"
+    style="cursor:pointer"
+  >
     🟡 Próximas do vencimento
     <strong id="preventivasAlerta">0</strong>
+    <small> Clique para ver os POPs </small>
   </div>
 
 <button
@@ -2478,7 +2546,7 @@ body.modo-edicao .gerador-cadastro{display:block}
 </div>
 <section id="painelTodosPOPs" class="painel-todos-pops" style="display:none">
   <div class="painel-energia-topo">
-    <strong>📋 Selecione um POP</strong>
+    <strong id="tituloTodosPOPs">📋 Selecione um POP</strong>
     <span id="contadorTodosPOPs">0 POPs</span>
   </div>
   <div id="cardsTodosPOPs" class="cards-todos-pops"></div>
@@ -3552,57 +3620,51 @@ function escapeHtml(text){
 /* =========================================================
    DATA
 ========================================================= */
-function mostrarPreventivasVencidas(){
+function mostrarPOPsPorPreventiva(tipo){
+  const painel=document.getElementById("painelTodosPOPs");
+  const cards=document.getElementById("cardsTodosPOPs");
+  const contador=document.getElementById("contadorTodosPOPs");
+  const titulo=document.getElementById("tituloTodosPOPs");
+  if(!painel||!cards)return;
 
-  const busca=document.getElementById("busca");
+  const lista=pops.map((pop,i)=>({pop,i,status:statusPreventiva(pop)}))
+    .filter(item=>item.status.tipo===tipo);
 
-  // Limpa a pesquisa atual
-  if(busca){
-    busca.value="";
-  }
-
-  const elementos=document.querySelectorAll(".pop");
-
-  let encontrou=false;
-
-  elementos.forEach((elemento,index)=>{
-
-    const pop=pops[index];
-
-    if(!pop) return;
-
-    const status=statusPreventiva(pop);
-
-    if(status.tipo==="vencida"){
-
-      elemento.style.display="block";
-      encontrou=true;
-
-    }else{
-
-      elemento.style.display="none";
-
-    }
-
-  });
-
-  // Se não houver nenhuma vencida
-  if(!encontrou){
-    alert("✅ Não existem preventivas vencidas.");
+  if(!lista.length){
+    alert(tipo==="alerta"
+      ? "🟢 Não existem preventivas próximas do vencimento nos próximos 7 dias."
+      : "✅ Não existem preventivas vencidas.");
     return;
   }
 
-  // Rola até a lista
-  const container=document.getElementById("pops");
+  if(titulo)titulo.textContent=tipo==="alerta"
+    ? "🟡 POPs com preventiva próxima do vencimento"
+    : "🔴 POPs com preventiva vencida";
 
-  if(container){
-    container.scrollIntoView({
-      behavior:"smooth",
-      block:"start"
-    });
-  }
+  cards.innerHTML=lista.map(({pop,i,status})=>{
+    const data=pop.proximaPreventiva?formatarData(pop.proximaPreventiva):"Data não informada";
+    const classe=tipo==="vencida"?"pop-preventiva-vencida":"pop-preventiva-alerta";
+    return `<button type="button" class="card-todos-pops ${classe}"
+      title="${escapeHtml(status.texto)} · Próxima preventiva: ${escapeHtml(data)}"
+      onclick="localizarPOPContingencia(${i})">
+      <span>${escapeHtml(pop.nome||"POP sem nome")}<small>${escapeHtml(status.texto)} · Vencimento: ${escapeHtml(data)}</small></span>
+      <span aria-hidden="true">›</span>
+    </button>`;
+  }).join("");
 
+  if(contador)contador.textContent=`${lista.length} POP(s) ${tipo==="alerta"?"próximo(s) do vencimento":"com preventiva vencida"}`;
+  painel.style.display="block";
+  painel.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
+
+function mostrarPreventivasProximas(){
+  mostrarPOPsPorPreventiva("alerta");
+}
+
+function mostrarPreventivasVencidas(){
+  mostrarPOPsPorPreventiva("vencida");
+}
+
 function formatarData(data){
 
   if(!data) return "--";
@@ -6422,6 +6484,14 @@ function abrirPainelGeradores(){
   painel.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
+function fecharPainelGeradores(){
+  const painel=document.getElementById("painelChecklistGeradores");
+  if(!painel)return;
+  painel.classList.remove("aberto");
+  const card=document.getElementById("cardPreventivasGeradores");
+  if(card)card.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
 function lerGeradores(){
   if(!Array.isArray(configGlobalDB.geradores))configGlobalDB.geradores=[];
   return configGlobalDB.geradores;
@@ -7486,10 +7556,21 @@ function montarBarraSuperiorTabelaBateria(){
   const larguraConteudo=Math.max(...tabelas.map(t=>t.scrollWidth));
   const largura=Math.max(larguraConteudo,area.clientWidth+1);
   trilho.style.width=largura+"px";
+  const painelTelaCheia=document.getElementById("painelEstoqueBaterias");
+  const emTelaCheia=!!(painelTelaCheia && painelTelaCheia.open);
   area.style.overflowX="hidden";
-  area.style.overflowY="auto";
-  area.style.maxHeight="min(65vh, 620px)";
   area.style.maxWidth="100%";
+  if(emTelaCheia){
+    // Deixa a rodinha do mouse rolar o painel inteiro, sem uma área interna concorrente.
+    area.style.overflowY="visible";
+    area.style.maxHeight="none";
+    area.style.height="auto";
+    barra.style.display="none";
+  }else{
+    area.style.overflowY="auto";
+    area.style.maxHeight="min(65vh, 620px)";
+    area.style.height="";
+  }
   let sincronizando=false;
   if(!barra.dataset.sincronizada){
     barra.addEventListener("scroll",()=>{
@@ -7502,7 +7583,7 @@ function montarBarraSuperiorTabelaBateria(){
     });
     barra.dataset.sincronizada="1";
   }
-  barra.style.display=largura>area.clientWidth?"block":"none";
+  barra.style.display=emTelaCheia?"none":(largura>area.clientWidth?"block":"none");
   barra.scrollLeft=area.scrollLeft;
 }
 
@@ -8172,11 +8253,16 @@ function mostrarTodosPOPs(){
     return;
   }
 
+  const titulo=document.getElementById("tituloTodosPOPs");
+  if(titulo)titulo.textContent="📋 Selecione um POP";
   cards.innerHTML=pops.map((pop,i)=>{
+    const status=statusPreventiva(pop);
     const semEnergia=!!(pop.quedaEnergiaEm&&!pop.energiaRestabelecidaEm);
-    const subtitulo=semEnergia?"🔴 Falta de energia registrada":"🟢 Situação normal";
-    return `<button type="button" class="card-todos-pops" onclick="localizarPOPContingencia(${i})">
-      <span>${escapeHtml(pop.nome||"POP sem nome")}<small>${subtitulo}</small></span>
+    const energia=semEnergia?" · 🔴 Sem energia":"";
+    const data=pop.proximaPreventiva?` · Vencimento: ${formatarData(pop.proximaPreventiva)}`:"";
+    return `<button type="button" class="card-todos-pops" onclick="localizarPOPContingencia(${i})"
+      title="${escapeHtml(status.texto)}${escapeHtml(data)}${escapeHtml(energia)}">
+      <span>${escapeHtml(pop.nome||"POP sem nome")}<small>${escapeHtml(status.texto)}${escapeHtml(energia)}</small></span>
       <span aria-hidden="true">›</span>
     </button>`;
   }).join("");
